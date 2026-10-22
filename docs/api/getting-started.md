@@ -94,8 +94,8 @@ curl -X GET "http://127.0.0.1:8000/api/v1/text-files/9f2c1a8b7d6e5f4a3b2c1d0e9f8
 curl -X GET "http://127.0.0.1:8000/api/v1/text-files/9f2c1a8b7d6e5f4a3b2c1d0e9f8a7b6c/content"
 ```
 
-> **注意**：文本文件接口只接受文本类扩展名（`.txt` `.md` `.csv` `.json` `.py` 等）。
-> 上传图片、视频等二进制文件会返回 `415`。
+> **注意**：文本文件接口只接受 `.txt` `.md` `.doc` `.docx` `.epub` 五种扩展名。
+> 上传图片、视频等其它二进制文件会返回 `415`。
 
 ## 运行测试
 
@@ -109,9 +109,39 @@ uv run pytest --cov=app --cov-report=term-missing
 # 代码检查与格式化
 uv run ruff check app tests
 uv run ruff format app tests
+
+# 命名规范检查（禁止以下划线开头的函数、方法与类名）
+uv run python scripts/check_no_underscore_prefix.py
 ```
 
 测试使用独立的临时目录作为上传目录，不会污染 `storage/uploads/` 中的数据。
+
+### 命名规范
+
+项目**禁止**使用以下划线 `_` 开头的函数、方法与类名：
+
+```python
+# fmt: off
+# 禁止
+def _helper(): ...
+class _Helper: ...
+class Service:
+    def _method(self): ...
+
+# 正确
+def helper(): ...
+class Helper: ...
+class Service:
+    def method(self): ...
+# fmt: on
+```
+
+唯一豁免是双下划线包裹的魔术方法（`__init__`、`__repr__` 等），它们属于 Python
+协议保留名。Pydantic 的验证器通过装饰器注册，重命名不影响其生效。
+
+规范由 `scripts/check_no_underscore_prefix.py` 自动检查，并已纳入测试
+（`tests/test_naming_convention.py`）。Cline 的项目级 Skill 位于
+`.cline/skills/no-underscore-prefix/`，用于在编写代码时持续遵守该约定。
 
 ## 项目结构
 
@@ -126,7 +156,7 @@ leo-studio/
 │   ├── router.py                # 路由汇总：按功能模块聚合
 │   ├── modules/                 # 业务功能模块（按功能划分）
 │   │   ├── text_files/          # 文本文件功能模块
-│   │   │   ├── constants.py     #   模块常量与扩展名白名单
+│   │   │   ├── constants.py     #   模块常量、扩展名白名单与 MIME 映射
 │   │   │   ├── config.py        #   模块独立配置
 │   │   │   ├── models.py        #   领域模型与分类规则
 │   │   │   ├── schemas.py       #   请求与响应 Schema
@@ -143,9 +173,15 @@ leo-studio/
 │   └── ...
 ├── docs/
 │   └── api/                     # 接口文档
+├── scripts/
+│   └── check_no_underscore_prefix.py  # 命名规范检查脚本
 ├── tests/
 │   ├── conftest.py
+│   ├── test_naming_convention.py
 │   └── test_text_files_api.py
+├── .cline/
+│   └── skills/
+│       └── no-underscore-prefix/    # Cline 项目级 Skill：命名规范
 └── storage/uploads/text-files/  # 文本文件存储目录（自动创建）
 ```
 

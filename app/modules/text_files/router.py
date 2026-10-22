@@ -37,7 +37,7 @@ FileIdPath = Annotated[
 ]
 
 
-def _to_upload_response(info: TextFileInfo) -> TextFileUploadResponse:
+def to_upload_response(info: TextFileInfo) -> TextFileUploadResponse:
     """将领域模型转换为上传响应 Schema。"""
     return TextFileUploadResponse(
         file_id=info.file_id,
@@ -62,7 +62,7 @@ def _to_upload_response(info: TextFileInfo) -> TextFileUploadResponse:
         "以 ``multipart/form-data`` 方式上传单个文本文件。\n\n"
         "- 表单字段名固定为 `file`\n"
         "- 可选字段 `description` 用于记录文件说明\n"
-        "- 仅接受文本类扩展名（.txt/.md/.csv/.json/.py 等）\n"
+        "- 仅接受 `.txt` `.md` `.doc` `.docx` `.epub` 五种扩展名\n"
         "- 返回 `file_id` 可用于后续下载、预览或删除"
     ),
 )
@@ -81,7 +81,7 @@ async def upload_text_file(
         content_type=file.content_type or "text/plain",
         description=description,
     )
-    return ApiResponse(data=_to_upload_response(info), message="文件上传成功")
+    return ApiResponse(data=to_upload_response(info), message="文件上传成功")
 
 
 @router.post(
@@ -115,7 +115,7 @@ async def upload_text_files(
     return ApiResponse(
         data=MultiTextFileUploadResponse(
             total=len(results),
-            files=[_to_upload_response(info) for info in results],
+            files=[to_upload_response(info) for info in results],
         ),
         message=f"成功上传 {len(results)} 个文件",
     )
@@ -170,7 +170,7 @@ async def get_text_file(
 ) -> ApiResponse[TextFileUploadResponse]:
     """查询文本文件详情。"""
     info = storage.get_file(file_id)
-    return ApiResponse(data=_to_upload_response(info))
+    return ApiResponse(data=to_upload_response(info))
 
 
 @router.get(
@@ -180,7 +180,9 @@ async def get_text_file(
     description=(
         "根据 `file_id` 读取文本文件内容并以 JSON 返回，适合在线预览。\n\n"
         "- 默认按 UTF-8 解码\n"
-        "- 可通过 `encoding` 参数指定其它字符集"
+        "- 可通过 `encoding` 参数指定其它字符集\n"
+        "- 仅 `.txt` `.md` 支持预览；`.doc` `.docx` `.epub` 为二进制文档，"
+        "调用本接口会返回 `422`，请改用下载接口"
     ),
 )
 async def get_text_file_content(

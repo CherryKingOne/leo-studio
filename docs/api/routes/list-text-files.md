@@ -55,7 +55,7 @@
 | `extension` | `string` | 文件扩展名（含点号） |
 | `size` | `integer` | 文件大小，单位字节 |
 | `size_human` | `string` | 可读的文件大小 |
-| `category` | `string` | 文本文件归类（`plain_text`/`markdown`/`data`/`config`/`source_code`/`log`/`other`） |
+| `category` | `string` | 文本文件归类（`plain_text`/`markdown`/`word`/`epub`/`other`） |
 | `uploaded_at` | `string` | 上传时间，ISO 8601 格式（UTC） |
 | `download_url` | `string` | 下载地址 |
 
@@ -110,11 +110,11 @@ for item in data["items"]:
       },
       {
         "file_id": "1a2b3c4d5e6f70819a2b3c4d5e6f7081",
-        "filename": "data.csv",
-        "extension": ".csv",
+        "filename": "report.docx",
+        "extension": ".docx",
         "size": 524288,
         "size_human": "512.00 KB",
-        "category": "data",
+        "category": "word",
         "uploaded_at": "2026-10-22T14:30:02.118753+00:00",
         "download_url": "/api/v1/text-files/1a2b3c4d5e6f70819a2b3c4d5e6f7081/download"
       }

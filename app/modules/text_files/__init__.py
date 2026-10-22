@@ -5,7 +5,7 @@
 
 模块内部文件说明：
 
-- ``constants.py``：模块常量与文本文件类型白名单
+- ``constants.py``：模块常量、扩展名白名单与 MIME 映射
 - ``config.py``：模块独立配置
 - ``models.py``：领域模型与分类规则
 - ``schemas.py``：请求与响应 Schema

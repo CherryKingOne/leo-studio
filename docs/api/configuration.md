@@ -39,10 +39,12 @@ Leo Studio 后端服务的全部配置项均可通过**环境变量**或项目�
 
 | 分类 | 扩展名 |
 | --- | --- |
-| 纯文本与文档 | `.txt` `.md` `.markdown` `.rst` `.log` |
-| 结构化数据 | `.csv` `.tsv` `.json` `.yaml` `.yml` `.xml` |
-| 配置文件 | `.toml` `.ini` `.cfg` `.conf` `.env` |
-| 源码 | `.py` `.js` `.jsx` `.ts` `.tsx` `.css` `.html` `.htm` `.sql` |
+| 纯文本 | `.txt` `.md` |
+| Word 文档 | `.doc` `.docx` |
+| 电子书 | `.epub` |
+
+> **注意**：`.doc` `.docx` `.epub` 为二进制文档格式，不支持文本内容预览接口
+> （`GET /api/v1/text-files/{file_id}/content`），请使用下载接口获取原始文件。
 
 ## 使用示例
 
@@ -56,7 +58,7 @@ LEO_CORS_ORIGINS=http://localhost:5173
 LEO_MAX_UPLOAD_SIZE_MB=100
 
 # 文本文件模块配置
-LEO_TEXT_FILES_ALLOWED_EXTENSIONS=.txt,.md,.csv,.json,.py
+LEO_TEXT_FILES_ALLOWED_EXTENSIONS=.txt,.md,.doc,.docx,.epub
 LEO_TEXT_FILES_MAX_UPLOAD_SIZE_MB=20
 LEO_TEXT_FILES_UPLOAD_DIR=storage/uploads/text-files
 ```

@@ -22,6 +22,9 @@
 > （类型不支持、超限、空文件等），整个请求返回错误，
 > 且本次调用已落盘的前序文件会被自动删除，索引记录一并清理，不留半成品数据。
 
+> **注意**：本接口只接受 `.txt` `.md` `.doc` `.docx` `.epub` 五种扩展名，
+> 其余类型一律返回 `415` 并整体回滚。
+
 ## 请求参数
 
 ### Header
@@ -55,8 +58,8 @@
 | `extension` | `string` | 文件扩展名（含点号） |
 | `size` | `integer` | 文件大小，单位字节 |
 | `size_human` | `string` | 可读的文件大小 |
-| `content_type` | `string` | MIME 类型 |
-| `category` | `string` | 文本文件归类（`plain_text`/`markdown`/`data`/`config`/`source_code`/`log`/`other`） |
+| `content_type` | `string` | MIME 类型，按扩展名推导 |
+| `category` | `string` | 文本文件归类（`plain_text`/`markdown`/`word`/`epub`/`other`） |
 | `uploaded_at` | `string` | 上传时间，ISO 8601 格式（UTC） |
 | `download_url` | `string` | 下载地址 |
 | `description` | `string \| null` | 文件描述（本接口不传该字段，恒为 `null`） |
@@ -69,7 +72,7 @@
 curl -X POST "http://127.0.0.1:8000/api/v1/text-files/upload/multiple" \
   -F "files=@./a.txt" \
   -F "files=@./b.md" \
-  -F "files=@./c.json"
+  -F "files=@./c.epub"
 ```
 
 ```python
@@ -78,15 +81,13 @@ import httpx
 files = [
     ("files", ("a.txt", open("a.txt", "rb"), "text/plain")),
     ("files", ("b.md", open("b.md", "rb"), "text/markdown")),
-    ("files", ("c.json", open("c.json", "rb"), "application/json")),
+    ("files", ("c.epub", open("c.epub", "rb"), "application/epub+zip")),
 ]
 
-response = httpx.post(
-    "http://127.0.0.1:8000/api/v1/text-files/upload/multiple", files=files
-)
+response = httpx.post("http://127.0.0.1:8000/api/v1/text-files/upload/multiple", files=files)
 
 data = response.json()["data"]
-print(data["total"])              # 3
+print(data["total"])  # 3
 for item in data["files"]:
     print(item["file_id"], item["filename"], item["size_human"])
 ```
@@ -130,13 +131,13 @@ for item in data["files"]:
       },
       {
         "file_id": "2b3c4d5e6f708192a3b4c5d6e7f80912",
-        "filename": "c.json",
-        "stored_name": "2b3c4d5e6f708192a3b4c5d6e7f80912.json",
-        "extension": ".json",
+        "filename": "c.epub",
+        "stored_name": "2b3c4d5e6f708192a3b4c5d6e7f80912.epub",
+        "extension": ".epub",
         "size": 512,
         "size_human": "512 B",
-        "content_type": "application/json",
-        "category": "data",
+        "content_type": "application/epub+zip",
+        "category": "epub",
         "uploaded_at": "2026-10-22T14:32:18.478913+00:00",
         "download_url": "/api/v1/text-files/2b3c4d5e6f708192a3b4c5d6e7f80912/download",
         "description": null
@@ -153,7 +154,7 @@ for item in data["files"]:
 
 | HTTP 状态码 | `code` | 典型场景 |
 | --- | --- | --- |
-| `415` | `41500` | 列表中某个文件扩展名不在文本文件白名单内 |
+| `415` | `41500` | 列表中某个文件扩展名不在白名单内（仅支持 `.txt` `.md` `.doc` `.docx` `.epub`） |
 | `413` | `41300` | 列表中某个文件超过大小限制 |
 | `422` | `40000` | 未提交任何文件，或某个文件内容为空 |
 

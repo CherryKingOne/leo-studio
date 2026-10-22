@@ -126,6 +126,100 @@ class TestUpload:
         assert stored == []
 
 
+class TestSupportedExtensions:
+    """白名单扩展名的接受与拒绝测试。"""
+
+    @pytest.mark.parametrize(
+        ("filename", "expected_category"),
+        [
+            ("a.txt", "plain_text"),
+            ("a.md", "markdown"),
+            ("a.doc", "word"),
+            ("a.docx", "word"),
+            ("a.epub", "epub"),
+        ],
+    )
+    def test_all_supported_extensions_accepted(
+        self, client: TestClient, filename: str, expected_category: str
+    ) -> None:
+        """五种受支持的扩展名都应上传成功并正确归类。"""
+        response = client.post(
+            f"{API}/upload",
+            files={"file": (filename, io.BytesIO(b"payload"), "application/octet-stream")},
+        )
+        assert response.status_code == 200
+        data = response.json()["data"]
+        assert data["filename"] == filename
+        assert data["category"] == expected_category
+
+    @pytest.mark.parametrize("filename", ["a.csv", "a.json", "a.py", "a.log", "a.rst"])
+    def test_removed_extensions_rejected(self, client: TestClient, filename: str) -> None:
+        """已从白名单移除的扩展名应返回 415。"""
+        response = client.post(
+            f"{API}/upload",
+            files={"file": (filename, io.BytesIO(b"payload"), "text/plain")},
+        )
+        assert response.status_code == 415
+        assert response.json()["code"] == ErrorCode.UNSUPPORTED_FILE_TYPE
+
+    def test_binary_document_gets_correct_mime_type(self, client: TestClient) -> None:
+        """MIME 类型按扩展名推导，不受客户端提交值影响。"""
+        response = client.post(
+            f"{API}/upload",
+            files={"file": ("book.epub", io.BytesIO(b"PK\x03\x04payload"), "text/plain")},
+        )
+        assert response.status_code == 200
+        assert response.json()["data"]["content_type"] == "application/epub+zip"
+
+    def test_docx_gets_correct_mime_type(self, client: TestClient) -> None:
+        """`.docx` 应推导出标准 OOXML MIME 类型。"""
+        response = client.post(
+            f"{API}/upload",
+            files={"file": ("report.docx", io.BytesIO(b"PK\x03\x04payload"), "text/plain")},
+        )
+        assert response.status_code == 200
+        data = response.json()["data"]
+        assert data["content_type"] == (
+            "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+        )
+        assert data["category"] == "word"
+
+    def test_doc_gets_correct_mime_type(self, client: TestClient) -> None:
+        """`.doc` 应推导出 `application/msword`。"""
+        response = client.post(
+            f"{API}/upload",
+            files={"file": ("legacy.doc", io.BytesIO(b"\xd0\xcf\x11\xe0payload"), "text/plain")},
+        )
+        assert response.status_code == 200
+        assert response.json()["data"]["content_type"] == "application/msword"
+
+    def test_binary_document_preview_is_rejected(self, client: TestClient) -> None:
+        """二进制文档不支持文本预览，应返回 422 而非解码异常。"""
+        upload = client.post(
+            f"{API}/upload",
+            files={"file": ("book.epub", io.BytesIO(b"PK\x03\x04payload"), "text/plain")},
+        )
+        file_id = upload.json()["data"]["file_id"]
+
+        response = client.get(f"{API}/{file_id}/content")
+        assert response.status_code == 422
+        assert response.json()["code"] == ErrorCode.INVALID_PARAMETER
+
+    def test_binary_document_download_works(self, client: TestClient) -> None:
+        """二进制文档仍可通过下载接口获取原始字节。"""
+        payload = b"PK\x03\x04epub-bytes"
+        upload = client.post(
+            f"{API}/upload",
+            files={"file": ("book.epub", io.BytesIO(payload), "text/plain")},
+        )
+        file_id = upload.json()["data"]["file_id"]
+
+        response = client.get(f"{API}/{file_id}/download")
+        assert response.status_code == 200
+        assert response.content == payload
+        assert "book.epub" in response.headers["content-disposition"]
+
+
 class TestDownload:
     """下载与查询接口测试。"""
 

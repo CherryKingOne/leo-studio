@@ -30,12 +30,13 @@
 
 ### `41500` 不支持的文件类型
 
-文本文件模块只接受文本类扩展名。上传 `.png`、`.pdf`、`.exe` 等类型会返回此错误：
+文本文件模块只接受 `.txt` `.md` `.doc` `.docx` `.epub` 五种扩展名。
+上传 `.png`、`.pdf`、`.exe` 等类型会返回此错误：
 
 ```json
 {
   "code": 41500,
-  "message": "不支持的文件类型 .png，允许的类型：.cfg, .conf, .css, .csv, .env, .htm, .html, .ini, .js, .json, .jsx, .log, .markdown, .md, .py, .rst, .sql, .toml, .ts, .tsv, .tsx, .txt, .xml, .yaml, .yml",
+  "message": "不支持的文件类型 .png，允许的类型：.doc, .docx, .epub, .md, .txt",
   "data": null,
   "request_id": "b3f1c2d4e5a60718293a4b5c6d7e8f90"
 }

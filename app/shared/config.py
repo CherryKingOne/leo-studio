@@ -38,7 +38,7 @@ class Settings(BaseSettings):
 
     @field_validator("cors_origins", mode="before")
     @classmethod
-    def _split_csv(cls, value: object) -> object:
+    def split_csv(cls, value: object) -> object:
         """允许使用逗号分隔的字符串形式配置列表。"""
         if isinstance(value, str):
             return [item.strip() for item in value.split(",") if item.strip()]

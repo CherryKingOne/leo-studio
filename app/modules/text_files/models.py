@@ -19,40 +19,18 @@ class TextFileCategory(StrEnum):
 
     PLAIN_TEXT = "plain_text"
     MARKDOWN = "markdown"
-    DATA = "data"
-    CONFIG = "config"
-    SOURCE_CODE = "source_code"
-    LOG = "log"
+    WORD = "word"
+    EPUB = "epub"
     OTHER = "other"
 
 
 #: 扩展名到归类的映射表
 EXTENSION_CATEGORY_MAP: dict[str, TextFileCategory] = {
     ".txt": TextFileCategory.PLAIN_TEXT,
-    ".log": TextFileCategory.LOG,
     ".md": TextFileCategory.MARKDOWN,
-    ".markdown": TextFileCategory.MARKDOWN,
-    ".rst": TextFileCategory.MARKDOWN,
-    ".csv": TextFileCategory.DATA,
-    ".tsv": TextFileCategory.DATA,
-    ".json": TextFileCategory.DATA,
-    ".yaml": TextFileCategory.DATA,
-    ".yml": TextFileCategory.DATA,
-    ".xml": TextFileCategory.DATA,
-    ".toml": TextFileCategory.CONFIG,
-    ".ini": TextFileCategory.CONFIG,
-    ".cfg": TextFileCategory.CONFIG,
-    ".conf": TextFileCategory.CONFIG,
-    ".env": TextFileCategory.CONFIG,
-    ".py": TextFileCategory.SOURCE_CODE,
-    ".js": TextFileCategory.SOURCE_CODE,
-    ".jsx": TextFileCategory.SOURCE_CODE,
-    ".ts": TextFileCategory.SOURCE_CODE,
-    ".tsx": TextFileCategory.SOURCE_CODE,
-    ".css": TextFileCategory.SOURCE_CODE,
-    ".html": TextFileCategory.SOURCE_CODE,
-    ".htm": TextFileCategory.SOURCE_CODE,
-    ".sql": TextFileCategory.SOURCE_CODE,
+    ".doc": TextFileCategory.WORD,
+    ".docx": TextFileCategory.WORD,
+    ".epub": TextFileCategory.EPUB,
 }
 
 

@@ -47,7 +47,7 @@ app.add_middleware(
 )
 
 
-def _request_id(request: Request) -> str | None:
+def extract_request_id(request: Request) -> str | None:
     """从请求状态中取出 request_id。"""
     return getattr(request.state, "request_id", None)
 
@@ -62,7 +62,7 @@ async def app_error_handler(request: Request, exc: AppError) -> JSONResponse:
             "code": exc.code,
             "message": exc.message,
             "data": exc.details,
-            "request_id": _request_id(request),
+            "request_id": extract_request_id(request),
         },
     )
 
@@ -76,7 +76,7 @@ async def validation_error_handler(request: Request, exc: RequestValidationError
             "code": ErrorCode.INVALID_PARAMETER,
             "message": "请求参数校验失败",
             "data": exc.errors(),
-            "request_id": _request_id(request),
+            "request_id": extract_request_id(request),
         },
     )
 
@@ -90,7 +90,7 @@ async def http_error_handler(request: Request, exc: StarletteHTTPException) -> J
             "code": exc.status_code * 100,
             "message": str(exc.detail),
             "data": None,
-            "request_id": _request_id(request),
+            "request_id": extract_request_id(request),
         },
     )
 
@@ -105,7 +105,7 @@ async def unhandled_error_handler(request: Request, exc: Exception) -> JSONRespo
             "code": ErrorCode.INTERNAL_ERROR,
             "message": "服务器内部错误",
             "data": None,
-            "request_id": _request_id(request),
+            "request_id": extract_request_id(request),
         },
     )
 

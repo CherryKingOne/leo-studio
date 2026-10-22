@@ -25,8 +25,10 @@
 文件以 `file_id` 作为唯一标识落盘，磁盘实际存储名为 `{file_id}{扩展名}`，
 因此同名文件多次上传不会互相覆盖。
 
-> **注意**：本接口**只接受文本类文件**（`.txt` `.md` `.csv` `.json` `.py` 等）。
-> 图片、视频、压缩包等二进制类型请使用各自独立的功能模块接口。
+> **注意**：本接口**只接受五种扩展名**：`.txt` `.md` `.doc` `.docx` `.epub`。
+> 其中 `.doc` `.docx` `.epub` 为二进制文档格式，可上传与下载，
+> 但不支持[内容预览接口](./get-text-file-content.md)。
+> 图片、视频、压缩包等其它二进制类型请使用各自独立的功能模块接口。
 
 ## 请求参数
 
@@ -58,7 +60,7 @@
 | `extension` | `string` | 文件扩展名（含点号），如 `.txt` |
 | `size` | `integer` | 文件大小，单位字节 |
 | `size_human` | `string` | 可读的文件大小，如 `1.25 KB` |
-| `content_type` | `string` | MIME 类型，由客户端提交，服务端透传 |
+| `content_type` | `string` | MIME 类型，按扩展名推导（见文末注意事项） |
 | `category` | `string` | 文本文件归类，见下方取值 |
 | `uploaded_at` | `string` | 上传时间，ISO 8601 格式（UTC） |
 | `download_url` | `string` | 下载地址，形如 `/api/v1/text-files/{file_id}/download` |
@@ -69,12 +71,10 @@
 | 值 | 含义 | 典型扩展名 |
 | --- | --- | --- |
 | `plain_text` | 纯文本 | `.txt` |
-| `markdown` | Markdown 文档 | `.md` `.markdown` `.rst` |
-| `data` | 结构化数据 | `.csv` `.tsv` `.json` `.yaml` `.yml` `.xml` |
-| `config` | 配置文件 | `.toml` `.ini` `.cfg` `.conf` `.env` |
-| `source_code` | 源码 | `.py` `.js` `.jsx` `.ts` `.tsx` `.css` `.html` `.htm` `.sql` |
-| `log` | 日志文件 | `.log` |
-| `other` | 其他 | 不在上述分类中的类型 |
+| `markdown` | Markdown 文档 | `.md` |
+| `word` | Word 文档 | `.doc` `.docx` |
+| `epub` | 电子书 | `.epub` |
+| `other` | 其他 | 通过白名单配置扩展时可能出现 |
 
 ## 成功示例
 
@@ -135,7 +135,7 @@ print(result["data"]["download_url"])
 ```json
 {
   "code": 41500,
-  "message": "不支持的文件类型 .exe，允许的类型：.cfg, .conf, .css, .csv, .env, .htm, .html, .ini, .js, .json, .jsx, .log, .markdown, .md, .py, .rst, .sql, .toml, .ts, .tsx, .tsv, .txt, .xml, .yaml, .yml",
+  "message": "不支持的文件类型 .exe，允许的类型：.doc, .docx, .epub, .md, .txt",
   "data": null,
   "request_id": "b3f1c2d4e5a60718293a4b5c6d7e8f90"
 }
@@ -174,8 +174,14 @@ print(result["data"]["download_url"])
   为 `passwd.txt`，实际落盘名为 `{file_id}.txt`，不会写入上传目录之外的任何位置。
 - **空文件**：0 字节文件会被拒绝并返回 `422`。
 - **同名文件**：每次上传都会生成新的 `file_id`，原始文件名相同不会覆盖已有文件。
-- **content_type**：服务端不做 MIME 类型嗅探，直接透传客户端提交的值；
-  扩展名白名单是唯一的类型准入控制。
+- **content_type**：服务端不做 MIME 类型嗅探。扩展名是白名单的唯一准入依据，
+  因此五种内置扩展名的 MIME 一律按扩展名推导
+  （`.txt` → `text/plain`，`.md` → `text/markdown`，
+  `.doc` → `application/msword`，
+  `.docx` → `application/vnd.openxmlformats-officedocument.wordprocessingml.document`，
+  `.epub` → `application/epub+zip`）；
+  仅当通过 `LEO_TEXT_FILES_ALLOWED_EXTENSIONS` 追加了自定义扩展名时，
+  才沿用客户端提交的值。
 - **模块隔离**：索引文件名为 `.text-files-index.json`，与其它功能模块互不干扰。
 
 ## 相关接口

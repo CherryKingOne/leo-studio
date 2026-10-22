@@ -37,8 +37,8 @@
 | `extension` | `string` | 文件扩展名（含点号） |
 | `size` | `integer` | 文件大小，单位字节 |
 | `size_human` | `string` | 可读的文件大小 |
-| `content_type` | `string` | MIME 类型，由上传时客户端提交的值透传 |
-| `category` | `string` | 文本文件归类（`plain_text`/`markdown`/`data`/`config`/`source_code`/`log`/`other`） |
+| `content_type` | `string` | MIME 类型，按扩展名推导 |
+| `category` | `string` | 文本文件归类（`plain_text`/`markdown`/`word`/`epub`/`other`） |
 | `uploaded_at` | `string` | 上传时间，ISO 8601 格式（UTC） |
 | `download_url` | `string` | 下载地址 |
 | `description` | `string \| null` | 上传时传入的文件描述，未传则为 `null` |

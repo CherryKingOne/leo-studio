@@ -23,6 +23,10 @@
 | 需要原始字节流（保存到本地、交给其它程序处理） | [下载接口](./download-text-file.md) |
 | 需要在页面上直接展示文本内容 | 本接口 |
 
+> **注意**：本接口仅支持纯文本类型 `.txt` 与 `.md`。
+> `.doc` `.docx` `.epub` 为二进制文档格式，调用本接口会返回 `422`，
+> 请改用[下载接口](./download-text-file.md)获取原始文件。
+
 ## 路径参数
 
 | 名称 | 类型 | 必填 | 说明 |
@@ -45,7 +49,7 @@
 | --- | --- | --- |
 | `file_id` | `string` | 文件唯一标识 |
 | `filename` | `string` | 清洗后的原始文件名 |
-| `content_type` | `string` | MIME 类型，由上传时客户端提交的值透传 |
+| `content_type` | `string` | MIME 类型，按扩展名推导 |
 | `encoding` | `string` | 实际使用的解码字符集 |
 | `size` | `integer` | 文件大小，单位字节 |
 | `content` | `string` | 解码后的文本内容 |
@@ -113,6 +117,20 @@ print(data["content"])
 {
   "code": 40000,
   "message": "文件不是合法的 utf-8 文本：'gbk' codec can't decode byte 0xb2 in position 0: illegal multibyte sequence",
+  "data": null,
+  "request_id": "b3f1c2d4e5a60718293a4b5c6d7e8f90"
+}
+```
+
+### `422` 二进制文档不支持预览
+
+`.doc` `.docx` `.epub` 不是可直接解码的纯文本格式，调用本接口会被拒绝，
+请改用[下载接口](./download-text-file.md)。
+
+```json
+{
+  "code": 40000,
+  "message": ".epub 为二进制文档格式，不支持文本内容预览，请使用下载接口",
   "data": null,
   "request_id": "b3f1c2d4e5a60718293a4b5c6d7e8f90"
 }

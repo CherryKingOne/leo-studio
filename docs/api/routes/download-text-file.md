@@ -20,6 +20,7 @@
 浏览器会提示下载而非直接内联渲染。
 
 若只想在线查看文本内容而非下载文件，请使用[内容预览接口](./get-text-file-content.md)。
+该预览接口仅支持 `.txt` 与 `.md`，`.doc` `.docx` `.epub` 等二进制文档请直接通过本接口获取。
 
 ## 路径参数
 
@@ -33,7 +34,7 @@
 
 | 名称 | 类型 | 说明 |
 | --- | --- | --- |
-| `Content-Type` | `string` | 与上传时提交的 MIME 类型一致，默认 `text/plain` |
+| `Content-Type` | `string` | 按扩展名推导的 MIME 类型（`.txt` → `text/plain`，`.md` → `text/markdown`，`.doc` → `application/msword`，`.docx` → `application/vnd.openxmlformats-officedocument.wordprocessingml.document`，`.epub` → `application/epub+zip`） |
 | `Content-Length` | `integer` | 文件大小，单位字节 |
 | `Content-Disposition` | `string` | 形如 `attachment; filename="notes.md"`（非 ASCII 文件名使用 RFC 5987 编码） |
 | `X-Request-ID` | `string` | 请求追踪 ID |

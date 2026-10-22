@@ -36,7 +36,7 @@ Leo Studio 后端服务的 HTTP 接口文档。所有接口基于 **FastAPI** �
 ```json
 {
   "code": 41500,
-  "message": "不支持的文件类型 .exe，允许的类型：.conf, .css, .csv, ...",
+  "message": "不支持的文件类型 .exe，允许的类型：.doc, .docx, .epub, .md, .txt",
   "data": null,
   "request_id": "b3f1c2d4e5a60718293a4b5c6d7e8f90"
 }
@@ -81,7 +81,8 @@ Leo Studio 后端服务的 HTTP 接口文档。所有接口基于 **FastAPI** �
 | 下载文本文件 | `GET` | `/api/v1/text-files/{file_id}/download` | 下载文件内容 | [download-text-file.md](./routes/download-text-file.md) |
 | 删除文本文件 | `DELETE` | `/api/v1/text-files/{file_id}` | 删除文件及其索引记录 | [delete-text-file.md](./routes/delete-text-file.md) |
 
-> 该模块**只接受文本类文件**。图片、视频、压缩包等二进制类型请新建独立功能模块
+> 该模块**只接受 `.txt` `.md` `.doc` `.docx` `.epub` 五种扩展名**。
+> 图片、视频、压缩包等其它二进制类型请新建独立功能模块
 > （例如 `app/modules/images/`），不要混入文本文件模块。
 
 ### 系统
@@ -102,8 +103,8 @@ Leo Studio 后端服务的 HTTP 接口文档。所有接口基于 **FastAPI** �
 - `stored_name`：磁盘实际存储文件名，格式为 `{file_id}{extension}`，
   例如 `9f2c1a8b7d6e5f4a3b2c1d0e9f8a7b6c.txt`。原始文件名保存在元数据索引中。
 - `filename`：用户上传时的原始文件名（已做安全清洗，剥离路径分隔符）。
-- `category`：文本文件归类，取值为 `plain_text`、`markdown`、`data`、
-  `config`、`source_code`、`log`、`other` 之一。
+- `category`：文本文件归类，取值为 `plain_text`、`markdown`、`word`、
+  `epub`、`other` 之一。
 
 ### 安全约束
 
@@ -118,10 +119,12 @@ Leo Studio 后端服务的 HTTP 接口文档。所有接口基于 **FastAPI** �
 
 | 分类 | 扩展名 |
 | --- | --- |
-| 纯文本与文档 | `.txt` `.md` `.markdown` `.rst` `.log` |
-| 结构化数据 | `.csv` `.tsv` `.json` `.yaml` `.yml` `.xml` |
-| 配置文件 | `.toml` `.ini` `.cfg` `.conf` `.env` |
-| 源码 | `.py` `.js` `.jsx` `.ts` `.tsx` `.css` `.html` `.htm` `.sql` |
+| 纯文本 | `.txt` `.md` |
+| Word 文档 | `.doc` `.docx` |
+| 电子书 | `.epub` |
+
+> **注意**：`.doc` `.docx` `.epub` 为二进制文档格式，不支持文本内容预览接口
+> （`GET /api/v1/text-files/{file_id}/content`），请使用下载接口获取原始文件。
 
 上传时服务端会：
 

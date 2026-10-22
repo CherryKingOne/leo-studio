@@ -36,7 +36,7 @@ class TextFilesSettings(BaseSettings):
 
     @field_validator("allowed_extensions", mode="before")
     @classmethod
-    def _split_csv(cls, value: object) -> object:
+    def split_csv(cls, value: object) -> object:
         """允许使用逗号分隔的字符串形式配置列表。"""
         if isinstance(value, str):
             return [item.strip() for item in value.split(",") if item.strip()]
@@ -44,7 +44,7 @@ class TextFilesSettings(BaseSettings):
 
     @field_validator("upload_dir", mode="after")
     @classmethod
-    def _resolve_upload_dir(cls, value: Path) -> Path:
+    def resolve_upload_dir(cls, value: Path) -> Path:
         """将相对路径转换为基于项目根目录的绝对路径。"""
         if value.is_absolute():
             return value
