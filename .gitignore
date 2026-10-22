@@ -1,0 +1,17 @@
+# Python-generated files
+__pycache__/
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info
+
+# Virtual environments
+.venv
+
+# 本地存储目录（上传文件与元数据索引）
+storage/
+
+# 调试文件
+_dump.py
+_dump_out.txt

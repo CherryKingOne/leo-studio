@@ -1,0 +1,185 @@
+# 上传单个文本文件
+
+上传单个文本文件到服务端，返回文件的元信息与下载地址。
+
+| 属性 | 值 |
+| --- | --- |
+| **接口地址** | `POST /api/v1/text-files/upload` |
+| **所属模块** | 文本文件管理（`app/modules/text_files/`） |
+| **请求格式** | `multipart/form-data` |
+| **响应格式** | `application/json` |
+| **认证方式** | 无（当前版本未接入鉴权） |
+| **幂等性** | 否，每次上传生成新的 `file_id` |
+
+## 接口描述
+
+将本地文本文件以表单方式提交到服务端。服务端会依次完成：
+
+1. **文件名清洗** —— 剥离路径分隔符、过滤危险字符，避免路径穿越。
+2. **扩展名校验** —— 仅接受文本类扩展名，不在白名单内直接返回 `415`，文件不会落盘。
+3. **流式写入** —— 按 1 MB 分块读取并写入磁盘，实时累计字节数。
+4. **大小校验** —— 超过大小上限（默认 50 MB）立即中断，
+   删除半成品文件并返回 `413`。
+5. **写入索引** —— 将元信息记录到 `.text-files-index.json`，供后续查询与下载使用。
+
+文件以 `file_id` 作为唯一标识落盘，磁盘实际存储名为 `{file_id}{扩展名}`，
+因此同名文件多次上传不会互相覆盖。
+
+> **注意**：本接口**只接受文本类文件**（`.txt` `.md` `.csv` `.json` `.py` 等）。
+> 图片、视频、压缩包等二进制类型请使用各自独立的功能模块接口。
+
+## 请求参数
+
+### Header
+
+| 名称 | 类型 | 必填 | 说明 |
+| --- | --- | --- | --- |
+| `Content-Type` | `string` | 是 | 固定为 `multipart/form-data; boundary=...` |
+| `X-Request-ID` | `string` | 否 | 自定义请求追踪 ID，未传则由服务端生成 |
+
+### Form Data
+
+| 名称 | 类型 | 必填 | 默认值 | 说明 |
+| --- | --- | --- | --- | --- |
+| `file` | `binary` | **是** | — | 待上传的文本文件。字段名固定为 `file` |
+| `description` | `string` | 否 | `null` | 文件描述说明，原样回显在响应中 |
+
+> **注意**：`file` 字段名不可更改，改为其他名称将返回 `422`。
+
+## 响应字段
+
+### `data` 对象（`TextFileUploadResponse`）
+
+| 字段 | 类型 | 说明 |
+| --- | --- | --- |
+| `file_id` | `string` | 文件唯一标识，32 位十六进制字符串 |
+| `filename` | `string` | 清洗后的原始文件名 |
+| `stored_name` | `string` | 磁盘实际存储文件名 `{file_id}{ext}` |
+| `extension` | `string` | 文件扩展名（含点号），如 `.txt` |
+| `size` | `integer` | 文件大小，单位字节 |
+| `size_human` | `string` | 可读的文件大小，如 `1.25 KB` |
+| `content_type` | `string` | MIME 类型，由客户端提交，服务端透传 |
+| `category` | `string` | 文本文件归类，见下方取值 |
+| `uploaded_at` | `string` | 上传时间，ISO 8601 格式（UTC） |
+| `download_url` | `string` | 下载地址，形如 `/api/v1/text-files/{file_id}/download` |
+| `description` | `string \| null` | 请求中传入的文件描述 |
+
+### `category` 取值
+
+| 值 | 含义 | 典型扩展名 |
+| --- | --- | --- |
+| `plain_text` | 纯文本 | `.txt` |
+| `markdown` | Markdown 文档 | `.md` `.markdown` `.rst` |
+| `data` | 结构化数据 | `.csv` `.tsv` `.json` `.yaml` `.yml` `.xml` |
+| `config` | 配置文件 | `.toml` `.ini` `.cfg` `.conf` `.env` |
+| `source_code` | 源码 | `.py` `.js` `.jsx` `.ts` `.tsx` `.css` `.html` `.htm` `.sql` |
+| `log` | 日志文件 | `.log` |
+| `other` | 其他 | 不在上述分类中的类型 |
+
+## 成功示例
+
+### 请求
+
+```bash
+curl -X POST "http://127.0.0.1:8000/api/v1/text-files/upload" \
+  -F "file=@./notes.md" \
+  -F "description=项目笔记"
+```
+
+```python
+import httpx
+
+with open("notes.md", "rb") as fp:
+    response = httpx.post(
+        "http://127.0.0.1:8000/api/v1/text-files/upload",
+        files={"file": ("notes.md", fp, "text/markdown")},
+        data={"description": "项目笔记"},
+    )
+
+result = response.json()
+print(result["data"]["file_id"])
+print(result["data"]["download_url"])
+```
+
+### 响应
+
+`HTTP/1.1 200 OK`
+
+```json
+{
+  "code": 0,
+  "message": "文件上传成功",
+  "data": {
+    "file_id": "9f2c1a8b7d6e5f4a3b2c1d0e9f8a7b6c",
+    "filename": "notes.md",
+    "stored_name": "9f2c1a8b7d6e5f4a3b2c1d0e9f8a7b6c.md",
+    "extension": ".md",
+    "size": 2048,
+    "size_human": "2.00 KB",
+    "content_type": "text/markdown",
+    "category": "markdown",
+    "uploaded_at": "2026-10-22T14:32:18.451092+00:00",
+    "download_url": "/api/v1/text-files/9f2c1a8b7d6e5f4a3b2c1d0e9f8a7b6c/download",
+    "description": "项目笔记"
+  },
+  "request_id": "b3f1c2d4e5a60718293a4b5c6d7e8f90"
+}
+```
+
+## 错误响应
+
+### `415` 不支持的文件类型
+
+文件扩展名不在文本文件白名单内，文件不会被保存。
+
+```json
+{
+  "code": 41500,
+  "message": "不支持的文件类型 .exe，允许的类型：.cfg, .conf, .css, .csv, .env, .htm, .html, .ini, .js, .json, .jsx, .log, .markdown, .md, .py, .rst, .sql, .toml, .ts, .tsx, .tsv, .txt, .xml, .yaml, .yml",
+  "data": null,
+  "request_id": "b3f1c2d4e5a60718293a4b5c6d7e8f90"
+}
+```
+
+### `413` 文件超过大小限制
+
+默认上限为 50 MB（`LEO_MAX_UPLOAD_SIZE_MB`，
+或模块级 `LEO_TEXT_FILES_MAX_UPLOAD_SIZE_MB`）。超限时服务端立即中断写入并删除半成品文件。
+
+```json
+{
+  "code": 41300,
+  "message": "文件大小超过限制，最大允许 50.00 MB",
+  "data": null,
+  "request_id": "b3f1c2d4e5a60718293a4b5c6d7e8f90"
+}
+```
+
+### `422` 参数校验失败
+
+常见原因：缺少 `file` 字段、文件名为空、文件内容为空（0 字节）。
+
+```json
+{
+  "code": 40000,
+  "message": "上传文件内容为空",
+  "data": null,
+  "request_id": "b3f1c2d4e5a60718293a4b5c6d7e8f90"
+}
+```
+
+## 注意事项
+
+- **文件名清洗**：上传名为 `../../etc/passwd.txt` 的文件时，响应中的 `filename`
+  为 `passwd.txt`，实际落盘名为 `{file_id}.txt`，不会写入上传目录之外的任何位置。
+- **空文件**：0 字节文件会被拒绝并返回 `422`。
+- **同名文件**：每次上传都会生成新的 `file_id`，原始文件名相同不会覆盖已有文件。
+- **content_type**：服务端不做 MIME 类型嗅探，直接透传客户端提交的值；
+  扩展名白名单是唯一的类型准入控制。
+- **模块隔离**：索引文件名为 `.text-files-index.json`，与其它功能模块互不干扰。
+
+## 相关接口
+
+- [批量上传文本文件](./upload-text-files-multiple.md) —— 一次上传多个文本文件
+- [下载文本文件](./download-text-file.md) —— 使用返回的 `file_id` 下载
+- [查询文本文件列表](./list-text-files.md) —— 查看已上传的全部文本文件
