@@ -18,7 +18,6 @@ from app.modules.text_files.constants import MODULE_TAG, ROUTE_PREFIX
 from app.modules.text_files.dependencies import get_storage_service
 from app.modules.text_files.models import TextFileInfo
 from app.modules.text_files.schemas import (
-    MultiTextFileUploadResponse,
     TextFileContentResponse,
     TextFileDeleteResponse,
     TextFileListItem,
@@ -82,43 +81,6 @@ async def upload_text_file(
         description=description,
     )
     return ApiResponse(data=to_upload_response(info), message="文件上传成功")
-
-
-@router.post(
-    "/upload/multiple",
-    response_model=ApiResponse[MultiTextFileUploadResponse],
-    summary="批量上传文本文件",
-    description=(
-        "以 ``multipart/form-data`` 方式一次上传多个文本文件。\n\n"
-        "- 表单字段名固定为 `files`（可重复）\n"
-        "- 采用全成功或全回滚语义：任一文件校验失败则整体失败，"
-        "已上传的文件会被自动清理\n"
-        "- 返回每个文件的元信息与下载地址"
-    ),
-)
-async def upload_text_files(
-    files: Annotated[list[UploadFile], File(description="待上传的文本文件列表")],
-    storage: TextFileStorageService = Depends(get_storage_service),
-) -> ApiResponse[MultiTextFileUploadResponse]:
-    """批量上传文本文件。"""
-    if not files:
-        raise InvalidParameterError("至少需要上传一个文件")
-
-    for item in files:
-        if item.filename is None or not item.filename.strip():
-            raise InvalidParameterError("文件名不能为空")
-
-    results = storage.save_files(
-        (item.filename, item.file, item.content_type or "text/plain") for item in files
-    )
-
-    return ApiResponse(
-        data=MultiTextFileUploadResponse(
-            total=len(results),
-            files=[to_upload_response(info) for info in results],
-        ),
-        message=f"成功上传 {len(results)} 个文件",
-    )
 
 
 @router.get(

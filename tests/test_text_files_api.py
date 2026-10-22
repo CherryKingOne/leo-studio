@@ -9,7 +9,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from app.modules.text_files.service import TextFileStorageService, human_size
-from app.shared.errors import AppError, ErrorCode
+from app.shared.errors import ErrorCode
 
 API = "/api/v1/text-files"
 
@@ -46,21 +46,6 @@ class TestUpload:
         )
         assert response.status_code == 200
         assert response.json()["data"]["description"] == "笔记文件"
-
-    def test_upload_multiple_files(self, client: TestClient) -> None:
-        """批量上传应返回所有文件。"""
-        response = client.post(
-            f"{API}/upload/multiple",
-            files=[
-                ("files", ("a.txt", io.BytesIO(b"aaa"), "text/plain")),
-                ("files", ("b.txt", io.BytesIO(b"bbb"), "text/plain")),
-            ],
-        )
-        assert response.status_code == 200
-        data = response.json()["data"]
-        assert data["total"] == 2
-        assert len(data["files"]) == 2
-        assert {item["filename"] for item in data["files"]} == {"a.txt", "b.txt"}
 
     def test_upload_rejects_unsupported_type(self, client: TestClient) -> None:
         """不在白名单中的扩展名应被拒绝。"""
@@ -108,22 +93,6 @@ class TestUpload:
         )
         assert response.status_code == 422
         assert response.json()["code"] == ErrorCode.INVALID_PARAMETER
-
-    def test_upload_multiple_rolls_back_on_failure(
-        self, client: TestClient, upload_dir: Path
-    ) -> None:
-        """批量上传中任一文件非法时，已上传的文件应被回滚清理。"""
-        response = client.post(
-            f"{API}/upload/multiple",
-            files=[
-                ("files", ("ok.txt", io.BytesIO(b"ok"), "text/plain")),
-                ("files", ("bad.exe", io.BytesIO(b"bad"), "application/octet-stream")),
-            ],
-        )
-        assert response.status_code == 415
-        # 回滚后目录中不应残留任何已上传的文本文件。
-        stored = [p for p in upload_dir.iterdir() if not p.name.startswith(".")]
-        assert stored == []
 
 
 class TestSupportedExtensions:
@@ -374,17 +343,6 @@ class TestStorageService:
         second = storage.save_file("same.txt", io.BytesIO(b"b"), content_type="text/plain")
         assert first.file_id != second.file_id
         assert first.filename == second.filename == "same.txt"
-
-    def test_save_files_rolls_back(self, storage: TextFileStorageService) -> None:
-        """批量保存失败时应回滚已写入的文件与索引。"""
-        with pytest.raises(AppError):
-            storage.save_files(
-                [
-                    ("ok.txt", io.BytesIO(b"ok"), "text/plain"),
-                    ("bad.exe", io.BytesIO(b"bad"), "application/octet-stream"),
-                ]
-            )
-        assert storage.list_files() == ([], 0)
 
     def test_cleanup(self, storage: TextFileStorageService, upload_dir: Path) -> None:
         """cleanup 应清空上传目录。"""

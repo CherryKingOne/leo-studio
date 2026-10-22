@@ -74,7 +74,6 @@ Leo Studio 后端服务的 HTTP 接口文档。所有接口基于 **FastAPI** �
 | 接口 | 方法 | 路径 | 说明 | 文档 |
 | --- | --- | --- | --- | --- |
 | 上传单个文本文件 | `POST` | `/api/v1/text-files/upload` | 上传单个文本文件并返回元信息 | [upload-text-file.md](./routes/upload-text-file.md) |
-| 批量上传文本文件 | `POST` | `/api/v1/text-files/upload/multiple` | 一次上传多个文本文件（全成功或全回滚） | [upload-text-files-multiple.md](./routes/upload-text-files-multiple.md) |
 | 查询文本文件列表 | `GET` | `/api/v1/text-files` | 分页查询已上传的文本文件 | [list-text-files.md](./routes/list-text-files.md) |
 | 查询文本文件详情 | `GET` | `/api/v1/text-files/{file_id}` | 获取单个文本文件的完整元信息 | [get-text-file.md](./routes/get-text-file.md) |
 | 预览文本文件内容 | `GET` | `/api/v1/text-files/{file_id}/content` | 以 JSON 返回解码后的文本内容 | [get-text-file-content.md](./routes/get-text-file-content.md) |

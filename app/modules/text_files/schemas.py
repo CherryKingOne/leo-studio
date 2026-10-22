@@ -28,13 +28,6 @@ class TextFileUploadResponse(BaseModel):
     description: str | None = Field(default=None, description="文件描述")
 
 
-class MultiTextFileUploadResponse(BaseModel):
-    """批量上传结果。"""
-
-    total: int = Field(description="本次上传成功的文件数量")
-    files: list[TextFileUploadResponse] = Field(description="上传结果列表")
-
-
 class TextFileListItem(BaseModel):
     """文件列表项。"""
 

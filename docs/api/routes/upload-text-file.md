@@ -186,6 +186,5 @@ print(result["data"]["download_url"])
 
 ## 相关接口
 
-- [批量上传文本文件](./upload-text-files-multiple.md) —— 一次上传多个文本文件
 - [下载文本文件](./download-text-file.md) —— 使用返回的 `file_id` 下载
 - [查询文本文件列表](./list-text-files.md) —— 查看已上传的全部文本文件

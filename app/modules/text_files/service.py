@@ -5,7 +5,6 @@
 - 文件以 ``file_id`` 作为唯一标识，原始文件名保存在索引中，
   实际落盘文件名形如 ``{file_id}{ext}``，避免重名覆盖与路径穿越。
 - 扩展名白名单来自模块自身配置，文本文件之外的类型一律拒绝。
-- 批量保存采用“全成功或全回滚”语义，任一文件失败则清理本次已落盘的文件。
 """
 
 from __future__ import annotations
@@ -14,7 +13,6 @@ import json
 import re
 import shutil
 import uuid
-from collections.abc import Iterable
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import BinaryIO
@@ -190,50 +188,6 @@ class TextFileStorageService:
         index[file_id] = self.to_record(info)
         self.save_index(index)
         return info
-
-    def save_files(
-        self,
-        items: Iterable[tuple[str, BinaryIO, str]],
-        *,
-        descriptions: Iterable[str | None] | None = None,
-    ) -> list[TextFileInfo]:
-        """批量保存文本文件，采用全成功或全回滚语义。
-
-        任一文件保存失败时，本次调用已落盘的文件与索引记录会被清理，
-        不会留下半成品数据。
-        """
-        item_list = list(items)
-        description_list = list(descriptions) if descriptions is not None else []
-        saved: list[TextFileInfo] = []
-        try:
-            for index, (filename, content, content_type) in enumerate(item_list):
-                description = description_list[index] if index < len(description_list) else None
-                saved.append(
-                    self.save_file(
-                        filename,
-                        content,
-                        content_type=content_type,
-                        description=description,
-                    )
-                )
-        except Exception:
-            self.rollback(saved)
-            raise
-        return saved
-
-    def rollback(self, infos: list[TextFileInfo]) -> None:
-        """回滚批量保存：删除已落盘文件并清理索引记录。"""
-        if not infos:
-            return
-        for info in infos:
-            (self.upload_dir / info.stored_name).unlink(missing_ok=True)
-        index = self.load_index()
-        changed = False
-        for info in infos:
-            if index.pop(info.file_id, None) is not None:
-                changed = True
-        if changed:
-            self.save_index(index)
 
     def to_record(self, info: TextFileInfo) -> dict:
         """将领域模型转换为索引记录。"""
