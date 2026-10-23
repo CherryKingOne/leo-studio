@@ -16,6 +16,36 @@ MODULE_TAG: Final[str] = "文本文件"
 #: 元数据索引文件名，与其它功能模块隔离，避免互相覆盖
 INDEX_FILENAME: Final[str] = ".text-files-index.json"
 
+#: 小说元数据与内容存储目录（相对于项目根目录）
+DEFAULT_CSV_DIR: Final[str] = ".leo-studio"
+
+#: 小说元信息表文件名
+NOVELS_CSV_FILENAME: Final[str] = "novels.csv"
+
+#: 小说内容表文件名
+NOVEL_CONTENTS_CSV_FILENAME: Final[str] = "novel_contents.csv"
+
+#: 小说元信息表表头字段（纯小说元信息，包含格式 format，不含 author、genre、avg_words_per_chapter 及底层存储技术字段）
+NOVELS_COLUMNS: Final[list[str]] = [
+    "novel_id",
+    "title",
+    "format",
+    "chapter_count",
+    "total_words",
+    "line_count",
+    "created_at",
+]
+
+#: 小说内容表表头字段（按章节管理，包含章节名称与正文，通过 novel_id 关联）
+NOVEL_CONTENTS_COLUMNS: Final[list[str]] = [
+    "chapter_id",
+    "novel_id",
+    "chapter_index",
+    "chapter_title",
+    "content",
+    "word_count",
+]
+
 #: 文本文件内置白名单，可通过 LEO_TEXT_FILES_ALLOWED_EXTENSIONS 覆盖
 TEXT_FILE_EXTENSIONS: Final[frozenset[str]] = frozenset(
     {

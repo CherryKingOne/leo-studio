@@ -12,7 +12,12 @@ from pathlib import Path
 from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-from app.modules.text_files.constants import TEXT_FILE_EXTENSIONS
+from app.modules.text_files.constants import (
+    DEFAULT_CSV_DIR,
+    NOVEL_CONTENTS_CSV_FILENAME,
+    NOVELS_CSV_FILENAME,
+    TEXT_FILE_EXTENSIONS,
+)
 
 
 class TextFilesSettings(BaseSettings):
@@ -31,6 +36,12 @@ class TextFilesSettings(BaseSettings):
     max_upload_size_mb: int | None = None
     # 文本文件存储目录，相对路径基于项目根目录解析。
     upload_dir: Path = Path("storage/uploads/text-files")
+    # 小说 CSV 管理目录，默认存放在 .leo-studio。
+    csv_dir: Path = Path(DEFAULT_CSV_DIR)
+    # 小说元信息表文件名。
+    novels_csv_filename: str = NOVELS_CSV_FILENAME
+    # 小说内容表文件名。
+    novel_contents_csv_filename: str = NOVEL_CONTENTS_CSV_FILENAME
     # 文件名最大长度。
     max_filename_length: int = 255
 
@@ -42,9 +53,9 @@ class TextFilesSettings(BaseSettings):
             return [item.strip() for item in value.split(",") if item.strip()]
         return value
 
-    @field_validator("upload_dir", mode="after")
+    @field_validator("upload_dir", "csv_dir", mode="after")
     @classmethod
-    def resolve_upload_dir(cls, value: Path) -> Path:
+    def resolve_path_dir(cls, value: Path) -> Path:
         """将相对路径转换为基于项目根目录的绝对路径。"""
         if value.is_absolute():
             return value

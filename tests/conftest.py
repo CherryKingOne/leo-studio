@@ -26,10 +26,21 @@ def upload_dir() -> Path:
 
 
 @pytest.fixture
-def test_settings(upload_dir: Path) -> TextFilesSettings:
+def csv_dir() -> Path:
+    """提供独立的临时 CSV 存储目录。"""
+    path = Path(tempfile.mkdtemp(prefix="leo-csv-"))
+    try:
+        yield path
+    finally:
+        shutil.rmtree(path, ignore_errors=True)
+
+
+@pytest.fixture
+def test_settings(upload_dir: Path, csv_dir: Path) -> TextFilesSettings:
     """指向临时目录的测试配置。"""
     return TextFilesSettings(
         upload_dir=upload_dir,
+        csv_dir=csv_dir,
         max_upload_size_mb=1,
         allowed_extensions=sorted({".txt", ".md", ".doc", ".docx", ".epub"}),
     )

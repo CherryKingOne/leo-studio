@@ -15,3 +15,6 @@ storage/
 # 调试文件
 _dump.py
 _dump_out.txt
+
+# Leo Studio 运行时数据（CSV 索引与小说内容）
+.leo-studio/

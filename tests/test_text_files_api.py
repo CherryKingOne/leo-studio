@@ -349,3 +349,130 @@ class TestStorageService:
         storage.save_file("x.txt", io.BytesIO(b"a"), content_type="text/plain")
         storage.cleanup()
         assert not any(upload_dir.iterdir())
+
+
+class TestNovelCsvStorage:
+    """小说 CSV 表格管理测试。"""
+
+    def test_upload_writes_to_novels_csv(
+        self, client: TestClient, csv_dir: Path
+    ) -> None:
+        """上传小说文件后应在 novels.csv 中记录小说元信息，包含 format 字段，且不含 author、genre 及底层存储冗余字段。"""
+        response = client.post(
+            f"{API}/upload",
+            files={
+                "file": (
+                    "凡人修仙传.txt",
+                    io.BytesIO("第1章 山边小村\n正文内容在此".encode("utf-8")),
+                    "text/plain",
+                )
+            },
+        )
+        assert response.status_code == 200
+        file_id = response.json()["data"]["file_id"]
+
+        novels_csv = csv_dir / "novels.csv"
+        assert novels_csv.exists()
+        header = novels_csv.read_text(encoding="utf-8").splitlines()[0]
+        # 确保包含纯小说业务字段与文件格式
+        assert "novel_id" in header
+        assert "title" in header
+        assert "format" in header
+        assert "chapter_count" in header
+        assert "total_words" in header
+        assert "created_at" in header
+        # 确保不含已移除字段与底层技术字段
+        assert "author" not in header
+        assert "genre" not in header
+        assert "avg_words_per_chapter" not in header
+        assert "stored_name" not in header
+        assert "content_type" not in header
+        assert "category" not in header
+        assert "description" not in header
+
+        content = novels_csv.read_text(encoding="utf-8")
+        assert file_id in content
+        assert "凡人修仙传" in content
+        assert ",txt," in content
+
+    def test_upload_splits_chapters_in_novel_contents_csv(
+        self, client: TestClient, csv_dir: Path
+    ) -> None:
+        """上传小说文件后应按章节解析并写入 novel_contents.csv，通过 novel_id 关联。"""
+        novel_text = (
+            "第1章 初入仙门\n少年踏入宗门大殿，心生震撼。\n"
+            "第2章 执事发难\n执事长老冷冷一笑，说道：'且慢。'"
+        )
+        response = client.post(
+            f"{API}/upload",
+            files={"file": ("合欢宗.txt", io.BytesIO(novel_text.encode("utf-8")), "text/plain")},
+        )
+        assert response.status_code == 200
+        file_id = response.json()["data"]["file_id"]
+
+        contents_csv = csv_dir / "novel_contents.csv"
+        assert contents_csv.exists()
+        lines = contents_csv.read_text(encoding="utf-8").splitlines()
+        header = lines[0]
+        # 校验表头字段
+        assert "chapter_id" in header
+        assert "novel_id" in header
+        assert "chapter_index" in header
+        assert "chapter_title" in header
+        assert "content" in header
+        assert "word_count" in header
+
+        # 校验章节切分与关联
+        raw_csv = contents_csv.read_text(encoding="utf-8")
+        assert file_id in raw_csv
+        assert "第1章 初入仙门" in raw_csv
+        assert "少年踏入宗门大殿" in raw_csv
+        assert "第2章 执事发难" in raw_csv
+        assert "执事长老冷冷一笑" in raw_csv
+
+        # 通过 content 接口获取全文应与原内容一致
+        content_res = client.get(f"{API}/{file_id}/content")
+        assert content_res.status_code == 200
+        assert content_res.json()["data"]["content"] == novel_text
+
+    def test_delete_removes_from_both_csv_files(
+        self, client: TestClient, csv_dir: Path
+    ) -> None:
+        """删除文件时应同时从 novels.csv 与 novel_contents.csv 中删除记录。"""
+        novel_text = "第1章 待删章节\n即将被删除的内容。"
+        upload = client.post(
+            f"{API}/upload",
+            files={"file": ("to_delete.txt", io.BytesIO(novel_text.encode("utf-8")), "text/plain")},
+        )
+        file_id = upload.json()["data"]["file_id"]
+
+        novels_csv = csv_dir / "novels.csv"
+        contents_csv = csv_dir / "novel_contents.csv"
+        assert file_id in novels_csv.read_text(encoding="utf-8")
+        assert file_id in contents_csv.read_text(encoding="utf-8")
+
+        delete_res = client.delete(f"{API}/{file_id}")
+        assert delete_res.status_code == 200
+
+        assert file_id not in novels_csv.read_text(encoding="utf-8")
+        assert file_id not in contents_csv.read_text(encoding="utf-8")
+
+    def test_large_novel_content_csv_handling(
+        self, client: TestClient, csv_dir: Path
+    ) -> None:
+        """大型长篇小说内容落盘至 CSV 应不受字段大小限制报错。"""
+        chapter_1 = "第1章 巨篇开启\n" + "长篇小说章节内容测试，包含标点、\"引号\"、,逗号与换行。\n" * 2000
+        chapter_2 = "第2章 渐入佳境\n" + "第二章长篇内容测试，浩瀚长篇正文在此。\n" * 2000
+        full_text = chapter_1 + "\n" + chapter_2
+
+        upload = client.post(
+            f"{API}/upload",
+            files={"file": ("big_novel.txt", io.BytesIO(full_text.encode("utf-8")), "text/plain")},
+        )
+        assert upload.status_code == 200
+        file_id = upload.json()["data"]["file_id"]
+
+        content_res = client.get(f"{API}/{file_id}/content")
+        assert content_res.status_code == 200
+        assert content_res.json()["data"]["content"] == full_text
+

@@ -20,7 +20,7 @@
 3. **流式写入** —— 按 1 MB 分块读取并写入磁盘，实时累计字节数。
 4. **大小校验** —— 超过大小上限（默认 50 MB）立即中断，
    删除半成品文件并返回 `413`。
-5. **写入索引** —— 将元信息记录到 `.text-files-index.json`，供后续查询与下载使用。
+5. **写入 CSV 索引与内容** —— 将小说/文本文件元信息记录到 `.leo-studio/novels.csv`，并将纯文本全文内容写入 `.leo-studio/novel_contents.csv`，供后续查询、下载与在线预览使用。
 
 文件以 `file_id` 作为唯一标识落盘，磁盘实际存储名为 `{file_id}{扩展名}`，
 因此同名文件多次上传不会互相覆盖。
@@ -182,7 +182,7 @@ print(result["data"]["download_url"])
   `.epub` → `application/epub+zip`）；
   仅当通过 `LEO_TEXT_FILES_ALLOWED_EXTENSIONS` 追加了自定义扩展名时，
   才沿用客户端提交的值。
-- **模块隔离**：索引文件名为 `.text-files-index.json`，与其它功能模块互不干扰。
+- **模块数据管理**：在 `.leo-studio` 目录下通过 `novels.csv`（元信息表）和 `novel_contents.csv`（小说全文内容表）持久化管理。
 
 ## 相关接口
 
