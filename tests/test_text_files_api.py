@@ -8,6 +8,11 @@ from pathlib import Path
 import pytest
 from fastapi.testclient import TestClient
 
+from app.modules.text_files.processor import (
+    NovelDataProcessor,
+    build_sentence_records,
+    split_sentences_by_lines,
+)
 from app.modules.text_files.service import TextFileStorageService, human_size
 from app.shared.errors import ErrorCode
 
@@ -435,11 +440,11 @@ class TestNovelCsvStorage:
         assert content_res.status_code == 200
         assert content_res.json()["data"]["content"] == novel_text
 
-    def test_delete_removes_from_both_csv_files(
+    def test_delete_removes_from_all_csv_files(
         self, client: TestClient, csv_dir: Path
     ) -> None:
-        """删除文件时应同时从 novels.csv 与 novel_contents.csv 中删除记录。"""
-        novel_text = "第1章 待删章节\n即将被删除的内容。"
+        """删除文件时应同时从 novels.csv、novel_contents.csv 与 novel_sentences.csv 中删除记录。"""
+        novel_text = "第1章 待删章节\n即将被删除的内容第一行。\n即将被删除的内容第二行。"
         upload = client.post(
             f"{API}/upload",
             files={"file": ("to_delete.txt", io.BytesIO(novel_text.encode("utf-8")), "text/plain")},
@@ -448,14 +453,17 @@ class TestNovelCsvStorage:
 
         novels_csv = csv_dir / "novels.csv"
         contents_csv = csv_dir / "novel_contents.csv"
+        sentences_csv = csv_dir / "novel_sentences.csv"
         assert file_id in novels_csv.read_text(encoding="utf-8")
         assert file_id in contents_csv.read_text(encoding="utf-8")
+        assert file_id in sentences_csv.read_text(encoding="utf-8")
 
         delete_res = client.delete(f"{API}/{file_id}")
         assert delete_res.status_code == 200
 
         assert file_id not in novels_csv.read_text(encoding="utf-8")
         assert file_id not in contents_csv.read_text(encoding="utf-8")
+        assert file_id not in sentences_csv.read_text(encoding="utf-8")
 
     def test_large_novel_content_csv_handling(
         self, client: TestClient, csv_dir: Path
@@ -475,4 +483,154 @@ class TestNovelCsvStorage:
         content_res = client.get(f"{API}/{file_id}/content")
         assert content_res.status_code == 200
         assert content_res.json()["data"]["content"] == full_text
+
+
+class TestNovelSentenceProcessing:
+    """小说章节按行切句与数据处理器测试。"""
+
+    def test_split_sentences_by_lines_filters_empty_and_strips(self) -> None:
+        """应按行切分并清理首尾空白字符，同时过滤连续空行。"""
+        raw = "  \u3000第一行正文。\u3000 \n\n\n\t第二行正文。\n   \n第三行正文。  "
+        sentences = split_sentences_by_lines(raw)
+        assert sentences == ["第一行正文。", "第二行正文。", "第三行正文。"]
+
+    def test_split_sentences_empty_input(self) -> None:
+        """空字符串或仅含空格换行时应返回空列表。"""
+        assert split_sentences_by_lines("") == []
+        assert split_sentences_by_lines("  \n\t \n  ") == []
+
+    def test_build_sentence_records(self) -> None:
+        """构造切句记录应包含全部标准字段，索引从 0 递增。"""
+        sentences = ["你好世界。", "FastAPI 很高效。"]
+        records = build_sentence_records("novel-123", "chapter-456", sentences)
+        assert len(records) == 2
+
+        assert records[0]["novel_id"] == "novel-123"
+        assert records[0]["chapter_id"] == "chapter-456"
+        assert records[0]["sentence_index"] == "0"
+        assert records[0]["content"] == "你好世界。"
+        assert records[0]["word_count"] == "5"
+
+        assert records[1]["sentence_index"] == "1"
+        assert records[1]["content"] == "FastAPI 很高效。"
+        assert records[1]["word_count"] == "11"
+
+    def test_upload_creates_novel_sentences_csv(
+        self, client: TestClient, csv_dir: Path
+    ) -> None:
+        """上传小说后应生成 novel_sentences.csv，包含切句记录并与章节关联。"""
+        novel_text = (
+            "第1章 登仙之路\n"
+            "少年仰望苍穹，眼神坚定。\n"
+            "长生大道漫漫，唯剑作伴。\n"
+            "第2章 仙门测试\n"
+            "测灵石发出微弱的光芒。\n"
+        )
+        upload = client.post(
+            f"{API}/upload",
+            files={"file": ("剑道.txt", io.BytesIO(novel_text.encode("utf-8")), "text/plain")},
+        )
+        assert upload.status_code == 200
+        file_id = upload.json()["data"]["file_id"]
+
+        sentences_csv = csv_dir / "novel_sentences.csv"
+        assert sentences_csv.exists()
+
+        header = sentences_csv.read_text(encoding="utf-8").splitlines()[0]
+        assert "sentence_id" in header
+        assert "novel_id" in header
+        assert "chapter_id" in header
+        assert "sentence_index" in header
+        assert "content" in header
+        assert "word_count" in header
+
+        contents = sentences_csv.read_text(encoding="utf-8")
+        assert file_id in contents
+        assert "少年仰望苍穹，眼神坚定。" in contents
+        assert "长生大道漫漫，唯剑作伴。" in contents
+        assert "测灵石发出微弱的光芒。" in contents
+
+    def test_get_sentences_api(self, client: TestClient) -> None:
+        """切句查询接口应正确返回小说各章节的所有切句记录。"""
+        novel_text = (
+            "第1章 启程\n"
+            "春风拂面，柳絮纷飞。\n"
+            "少年整装待发。\n"
+        )
+        upload = client.post(
+            f"{API}/upload",
+            files={"file": ("启程.txt", io.BytesIO(novel_text.encode("utf-8")), "text/plain")},
+        )
+        file_id = upload.json()["data"]["file_id"]
+
+        res = client.get(f"{API}/{file_id}/sentences")
+        assert res.status_code == 200
+        body = res.json()
+        assert body["code"] == ErrorCode.SUCCESS
+        data = body["data"]
+        assert data["novel_id"] == file_id
+        assert data["total"] == 2
+        items = data["items"]
+        assert len(items) == 2
+        assert items[0]["sentence_index"] == 0
+        assert items[0]["content"] == "春风拂面，柳絮纷飞。"
+        assert items[0]["word_count"] == 10
+        assert items[1]["sentence_index"] == 1
+        assert items[1]["content"] == "少年整装待发。"
+
+    def test_get_sentences_api_filter_by_chapter_id(
+        self, client: TestClient, csv_dir: Path
+    ) -> None:
+        """切句查询接口支持根据 chapter_id 过滤指定章节的句子。"""
+        novel_text = (
+            "第1章 第一章内容\n"
+            "第一章的一行。\n"
+            "第2章 第二章内容\n"
+            "第二章的一行。\n"
+        )
+        upload = client.post(
+            f"{API}/upload",
+            files={"file": ("多章节.txt", io.BytesIO(novel_text.encode("utf-8")), "text/plain")},
+        )
+        file_id = upload.json()["data"]["file_id"]
+
+        # 从 contents 表中获取第二章的 chapter_id
+        contents_csv = csv_dir / "novel_contents.csv"
+        rows = contents_csv.read_text(encoding="utf-8").splitlines()
+        chapter_2_id = ""
+        for line in rows[1:]:
+            parts = line.split(",")
+            if len(parts) >= 4 and "第2章" in parts[3]:
+                chapter_2_id = parts[0]
+                break
+        assert chapter_2_id != ""
+
+        res = client.get(f"{API}/{file_id}/sentences", params={"chapter_id": chapter_2_id})
+        assert res.status_code == 200
+        items = res.json()["data"]["items"]
+        assert len(items) == 1
+        assert items[0]["chapter_id"] == chapter_2_id
+        assert items[0]["content"] == "第二章的一行。"
+
+    def test_processor_save_and_delete_methods(self, storage: TextFileStorageService) -> None:
+        """测试 NovelDataProcessor 的保存与删除生命周期。"""
+        processor = storage.processor
+        novel_id = "test-novel-uuid"
+        chapter_id = "test-chapter-uuid"
+        content = "落霞与孤鹜齐飞。\n秋水共长天一色。"
+
+        records = processor.process_and_save_chapter(novel_id, chapter_id, content)
+        assert len(records) == 2
+
+        query_by_ch = processor.get_sentences_by_chapter(chapter_id)
+        assert len(query_by_ch) == 2
+
+        query_by_nov = processor.get_sentences_by_novel(novel_id)
+        assert len(query_by_nov) == 2
+
+        deleted = processor.delete_sentences_by_novel(novel_id)
+        assert deleted is True
+
+        assert len(processor.get_sentences_by_novel(novel_id)) == 0
+
 

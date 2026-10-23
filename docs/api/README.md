@@ -77,6 +77,7 @@ Leo Studio 后端服务的 HTTP 接口文档。所有接口基于 **FastAPI** �
 | 查询文本文件列表 | `GET` | `/api/v1/text-files` | 分页查询已上传的文本文件 | [list.md](./routes/text-files/list.md) |
 | 查询文本文件详情 | `GET` | `/api/v1/text-files/{file_id}` | 获取单个文本文件的完整元信息 | [file.md](./routes/text-files/file.md) |
 | 预览文本文件内容 | `GET` | `/api/v1/text-files/{file_id}/content` | 以 JSON 返回解码后的文本内容 | [content.md](./routes/text-files/content.md) |
+| 查询小说章节切句 | `GET` | `/api/v1/text-files/{file_id}/sentences` | 获取按行切分后的小说句子列表 | - |
 | 下载文本文件 | `GET` | `/api/v1/text-files/{file_id}/download` | 下载文件内容 | [download.md](./routes/text-files/download.md) |
 | 删除文本文件 | `DELETE` | `/api/v1/text-files/{file_id}` | 删除文件及其索引记录 | [delete.md](./routes/text-files/delete.md) |
 
@@ -136,7 +137,7 @@ Leo Studio 后端服务的 HTTP 接口文档。所有接口基于 **FastAPI** �
 2. **过滤字符**：将非字母数字、下划线、中日韩文字、中划线、点的字符替换为 `_`。
 3. **校验扩展名**：不在白名单内直接拒绝，不会落盘。
 4. **流式写入**：按 1 MB 分块读写，实时累计字节数，超限立即中断并清理半成品文件。
-5. **模块隔离**：索引文件 `.text-files-index.json` 与其它功能模块互不干扰。
+5. **结构化存储**：纯文本小说会自动提取章节并按行切句，分别落盘至 `.leo-studio/novels.csv`、`novel_contents.csv` 与 `novel_sentences.csv`，各模块与表数据相互隔离。
 
 ### 错误排查
 

@@ -25,6 +25,9 @@ NOVELS_CSV_FILENAME: Final[str] = "novels.csv"
 #: 小说内容表文件名
 NOVEL_CONTENTS_CSV_FILENAME: Final[str] = "novel_contents.csv"
 
+#: 小说章节切句表文件名
+NOVEL_SENTENCES_CSV_FILENAME: Final[str] = "novel_sentences.csv"
+
 #: 小说元信息表表头字段（纯小说元信息，包含格式 format，不含 author、genre、avg_words_per_chapter 及底层存储技术字段）
 NOVELS_COLUMNS: Final[list[str]] = [
     "novel_id",
@@ -42,6 +45,16 @@ NOVEL_CONTENTS_COLUMNS: Final[list[str]] = [
     "novel_id",
     "chapter_index",
     "chapter_title",
+    "content",
+    "word_count",
+]
+
+#: 小说章节切句表表头字段（按行切句，通过 novel_id 与 chapter_id 关联）
+NOVEL_SENTENCES_COLUMNS: Final[list[str]] = [
+    "sentence_id",
+    "novel_id",
+    "chapter_id",
+    "sentence_index",
     "content",
     "word_count",
 ]

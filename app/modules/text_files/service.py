@@ -25,6 +25,7 @@ from app.modules.text_files.constants import (
     BINARY_EXTENSIONS,
     EXTENSION_MIME_MAP,
     NOVEL_CONTENTS_COLUMNS,
+    NOVEL_SENTENCES_COLUMNS,
     NOVELS_COLUMNS,
 )
 from app.modules.text_files.csv_store import CsvTable
@@ -35,6 +36,7 @@ from app.modules.text_files.parsers import (
     parse_chapters,
     parse_novel_filename,
 )
+from app.modules.text_files.processor import NovelDataProcessor
 from app.shared.config import get_settings
 from app.shared.errors import (
     FileNotFoundError,
@@ -75,6 +77,14 @@ class TextFileStorageService:
         self.contents_table = CsvTable(
             self.csv_dir / self.settings.novel_contents_csv_filename,
             columns=NOVEL_CONTENTS_COLUMNS,
+        )
+        self.sentences_table = CsvTable(
+            self.csv_dir / self.settings.novel_sentences_csv_filename,
+            columns=NOVEL_SENTENCES_COLUMNS,
+        )
+        self.processor = NovelDataProcessor(
+            sentences_table=self.sentences_table,
+            contents_table=self.contents_table,
         )
 
     # ------------------------------------------------------------------
@@ -236,18 +246,31 @@ class TextFileStorageService:
             "created_at": now.isoformat(),
         })
 
-        # 批量写入小说章节内容表 (novel_contents.csv)
+        # 批量写入小说章节内容表 (novel_contents.csv) 与章节切句表 (novel_sentences.csv)
         chapter_records = []
+        sentence_records = []
         for idx, (ch_title, ch_content) in enumerate(chapters):
+            ch_id = uuid.uuid4().hex
             chapter_records.append({
-                "chapter_id": uuid.uuid4().hex,
+                "chapter_id": ch_id,
                 "novel_id": file_id,
                 "chapter_index": str(idx),
                 "chapter_title": ch_title,
                 "content": ch_content,
                 "word_count": str(count_words(ch_content)),
             })
+            if ch_content:
+                sentence_records.extend(
+                    self.processor.create_sentence_records(
+                        novel_id=file_id,
+                        chapter_id=ch_id,
+                        content=ch_content,
+                    )
+                )
+
         self.contents_table.insert_batch(chapter_records)
+        if sentence_records:
+            self.sentences_table.insert_batch(sentence_records)
 
         return info
 
@@ -332,6 +355,7 @@ class TextFileStorageService:
 
         self.novels_table.delete_by("novel_id", file_id)
         self.contents_table.delete_by("novel_id", file_id)
+        self.sentences_table.delete_by("novel_id", file_id)
         return info
 
     def open_file(self, file_id: str) -> tuple[Path, TextFileInfo]:
@@ -395,12 +419,21 @@ class TextFileStorageService:
                 return path, info
         raise FileNotFoundError(f"文件不存在：{filename}")
 
+    def get_novel_sentences(self, file_id: str) -> list[dict[str, str]]:
+        """获取指定小说的全部切句记录。"""
+        return self.processor.get_sentences_by_novel(file_id)
+
+    def get_chapter_sentences(self, chapter_id: str) -> list[dict[str, str]]:
+        """获取指定章节的全部切句记录。"""
+        return self.processor.get_sentences_by_chapter(chapter_id)
+
     def cleanup(self) -> None:
         """清理上传目录与 CSV 表（测试或运维使用）。"""
         shutil.rmtree(self.upload_dir, ignore_errors=True)
         self.upload_dir.mkdir(parents=True, exist_ok=True)
         self.novels_table.clear()
         self.contents_table.clear()
+        self.sentences_table.clear()
 
     def iter_stored_names(self) -> Iterable[str]:
         """迭代所有已存储文件名。"""

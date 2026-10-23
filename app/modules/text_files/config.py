@@ -15,6 +15,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 from app.modules.text_files.constants import (
     DEFAULT_CSV_DIR,
     NOVEL_CONTENTS_CSV_FILENAME,
+    NOVEL_SENTENCES_CSV_FILENAME,
     NOVELS_CSV_FILENAME,
     TEXT_FILE_EXTENSIONS,
 )
@@ -42,6 +43,8 @@ class TextFilesSettings(BaseSettings):
     novels_csv_filename: str = NOVELS_CSV_FILENAME
     # 小说内容表文件名。
     novel_contents_csv_filename: str = NOVEL_CONTENTS_CSV_FILENAME
+    # 小说章节切句表文件名。
+    novel_sentences_csv_filename: str = NOVEL_SENTENCES_CSV_FILENAME
     # 文件名最大长度。
     max_filename_length: int = 255
 

@@ -10,6 +10,7 @@
 - ``models.py``：领域模型与分类规则
 - ``schemas.py``：请求与响应 Schema
 - ``parsers.py``：小说书名、章节切分与字数统计解析器
+- ``processor.py``：小说章节内容切句、行提取与集中化数据处理器
 - ``csv_store.py``：CSV 数据表格管理与持久化驱动
 - ``service.py``：文件存储业务逻辑
 - ``dependencies.py``：依赖注入提供者

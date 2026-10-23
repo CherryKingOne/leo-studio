@@ -71,3 +71,22 @@ class TextFileContentResponse(BaseModel):
     encoding: str = Field(description="解码使用的字符集")
     size: int = Field(description="文件大小，单位字节")
     content: str = Field(description="文本内容")
+
+
+class TextFileSentenceItem(BaseModel):
+    """文本文件章节切句项。"""
+
+    sentence_id: str = Field(description="句子唯一标识")
+    novel_id: str = Field(description="小说 ID / 文件 ID")
+    chapter_id: str = Field(description="所属章节 ID")
+    sentence_index: int = Field(description="句子在章节中的行序号，从 0 开始")
+    content: str = Field(description="句子正文内容")
+    word_count: int = Field(description="句子字数")
+
+
+class TextFileSentenceListResponse(BaseModel):
+    """小说切句列表响应。"""
+
+    novel_id: str = Field(description="小说 ID / 文件 ID")
+    total: int = Field(description="切句总数")
+    items: list[TextFileSentenceItem] = Field(description="切句列表")

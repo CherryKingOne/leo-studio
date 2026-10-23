@@ -22,6 +22,8 @@ from app.modules.text_files.schemas import (
     TextFileDeleteResponse,
     TextFileListItem,
     TextFileListResponse,
+    TextFileSentenceItem,
+    TextFileSentenceListResponse,
     TextFileUploadResponse,
 )
 from app.modules.text_files.service import TextFileStorageService, human_size
@@ -200,4 +202,46 @@ async def delete_text_file(
     return ApiResponse(
         data=TextFileDeleteResponse(file_id=info.file_id, filename=info.filename, deleted=True),
         message="文件删除成功",
+    )
+
+
+@router.get(
+    "/{file_id}/sentences",
+    response_model=ApiResponse[TextFileSentenceListResponse],
+    summary="查询小说章节切句列表",
+    description=(
+        "根据 `file_id` 查询该小说章节内容按行切分后的句子列表。\n\n"
+        "- 可选传 `chapter_id` 过滤单个章节的切句\n"
+        "- 每条记录包含 `sentence_id`、`chapter_id`、`sentence_index`、`content` 与 `word_count`"
+    ),
+)
+async def list_novel_sentences(
+    file_id: FileIdPath,
+    chapter_id: Annotated[str | None, Query(description="按章节 ID 过滤，可选")] = None,
+    storage: TextFileStorageService = Depends(get_storage_service),
+) -> ApiResponse[TextFileSentenceListResponse]:
+    """查询小说章节切句列表。"""
+    storage.get_file(file_id)
+    if chapter_id:
+        rows = storage.get_chapter_sentences(chapter_id)
+    else:
+        rows = storage.get_novel_sentences(file_id)
+
+    items = [
+        TextFileSentenceItem(
+            sentence_id=r["sentence_id"],
+            novel_id=r["novel_id"],
+            chapter_id=r["chapter_id"],
+            sentence_index=int(r.get("sentence_index", 0) or 0),
+            content=r.get("content", ""),
+            word_count=int(r.get("word_count", 0) or 0),
+        )
+        for r in rows
+    ]
+    return ApiResponse(
+        data=TextFileSentenceListResponse(
+            novel_id=file_id,
+            total=len(items),
+            items=items,
+        )
     )
