@@ -17,7 +17,7 @@
 （最新上传的文件排在最前）。
 
 该接口只返回元信息，不包含文件内容。获取文件内容请使用
-[下载接口](./download-text-file.md)或[内容预览接口](./get-text-file-content.md)。
+[下载接口](./download.md)或[内容预览接口](./content.md)。
 
 ## 请求参数
 
@@ -59,7 +59,7 @@
 | `uploaded_at` | `string` | 上传时间，ISO 8601 格式（UTC） |
 | `download_url` | `string` | 下载地址 |
 
-> 与[上传接口](./upload-text-file.md)的响应相比，列表项不包含 `stored_name`、
+> 与[上传接口](./upload.md)的响应相比，列表项不包含 `stored_name`、
 > `content_type` 与 `description` 字段，以减少响应体积。
 
 ## 成功示例
@@ -156,6 +156,6 @@ for item in data["items"]:
 
 ## 相关接口
 
-- [上传单个文本文件](./upload-text-file.md) —— 上传文件
-- [查询文本文件详情](./get-text-file.md) —— 获取单个文件的完整元信息
-- [删除文本文件](./delete-text-file.md) —— 删除文件
+- [上传单个文本文件](./upload.md) —— 上传文件
+- [查询文本文件详情](./file.md) —— 获取单个文件的完整元信息
+- [删除文本文件](./delete.md) —— 删除文件

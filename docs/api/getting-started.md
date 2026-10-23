@@ -191,7 +191,8 @@ leo-studio/
 2. 在模块内编写 `constants.py` / `config.py` / `models.py` / `schemas.py` /
    `service.py` / `router.py`，模块自包含，不修改其它模块的代码。
 3. 在 `app/router.py` 中注册模块的 router。
-4. 在 `docs/api/routes/` 下补充接口文档，并在 `docs/api/README.md` 中登记。
+4. 在 `docs/api/routes/{模块名}/` 下补充接口文档（如 `text-files/`、`system/`），
+   并在 `docs/api/README.md` 中登记。
 
 这样每个功能都有独立的路由前缀（如 `/api/v1/text-files`、`/api/v1/images`），
 既避免路由冲突，也让同类能力集中管理。

@@ -73,26 +73,31 @@ Leo Studio 后端服务的 HTTP 接口文档。所有接口基于 **FastAPI** �
 
 | 接口 | 方法 | 路径 | 说明 | 文档 |
 | --- | --- | --- | --- | --- |
-| 上传单个文本文件 | `POST` | `/api/v1/text-files/upload` | 上传单个文本文件并返回元信息 | [upload-text-file.md](./routes/upload-text-file.md) |
-| 查询文本文件列表 | `GET` | `/api/v1/text-files` | 分页查询已上传的文本文件 | [list-text-files.md](./routes/list-text-files.md) |
-| 查询文本文件详情 | `GET` | `/api/v1/text-files/{file_id}` | 获取单个文本文件的完整元信息 | [get-text-file.md](./routes/get-text-file.md) |
-| 预览文本文件内容 | `GET` | `/api/v1/text-files/{file_id}/content` | 以 JSON 返回解码后的文本内容 | [get-text-file-content.md](./routes/get-text-file-content.md) |
-| 下载文本文件 | `GET` | `/api/v1/text-files/{file_id}/download` | 下载文件内容 | [download-text-file.md](./routes/download-text-file.md) |
-| 删除文本文件 | `DELETE` | `/api/v1/text-files/{file_id}` | 删除文件及其索引记录 | [delete-text-file.md](./routes/delete-text-file.md) |
+| 上传单个文本文件 | `POST` | `/api/v1/text-files/upload` | 上传单个文本文件并返回元信息 | [upload.md](./routes/text-files/upload.md) |
+| 查询文本文件列表 | `GET` | `/api/v1/text-files` | 分页查询已上传的文本文件 | [list.md](./routes/text-files/list.md) |
+| 查询文本文件详情 | `GET` | `/api/v1/text-files/{file_id}` | 获取单个文本文件的完整元信息 | [file.md](./routes/text-files/file.md) |
+| 预览文本文件内容 | `GET` | `/api/v1/text-files/{file_id}/content` | 以 JSON 返回解码后的文本内容 | [content.md](./routes/text-files/content.md) |
+| 下载文本文件 | `GET` | `/api/v1/text-files/{file_id}/download` | 下载文件内容 | [download.md](./routes/text-files/download.md) |
+| 删除文本文件 | `DELETE` | `/api/v1/text-files/{file_id}` | 删除文件及其索引记录 | [delete.md](./routes/text-files/delete.md) |
 
 > 该模块**只接受 `.txt` `.md` `.doc` `.docx` `.epub` 五种扩展名**。
 > 图片、视频、压缩包等其它二进制类型请新建独立功能模块
 > （例如 `app/modules/images/`），不要混入文本文件模块。
 
-### 系统
+### 根路径
 
-模块目录：`app/modules/system/`
+| 接口 | 方法 | 路径 | 说明 | 文档 |
+| --- | --- | --- | --- | --- |
+| 服务信息 | `GET` | `/` | 返回服务名称、版本与模块索引 | [index.md](./routes/root/index.md) |
+| 应用健康检查 | `GET` | `/health` | 返回服务健康状态 | [health.md](./routes/root/health.md) |
 
-| 接口 | 方法 | 路径 | 说明 |
-| --- | --- | --- | --- |
-| 健康检查 | `GET` | `/health` | 返回服务健康状态 |
-| 系统健康检查 | `GET` | `/api/v1/system/health` | 带版本前缀的健康检查 |
-| 服务信息 | `GET` | `/` | 返回服务名称、版本与模块索引 |
+### 系统模块
+
+模块目录：`app/modules/system/`　路由前缀：`/api/v1/system`
+
+| 接口 | 方法 | 路径 | 说明 | 文档 |
+| --- | --- | --- | --- | --- |
+| 系统健康检查 | `GET` | `/api/v1/system/health` | 带版本前缀的健康检查 | [health.md](./routes/system/health.md) |
 
 ## 通用约定
 

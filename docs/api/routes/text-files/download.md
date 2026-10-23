@@ -19,7 +19,7 @@
 响应头 `Content-Disposition` 使用 `attachment` 模式并携带原始文件名，
 浏览器会提示下载而非直接内联渲染。
 
-若只想在线查看文本内容而非下载文件，请使用[内容预览接口](./get-text-file-content.md)。
+若只想在线查看文本内容而非下载文件，请使用[内容预览接口](./content.md)。
 该预览接口仅支持 `.txt` 与 `.md`，`.doc` `.docx` `.epub` 等二进制文档请直接通过本接口获取。
 
 ## 路径参数
@@ -118,6 +118,6 @@ X-Request-ID: b3f1c2d4e5a60718293a4b5c6d7e8f90
 
 ## 相关接口
 
-- [上传单个文本文件](./upload-text-file.md) —— 获取 `file_id` 的来源
-- [查询文本文件详情](./get-text-file.md) —— 获取文件的完整元信息
-- [预览文本文件内容](./get-text-file-content.md) —— 以 JSON 返回文本内容
+- [上传单个文本文件](./upload.md) —— 获取 `file_id` 的来源
+- [查询文本文件详情](./file.md) —— 获取文件的完整元信息
+- [预览文本文件内容](./content.md) —— 以 JSON 返回文本内容

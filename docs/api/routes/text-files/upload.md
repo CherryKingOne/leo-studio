@@ -27,7 +27,7 @@
 
 > **注意**：本接口**只接受五种扩展名**：`.txt` `.md` `.doc` `.docx` `.epub`。
 > 其中 `.doc` `.docx` `.epub` 为二进制文档格式，可上传与下载，
-> 但不支持[内容预览接口](./get-text-file-content.md)。
+> 但不支持[内容预览接口](./content.md)。
 > 图片、视频、压缩包等其它二进制类型请使用各自独立的功能模块接口。
 
 ## 请求参数
@@ -186,5 +186,5 @@ print(result["data"]["download_url"])
 
 ## 相关接口
 
-- [下载文本文件](./download-text-file.md) —— 使用返回的 `file_id` 下载
-- [查询文本文件列表](./list-text-files.md) —— 查看已上传的全部文本文件
+- [下载文本文件](./download.md) —— 使用返回的 `file_id` 下载
+- [查询文本文件列表](./list.md) —— 查看已上传的全部文本文件

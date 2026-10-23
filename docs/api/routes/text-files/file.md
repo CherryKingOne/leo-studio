@@ -13,11 +13,11 @@
 
 ## 接口描述
 
-返回指定文本文件的完整元信息。与[文本文件列表接口](./list-text-files.md)相比，
+返回指定文本文件的完整元信息。与[文本文件列表接口](./list.md)相比，
 本接口额外返回 `stored_name`、`content_type` 与 `description` 字段。
 
 接口只返回元信息，不包含文件内容。获取文件内容请使用
-[下载接口](./download-text-file.md)或[内容预览接口](./get-text-file-content.md)。
+[下载接口](./download.md)或[内容预览接口](./content.md)。
 
 ## 路径参数
 
@@ -107,12 +107,12 @@ print(data["filename"], data["size_human"], data["category"])
   不做格式校验，任意字符串都会走查索引流程并返回 `404`。
 - **索引一致性**：元信息来自 `.text-files-index.json` 索引文件。
   若磁盘文件被手工删除，详情接口仍会返回元信息，
-  但[下载接口](./download-text-file.md)会返回 `404`。
+  但[下载接口](./download.md)会返回 `404`。
 - **模块范围**：只查询文本文件模块内的文件，其它模块的 `file_id` 同样返回 `404`。
 
 ## 相关接口
 
-- [文本文件列表](./list-text-files.md) —— 分页查询全部文本文件
-- [下载文本文件](./download-text-file.md) —— 下载文件内容
-- [预览文本文件内容](./get-text-file-content.md) —— 以 JSON 返回文本内容
-- [删除文本文件](./delete-text-file.md) —— 删除文件
+- [文本文件列表](./list.md) —— 分页查询全部文本文件
+- [下载文本文件](./download.md) —— 下载文件内容
+- [预览文本文件内容](./content.md) —— 以 JSON 返回文本内容
+- [删除文本文件](./delete.md) —— 删除文件
