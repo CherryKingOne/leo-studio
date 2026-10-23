@@ -8,6 +8,7 @@ from pathlib import Path
 import pytest
 from fastapi.testclient import TestClient
 
+from app.modules.text_files.parsers import clean_text
 from app.modules.text_files.processor import (
     NovelDataProcessor,
     build_sentence_records,
@@ -426,6 +427,84 @@ class TestNovelCsvStorage:
 
 class TestNovelSentenceProcessing:
     """小说章节按行切句与数据处理器测试。"""
+
+    def test_clean_text_removes_standalone_ellipsis(self) -> None:
+        """测试数据清洗应过滤单独成行的省略号，包括纯省略号及带有引号的省略号形态。"""
+        raw = (
+            "第一行正文。\n"
+            "……\n"
+            "　　“……”\n"
+            "\"......\"\n"
+            "‘……’\n"
+            "第二行正文。\n"
+            "林风眠：“……”\n"
+            "第三行正文……"
+        )
+        cleaned = clean_text(raw)
+        assert cleaned == "第一行正文。\n第二行正文。\n林风眠：“……”\n第三行正文……"
+
+    def test_clean_text_removes_separators_and_empty_lines(self) -> None:
+        """测试数据清洗应过滤单独成行的分隔线（如 ----------）与所有空行（含全角空格、制表符、零宽字符行）。"""
+        raw = (
+            "\n"
+            "第一行正文。\n"
+            "\n\n"
+            "----------\n"
+            "　　----------\n"
+            "“----------”\n"
+            "\"----------\"\n"
+            "-------------------------------------\n"
+            "——————\n"
+            "====================\n"
+            "* * * * *\n"
+            "\u3000\u3000\n"
+            "   \t   \n"
+            "\u200b\n"
+            "第二行正文。\n"
+            "这是正文--带有合法连字符\n"
+            "\n"
+        )
+        cleaned = clean_text(raw)
+        assert cleaned == "第一行正文。\n第二行正文。\n这是正文--带有合法连字符"
+
+    def test_split_sentences_by_lines_filters_standalone_ellipsis(self) -> None:
+        """切句处理应过滤单独占一行的省略号行。"""
+        raw = "第一句。\n……\n“……”\n第二句。"
+        sentences = split_sentences_by_lines(raw)
+        assert sentences == ["第一句。", "第二句。"]
+
+    def test_split_sentences_by_lines_filters_separators_and_empty_lines(self) -> None:
+        """切句处理应过滤单独占一行的分隔线（如 ----------）与所有空行。"""
+        raw = "第一句。\n\n----------\n　　----------\n“----------”\n\u3000\u3000\n第二句。"
+        sentences = split_sentences_by_lines(raw)
+        assert sentences == ["第一句。", "第二句。"]
+
+    def test_clean_text_removes_standalone_symbols_and_emojis(self) -> None:
+        """测试数据清洗应过滤单独成行的标点符号组合（如 “……？”、？？？、•﹏• 等）与颜文字。"""
+        raw = (
+            "第一行正文。\n"
+            "“……？”\n"
+            "？？？\n"
+            "•﹏•\n"
+            "！！！\n"
+            "？！\n"
+            "“？”\n"
+            "“！”\n"
+            "→_→\n"
+            "ლ(｀∀´ლ)\n"
+            "(ʘдʘ╬)\n"
+            "第二行正文。\n"
+            "大白天见鬼了？\n"
+            "“好的”"
+        )
+        cleaned = clean_text(raw)
+        assert cleaned == "第一行正文。\n第二行正文。\n大白天见鬼了？\n“好的”"
+
+    def test_split_sentences_by_lines_filters_standalone_symbols_and_emojis(self) -> None:
+        """切句处理应过滤单独占一行的纯标点符号（如 “……？”、？？？、•﹏• 等）与颜文字。"""
+        raw = "第一句。\n“……？”\n？？？\n•﹏•\n(ʘдʘ╬)\n第二句。"
+        sentences = split_sentences_by_lines(raw)
+        assert sentences == ["第一句。", "第二句。"]
 
     def test_split_sentences_by_lines_filters_empty_and_strips(self) -> None:
         """应按行切分并清理首尾空白字符，同时过滤连续空行。"""

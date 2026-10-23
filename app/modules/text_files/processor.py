@@ -10,7 +10,10 @@ import uuid
 from typing import Any
 
 from app.modules.text_files.csv_store import CsvTable
-from app.modules.text_files.parsers import count_words
+from app.modules.text_files.parsers import (
+    clean_line_text,
+    count_words,
+)
 
 
 def split_sentences_by_lines(content: str) -> list[str]:
@@ -18,15 +21,17 @@ def split_sentences_by_lines(content: str) -> list[str]:
 
     处理规则：
     - 按换行符切分为多行；
-    - 清除每行首尾空白字符（包含半角空格、全角空格、制表符等）；
-    - 过滤空白行，仅保留有实际内容的行。
+    - 删除每行中的颜文字片段（含汉字与颜文字同行的情况）；
+    - 过滤所有空白行，仅保留有实际内容的行；
+    - 过滤单独占一行的纯标点符号与特殊符号行（如“……？”、“？？？”、“•﹏•”、““……””等）；
+    - 过滤单独占一行的分隔线行（如“----------”、“——————”等）。
     """
     if not content or not content.strip():
         return []
 
     sentences: list[str] = []
     for line in content.splitlines():
-        cleaned = line.strip()
+        cleaned = clean_line_text(line)
         if cleaned:
             sentences.append(cleaned)
     return sentences
