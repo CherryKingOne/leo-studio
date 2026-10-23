@@ -42,7 +42,7 @@ def test_settings(upload_dir: Path, csv_dir: Path) -> TextFilesSettings:
         upload_dir=upload_dir,
         csv_dir=csv_dir,
         max_upload_size_mb=1,
-        allowed_extensions=sorted({".txt", ".md", ".doc", ".docx", ".epub"}),
+        allowed_extensions=sorted({".txt"}),
     )
 
 

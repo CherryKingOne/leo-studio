@@ -5,6 +5,9 @@
 本模块只处理文本类文件。若后续需要支持图片、视频等二进制类型，
 请新建对应的功能模块（``app/modules/xxx``）并注册独立路由，
 不要在本模块中混合处理。
+
+提示：若后续新增受支持的文件扩展名，请同步更新下方 `/upload` 与 `/{file_id}/content`
+接口的 docstring / description 文档说明。详细新增流程请参见 `constants.py` 顶部指引。
 """
 
 from __future__ import annotations
@@ -63,7 +66,7 @@ def to_upload_response(info: TextFileInfo) -> TextFileUploadResponse:
         "以 ``multipart/form-data`` 方式上传单个文本文件。\n\n"
         "- 表单字段名固定为 `file`\n"
         "- 可选字段 `description` 用于记录文件说明\n"
-        "- 仅接受 `.txt` `.md` `.doc` `.docx` `.epub` 五种扩展名\n"
+        "- 仅接受 `.txt` 一种扩展名\n"
         "- 返回 `file_id` 可用于后续下载、预览或删除"
     ),
 )
@@ -145,8 +148,7 @@ async def get_text_file(
         "根据 `file_id` 读取文本文件内容并以 JSON 返回，适合在线预览。\n\n"
         "- 默认按 UTF-8 解码\n"
         "- 可通过 `encoding` 参数指定其它字符集\n"
-        "- 仅 `.txt` `.md` 支持预览；`.doc` `.docx` `.epub` 为二进制文档，"
-        "调用本接口会返回 `422`，请改用下载接口"
+        "- 仅 `.txt` 支持预览；如需下载请使用下载接口"
     ),
 )
 async def get_text_file_content(

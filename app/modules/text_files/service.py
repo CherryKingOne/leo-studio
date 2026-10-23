@@ -22,7 +22,6 @@ from typing import BinaryIO
 
 from app.modules.text_files.config import TextFilesSettings, get_text_files_settings
 from app.modules.text_files.constants import (
-    BINARY_EXTENSIONS,
     EXTENSION_MIME_MAP,
     NOVEL_CONTENTS_COLUMNS,
     NOVEL_SENTENCES_COLUMNS,
@@ -125,8 +124,14 @@ class TextFileStorageService:
 
     @staticmethod
     def is_previewable(extension: str) -> bool:
-        """判断该扩展名的文件是否支持文本内容预览。"""
-        return extension.lower() not in BINARY_EXTENSIONS
+        """判断该扩展名的文件是否支持文本内容预览。
+        
+        【新增格式指南】：
+        - 纯文本格式（如 .txt, .md）直接返回 True。
+        - 若接入二进制或富文本文件（如 .epub, .doc, .docx, .pdf 等），
+          此类文件不可直接解码为纯文本，需返回 False；用户应通过 /download 接口下载。
+        """
+        return True
 
     def path_for(self, file_id: str, extension: str) -> Path:
         return self.upload_dir / f"{file_id}{extension.lower()}"
@@ -198,24 +203,26 @@ class TextFileStorageService:
             target.unlink(missing_ok=True)
             raise InvalidParameterError("上传文件内容为空")
 
-        # 读取纯文本文件内容以便切分章节
+        # 读取纯文本文件内容以便切分章节。
+        # 【新增格式指南】：
+        # 1. 纯文本格式（如 .txt, .md）使用下方逻辑即可自动按编码读取并解析章节。
+        # 2. 二进制/归档文档（如 .epub, .docx, .pdf 等）：
+        #    - 若希望提取文本并入库章节，请实现专用的文本/HTML 提取解析器；
+        #    - 若无需切分章节，可将 chapters 设为 [("全文", "")] 或对应占位，避免解码报错。
         content_text = ""
         chapters: list[tuple[str, str]] = []
-        if self.is_previewable(extension):
+        try:
+            content_text = target.read_text(encoding="utf-8")
+        except UnicodeDecodeError:
             try:
-                content_text = target.read_text(encoding="utf-8")
+                content_text = target.read_text(encoding="gb18030")
             except UnicodeDecodeError:
-                try:
-                    content_text = target.read_text(encoding="gb18030")
-                except UnicodeDecodeError:
-                    content_text = target.read_text(encoding="utf-8", errors="replace")
+                content_text = target.read_text(encoding="utf-8", errors="replace")
 
-            cleaned = clean_text(content_text)
-            chapters = parse_chapters(cleaned)
-            if not chapters:
-                chapters = [("全文", cleaned or content_text)]
-        else:
-            chapters = [("二进制文档", "")]
+        cleaned = clean_text(content_text)
+        chapters = parse_chapters(cleaned)
+        if not chapters:
+            chapters = [("全文", cleaned or content_text)]
 
         chapter_count = len(chapters)
         total_words = count_words(content_text) if content_text else written

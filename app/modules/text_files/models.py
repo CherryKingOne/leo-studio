@@ -15,22 +15,26 @@ class TextFileCategory(StrEnum):
     """文本文件归类。
 
     按内容用途细分，便于前端按类别筛选与展示。
+
+    【新增格式指南】：
+    如果新增的文件格式需要专属归类标识，在此处添加新的枚举值，例如：
+        MARKDOWN = "markdown"
+        WORD = "word"
+        EPUB = "epub"
+    若无需特殊分类，可直接沿用 PLAIN_TEXT 或 OTHER。
     """
 
     PLAIN_TEXT = "plain_text"
-    MARKDOWN = "markdown"
-    WORD = "word"
-    EPUB = "epub"
     OTHER = "other"
 
 
 #: 扩展名到归类的映射表
+#: 【新增格式指南】：
+#: 在下方映射表中添加新扩展名到分类的映射，例如：
+#:     ".md": TextFileCategory.MARKDOWN,
+#: 未配置的扩展名在通过 categorize() 时会自动归入 TextFileCategory.OTHER。
 EXTENSION_CATEGORY_MAP: dict[str, TextFileCategory] = {
     ".txt": TextFileCategory.PLAIN_TEXT,
-    ".md": TextFileCategory.MARKDOWN,
-    ".doc": TextFileCategory.WORD,
-    ".docx": TextFileCategory.WORD,
-    ".epub": TextFileCategory.EPUB,
 }
 
 
