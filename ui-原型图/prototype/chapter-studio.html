@@ -1,0 +1,489 @@
+<!DOCTYPE html>
+<html lang="zh-CN" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>VoiceNovel AI - 章节制作工作台</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              500: '#6366f1',
+              600: '#4f46e5',
+              700: '#4338ca',
+            },
+            surface: {
+              base: '#090A0F',
+              card: '#12141F',
+              hover: '#191D2D',
+              border: '#202638'
+            }
+          }
+        }
+      }
+    }
+  </script>
+</head>
+<body class="bg-surface-base text-slate-200 min-h-screen flex flex-col font-sans antialiased overflow-hidden selection:bg-brand-500/30">
+
+  <!-- ==================== 1. CHAPTER WORKBENCH HEADER ==================== -->
+  <header class="h-16 border-b border-surface-border bg-surface-card/90 backdrop-blur-md px-6 flex items-center justify-between shrink-0 z-30">
+    <div class="flex items-center space-x-6">
+      <!-- Back to Book Hub -->
+      <a href="project-hub.html" class="flex items-center space-x-1.5 text-slate-400 hover:text-white px-2.5 py-1.5 rounded-lg hover:bg-surface-hover text-xs font-medium transition-colors">
+        <i data-lucide="chevron-left" class="w-4 h-4"></i>
+        <span>返回《诡秘之主》看板</span>
+      </a>
+
+      <div class="h-4 w-[1px] bg-surface-border"></div>
+
+      <!-- Current Chapter Breadcrumb -->
+      <div class="flex items-center space-x-2 text-xs">
+        <span class="text-slate-400">《诡秘之主：第一部》</span>
+        <i data-lucide="chevron-right" class="w-3.5 h-3.5 text-slate-600"></i>
+        <span class="text-white font-bold">第001章 绯红之月</span>
+        <span class="text-[10px] bg-emerald-500/10 text-emerald-400 px-2 py-0.5 rounded border border-emerald-500/20 font-mono">14:18 (已渲染)</span>
+      </div>
+    </div>
+
+    <!-- Right Chapter Workbench Actions -->
+    <div class="flex items-center space-x-3 text-xs">
+      <button onclick="showToast('正在重新调用 Qwen2.5 提取对话与情绪...', 'info')" class="flex items-center space-x-1.5 bg-surface-hover hover:bg-slate-800 border border-surface-border text-slate-300 px-3 py-1.5 rounded-lg font-medium transition-colors">
+        <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i>
+        <span>重新解析剧本</span>
+      </button>
+
+      <button onclick="simulateBatchSynth()" id="batchSynthBtn" class="flex items-center space-x-1.5 bg-brand-600 hover:bg-brand-500 text-white px-4 py-1.5 rounded-lg font-medium shadow-md shadow-brand-500/20 transition-all">
+        <i data-lucide="play-circle" class="w-4 h-4"></i>
+        <span>批量合成当前章</span>
+      </button>
+
+      <a href="export-center.html" class="flex items-center space-x-1.5 bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-300 border border-emerald-500/30 px-3.5 py-1.5 rounded-lg font-medium transition-all">
+        <i data-lucide="download" class="w-3.5 h-3.5"></i>
+        <span>去导出</span>
+      </a>
+    </div>
+  </header>
+
+  <!-- ==================== 2. WORKSPACE SPLIT (OUTLINE + SCRIPT FEED) ==================== -->
+  <div class="flex-1 flex overflow-hidden">
+
+    <!-- Slim Chapter & Scene Navigator -->
+    <aside class="w-60 border-r border-surface-border bg-surface-card flex flex-col shrink-0">
+      <div class="p-3.5 border-b border-surface-border flex items-center justify-between text-xs">
+        <span class="font-bold text-slate-300">章节段落大纲</span>
+        <span class="text-[10px] text-slate-500 font-mono">共 4 幕</span>
+      </div>
+
+      <div class="flex-1 overflow-y-auto p-2 space-y-1 text-xs">
+        <a href="#p-001" class="p-2.5 rounded-lg bg-surface-hover text-white flex items-center justify-between border border-brand-500/30">
+          <div class="flex items-center space-x-2 truncate">
+            <span class="w-2 h-2 rounded-full bg-blue-500 shrink-0"></span>
+            <span class="truncate">#01 旁白: 痛！好痛……</span>
+          </div>
+          <span class="text-[10px] text-slate-400 font-mono">8.2s</span>
+        </a>
+
+        <a href="#p-002" class="p-2.5 rounded-lg hover:bg-surface-hover text-slate-400 hover:text-slate-200 flex items-center justify-between transition-colors">
+          <div class="flex items-center space-x-2 truncate">
+            <span class="w-2 h-2 rounded-full bg-brand-500 shrink-0"></span>
+            <span class="truncate">#02 克莱恩: 这是哪里……</span>
+          </div>
+          <span class="text-[10px] text-slate-500 font-mono">6.8s</span>
+        </a>
+
+        <a href="#p-003" class="p-2.5 rounded-lg hover:bg-surface-hover text-slate-400 hover:text-slate-200 flex items-center justify-between transition-colors">
+          <div class="flex items-center space-x-2 truncate">
+            <span class="w-2 h-2 rounded-full bg-blue-500 shrink-0"></span>
+            <span class="truncate">#03 旁白: 他下意识抚摸……</span>
+          </div>
+          <span class="text-[10px] text-slate-500 font-mono">11.0s</span>
+        </a>
+
+        <a href="#p-004" class="p-2.5 rounded-lg hover:bg-surface-hover text-slate-400 hover:text-slate-200 flex items-center justify-between transition-colors">
+          <div class="flex items-center space-x-2 truncate">
+            <span class="w-2 h-2 rounded-full bg-pink-500 shrink-0"></span>
+            <span class="truncate">#04 梅丽莎: 克莱恩？……</span>
+          </div>
+          <span class="text-[10px] text-slate-500 font-mono">7.1s</span>
+        </a>
+      </div>
+
+      <!-- Quick Switch Chapter -->
+      <div class="p-3 border-t border-surface-border text-xs">
+        <label class="text-[10px] text-slate-500 block mb-1">切换章节</label>
+        <select onchange="showToast('已加载所选章节', 'info')" class="w-full bg-surface-base border border-surface-border rounded-lg px-2.5 py-1.5 text-slate-300 text-xs focus:outline-none">
+          <option selected>第001章 绯红之月 (当前)</option>
+          <option>第002章 宿命之枪</option>
+          <option>第003章 罗塞尔日记</option>
+        </select>
+      </div>
+    </aside>
+
+    <!-- Main Workbench: Novel Content | Script Feed | Voice Settings -->
+    <main class="flex-1 flex bg-surface-base overflow-hidden">
+
+      <!-- Column 2: Novel Chapter Content -->
+      <div class="w-1/3 overflow-y-auto p-4 shrink-0">
+        <div class="bg-surface-card border border-r-0 border-surface-border rounded-2xl p-5 space-y-4">
+          <div class="text-sm leading-relaxed text-slate-300 space-y-4">
+            <p>夜色深沉，克莱恩·莫雷蒂从一场怪异的梦境中惊醒。</p>
+            <p>他下意识抬手抚摸自己的太阳穴，指尖传来了湿润而冰冷的黏腻感。借着绯红月光，他赫然看清了自己的双手——那上面沾满了暗红发黑的血污！</p>
+            <p>“这是哪里……我不是在家里睡觉吗？为什么桌上会有一柄黄铜左轮手枪？！”</p>
+            <p>门外传来梅丽莎轻柔的声音：“克莱恩？你还没睡吗？我听见你房间有响动，明天是廷根大学面试，可千万别睡过头了。”</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Column 3: Script Canvas Feed -->
+      <div class="flex-1 overflow-y-auto p-6 space-y-5">
+
+        <!-- Paragraph 1: 旁白 -->
+        <div id="p-001" class="p-5 rounded-2xl bg-surface-card border border-surface-border hover:border-slate-700 transition-all space-y-3 shadow-lg">
+          <div class="flex items-center justify-between text-xs">
+            <div class="flex items-center space-x-2.5">
+              <span class="w-2.5 h-2.5 rounded-full bg-blue-500"></span>
+              <span class="font-bold text-blue-400">【旁白】</span>
+              <span class="text-[10px] bg-surface-hover px-2 py-0.5 rounded text-slate-400 border border-surface-border">沉重肃穆</span>
+              <span class="text-[10px] text-slate-500 font-mono">#001</span>
+            </div>
+            <div class="flex items-center space-x-3">
+              <span class="text-[11px] font-mono text-slate-400">00:00 - 00:08 (8.2s)</span>
+              <!-- Audition Button -->
+              <button onclick="playParagraphAudio(220, 8.2)" class="w-7 h-7 rounded-full bg-surface-hover hover:bg-blue-600 text-slate-300 hover:text-white flex items-center justify-center transition-colors shadow">
+                <i data-lucide="play" class="w-3.5 h-3.5 ml-0.5 fill-current"></i>
+              </button>
+            </div>
+          </div>
+
+          <!-- Paragraph Text with Pinyin Fix -->
+          <div class="text-slate-200 leading-relaxed text-sm">
+            痛！好痛！头好痛！狂暴的剧痛如同一柄烧红的钢铁长矛，狠狠刺入了脑海深处。<span class="border-b border-dotted border-amber-400 text-amber-200" title="多音字校对为: chóng">重<span class="text-[10px] text-amber-400 font-mono">(chóng)</span>叠</span>而虚幻的低语声在耳畔疯狂回荡，窗外绯红的月光正如同粘稠的血液般，静静淌在粗糙的木制书桌上。
+          </div>
+
+          <!-- Micro Controls -->
+          <div class="pt-2 border-t border-surface-border/50 flex items-center justify-between text-[11px] text-slate-500">
+            <span>音色: 沧桑男中音 (CosyVoice-Pre) • 语速: 1.05x</span>
+            <div class="flex items-center space-x-3">
+              <button onclick="showToast('多音字注音已校准', 'success')" class="hover:text-slate-300">校对多音字</button>
+              <span>•</span>
+              <button onclick="showToast('正在局部换 Seed 重新生成该句...', 'info')" class="hover:text-brand-400">单句重新生成</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- SFX Cue Callout -->
+        <div class="flex justify-center my-1">
+          <div class="inline-flex items-center space-x-2 bg-amber-500/10 border border-dashed border-amber-500/30 text-amber-300 text-xs px-3.5 py-1.5 rounded-full shadow-sm">
+            <i data-lucide="zap" class="w-3.5 h-3.5 text-amber-400"></i>
+            <span>[场景音效: 粗重急促的喘息声 + 书页在风中剧烈翻动 1.2s]</span>
+            <button onclick="playParagraphAudio(160, 1.2)" class="hover:underline text-[10px] text-amber-200 ml-1">试听拟音</button>
+          </div>
+        </div>
+
+        <!-- Paragraph 2: 克莱恩·莫雷蒂 (对白) -->
+        <div id="p-002" class="p-5 rounded-2xl bg-surface-card border border-brand-500/40 transition-all space-y-3 shadow-xl shadow-brand-500/5">
+          <div class="flex items-center justify-between text-xs">
+            <div class="flex items-center space-x-2.5">
+              <span class="w-2.5 h-2.5 rounded-full bg-brand-500"></span>
+              <span class="font-bold text-brand-300">【克莱恩·莫雷蒂】</span>
+              <!-- Emotion pill -->
+              <span class="text-[10px] bg-amber-500/10 text-amber-300 px-2 py-0.5 rounded border border-amber-500/20 font-medium">惊恐迷茫 (85%)</span>
+              <!-- Change speaker -->
+              <select onchange="showToast('已切换说话人', 'success')" class="bg-surface-base border border-surface-border text-slate-300 text-[10px] rounded px-1.5 py-0.5 focus:outline-none">
+                <option selected>克莱恩 (男主)</option>
+                <option>旁白</option>
+                <option>邓恩·史密斯</option>
+              </select>
+            </div>
+            <div class="flex items-center space-x-3">
+              <span class="text-[11px] font-mono text-slate-400">00:08 - 00:15 (6.8s)</span>
+              <button onclick="playParagraphAudio(330, 6.8)" class="w-7 h-7 rounded-full bg-brand-600 hover:bg-brand-500 text-white flex items-center justify-center transition-colors shadow">
+                <i data-lucide="play" class="w-3.5 h-3.5 ml-0.5 fill-current"></i>
+              </button>
+            </div>
+          </div>
+
+          <!-- Dialogue editable text -->
+          <div contenteditable="true" spellcheck="false" class="text-slate-100 leading-relaxed text-sm bg-surface-base/50 p-3 rounded-xl border border-transparent focus:border-brand-500/40 focus:outline-none">
+            “这是哪里……我不是在家里睡觉吗？为什么桌上会有一柄黄铜左轮手枪？！”
+          </div>
+
+          <div class="pt-2 border-t border-surface-border/50 flex items-center justify-between text-[11px] text-slate-500">
+            <span>音色: 英伦青年音·微颤 (Zero-Shot 克隆) • 语气: 颤抖气音</span>
+            <div class="flex items-center space-x-3">
+              <button onclick="showToast('已设置情绪强度 90%', 'success')" class="hover:text-slate-300">调节情绪</button>
+              <span>•</span>
+              <button onclick="showToast('正在局部重新推理...', 'info')" class="hover:text-brand-400">局部重绘 (Seed: 8421)</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Paragraph 3: 旁白 -->
+        <div id="p-003" class="p-5 rounded-2xl bg-surface-card border border-surface-border hover:border-slate-700 transition-all space-y-3 shadow-lg">
+          <div class="flex items-center justify-between text-xs">
+            <div class="flex items-center space-x-2.5">
+              <span class="w-2.5 h-2.5 rounded-full bg-blue-500"></span>
+              <span class="font-bold text-blue-400">【旁白】</span>
+              <span class="text-[10px] bg-surface-hover px-2 py-0.5 rounded text-slate-400 border border-surface-border">客观平缓</span>
+              <span class="text-[10px] text-slate-500 font-mono">#003</span>
+            </div>
+            <div class="flex items-center space-x-3">
+              <span class="text-[11px] font-mono text-slate-400">00:15 - 00:26 (11.0s)</span>
+              <button onclick="playParagraphAudio(220, 11.0)" class="w-7 h-7 rounded-full bg-surface-hover hover:bg-blue-600 text-slate-300 hover:text-white flex items-center justify-center transition-colors shadow">
+                <i data-lucide="play" class="w-3.5 h-3.5 ml-0.5 fill-current"></i>
+              </button>
+            </div>
+          </div>
+
+          <div class="text-slate-200 leading-relaxed text-sm">
+            他下意识抬手抚摸自己的太阳穴，指尖传来了湿润而冰冷的黏腻感。借着绯红月光，他赫然看清了自己的双手——那上面沾满了暗红发黑的血污！
+          </div>
+
+          <div class="pt-2 border-t border-surface-border/50 flex items-center justify-between text-[11px] text-slate-500">
+            <span>音色: 沧桑男中音</span>
+            <button onclick="showToast('已重新加入生成队列', 'info')" class="hover:text-brand-400">重新生成</button>
+          </div>
+        </div>
+
+        <!-- Paragraph 4: 梅丽莎·莫雷蒂 (对白) -->
+        <div id="p-004" class="p-5 rounded-2xl bg-surface-card border border-pink-500/30 transition-all space-y-3 shadow-lg">
+          <div class="flex items-center justify-between text-xs">
+            <div class="flex items-center space-x-2.5">
+              <span class="w-2.5 h-2.5 rounded-full bg-pink-500"></span>
+              <span class="font-bold text-pink-400">【梅丽莎·莫雷蒂】</span>
+              <span class="text-[10px] bg-pink-500/10 text-pink-400 px-2 py-0.5 rounded border border-pink-500/20 font-medium">轻柔担忧 (60%)</span>
+              <span class="text-[10px] text-slate-500 font-mono">门外传音·隔音混响</span>
+            </div>
+            <div class="flex items-center space-x-3">
+              <span class="text-[11px] font-mono text-slate-400">00:26 - 00:33 (7.1s)</span>
+              <button onclick="playParagraphAudio(440, 7.1)" class="w-7 h-7 rounded-full bg-pink-600 hover:bg-pink-500 text-white flex items-center justify-center transition-colors shadow">
+                <i data-lucide="play" class="w-3.5 h-3.5 ml-0.5 fill-current"></i>
+              </button>
+            </div>
+          </div>
+
+          <div class="text-slate-200 leading-relaxed text-sm">
+            “克莱恩？你还没睡吗？我听见你房间有响动，明天是廷根大学面试，可千万别睡过头了。”
+          </div>
+
+          <div class="pt-2 border-t border-surface-border/50 flex items-center justify-between text-[11px] text-slate-500">
+            <span>音色: 清澈少女音 • 挂载门阻隔混响 (Reverb Room 15%)</span>
+            <button onclick="showToast('已重新生成该台词', 'info')" class="hover:text-brand-400">重新生成</button>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Column 4: Voice Settings Panel -->
+      <aside class="w-72 flex flex-col overflow-y-auto shrink-0">
+        <div class="mt-4 mr-4 ml-0 mb-4 bg-surface-card border border-l-0 border-surface-border rounded-2xl p-5 flex flex-col">
+          <div class="pb-3 border-b border-surface-border">
+            <span class="text-xs font-bold text-slate-300">配音设置</span>
+          </div>
+
+          <div class="pt-4 space-y-4 text-xs flex-1">
+            <!-- Speaker -->
+            <div>
+              <label class="text-[10px] text-slate-500 block mb-1.5">说话人</label>
+              <select class="w-full bg-surface-base border border-surface-border rounded-lg px-2.5 py-1.5 text-slate-300 focus:outline-none">
+                <option>旁白</option>
+                <option selected>克莱恩 (男主)</option>
+                <option>梅丽莎·莫雷蒂</option>
+                <option>邓恩·史密斯</option>
+              </select>
+            </div>
+
+            <!-- Voice -->
+            <div>
+              <label class="text-[10px] text-slate-500 block mb-1.5">音色模型</label>
+              <select class="w-full bg-surface-base border border-surface-border rounded-lg px-2.5 py-1.5 text-slate-300 focus:outline-none">
+                <option>Zero-Shot 克隆</option>
+                <option selected>CosyVoice-Pre</option>
+                <option>GPT-SoVITS 微调</option>
+              </select>
+            </div>
+
+            <!-- Emotion -->
+            <div>
+              <label class="text-[10px] text-slate-500 block mb-1.5">情绪强度</label>
+              <input type="range" min="0" max="100" value="85" class="w-full accent-brand-500">
+              <div class="flex justify-between text-[10px] text-slate-500 mt-1">
+                <span>平缓</span><span class="text-amber-400">惊恐迷茫 (85%)</span><span>激烈</span>
+              </div>
+            </div>
+
+            <!-- Speed -->
+            <div>
+              <label class="text-[10px] text-slate-500 block mb-1.5">语速</label>
+              <input type="range" min="0.5" max="2" step="0.05" value="1.05" class="w-full accent-brand-500">
+              <div class="text-[10px] text-slate-400 mt-1 font-mono">1.05x</div>
+            </div>
+
+            <!-- Reverb -->
+            <div>
+              <label class="text-[10px] text-slate-500 block mb-1.5">空间混响</label>
+              <select class="w-full bg-surface-base border border-surface-border rounded-lg px-2.5 py-1.5 text-slate-300 focus:outline-none">
+                <option>无</option>
+                <option>小房间</option>
+                <option selected>门阻隔混响 (15%)</option>
+                <option>大厅</option>
+              </select>
+            </div>
+
+            <!-- Seed -->
+            <div>
+              <label class="text-[10px] text-slate-500 block mb-1.5">推理 Seed</label>
+              <input type="text" value="8421" class="w-full bg-surface-base border border-surface-border rounded-lg px-2.5 py-1.5 text-slate-300 font-mono focus:outline-none">
+            </div>
+          </div>
+
+          <div class="pt-3 border-t border-surface-border space-y-2">
+            <button onclick="showToast('正在局部重新推理...', 'info')" class="w-full bg-brand-600 hover:bg-brand-500 text-white text-xs font-medium py-2 rounded-lg transition-colors">
+              局部重绘
+            </button>
+            <button onclick="showToast('已重新加入生成队列', 'info')" class="w-full bg-surface-hover hover:bg-slate-800 border border-surface-border text-slate-300 text-xs font-medium py-2 rounded-lg transition-colors">
+              重新生成
+            </button>
+          </div>
+        </div>
+      </aside>
+
+    </main>
+  </div>
+
+  <!-- ==================== 3. DOCKED MASTER AUDIO TRANSPORT ==================== -->
+  <footer class="h-20 border-t border-surface-border bg-surface-card px-6 flex items-center justify-between z-20 shrink-0">
+    <!-- Left Track Preview Status -->
+    <div class="flex items-center space-x-4 w-72">
+      <!-- Play/Pause Master -->
+      <button onclick="toggleMasterPlay()" id="masterPlayBtn" class="w-10 h-10 rounded-full bg-brand-600 hover:bg-brand-500 text-white flex items-center justify-center shadow-lg shadow-brand-500/30 transition-all">
+        <i id="masterPlayIcon" data-lucide="play" class="w-5 h-5 ml-0.5 fill-current"></i>
+      </button>
+
+      <div>
+        <div class="text-xs font-bold text-white">第001章 绯红之月 (全章混音)</div>
+        <div class="text-[11px] text-slate-400">BGM: 维多利亚悬疑雨夜 (自动闪避 Ducking)</div>
+      </div>
+    </div>
+
+    <!-- Center Playback Timeline Scrubber -->
+    <div class="flex-1 max-w-xl px-4 flex flex-col items-center space-y-1.5">
+      <!-- Multi-Track Strip Overview -->
+      <div class="w-full h-3 bg-surface-base rounded-full overflow-hidden flex items-center relative">
+        <div class="h-full bg-blue-500 w-[20%]" title="旁白"></div>
+        <div class="h-full bg-brand-500 w-[15%]" title="克莱恩"></div>
+        <div class="h-full bg-blue-500 w-[25%]" title="旁白"></div>
+        <div class="h-full bg-pink-500 w-[15%]" title="梅丽莎"></div>
+        <div class="h-full bg-slate-800 w-[25%]" title="间奏"></div>
+        <!-- Progress playhead -->
+        <div id="playhead" class="absolute top-0 bottom-0 left-[8%] w-1 bg-white shadow"></div>
+      </div>
+
+      <div class="w-full flex justify-between text-[11px] font-mono text-slate-400">
+        <span id="currentTime">00:08</span>
+        <span class="text-emerald-400 text-[10px]">人声闪避 (-14dB) 运行中</span>
+        <span>14:18</span>
+      </div>
+    </div>
+
+    <!-- Right Controls -->
+    <div class="flex items-center space-x-3 w-72 justify-end text-xs">
+      <div class="bg-surface-base px-2.5 py-1 rounded-lg border border-surface-border text-emerald-400 font-mono text-[11px]">
+        -14.2 LUFS
+      </div>
+      <div class="flex items-center space-x-1.5 text-slate-400">
+        <i data-lucide="volume-2" class="w-4 h-4"></i>
+        <input type="range" min="0" max="1" step="0.1" value="0.8" class="w-16 accent-brand-500 h-1 bg-surface-base rounded">
+      </div>
+    </div>
+  </footer>
+
+  <div id="toastContainer" class="fixed bottom-24 right-6 z-50 flex flex-col space-y-2 pointer-events-none"></div>
+
+  <script>
+    lucide.createIcons();
+
+    let isPlaying = false;
+    let audioCtx = null;
+
+    function playParagraphAudio(freq, duration) {
+      if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      if (audioCtx.state === 'suspended') audioCtx.resume();
+
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+      gain.gain.setValueAtTime(0.2, audioCtx.currentTime);
+      gain.gain.linearRampToValueAtTime(0.01, audioCtx.currentTime + 1.2);
+      osc.connect(gain);
+      gain.connect(audioCtx.destination);
+      osc.start();
+      osc.stop(audioCtx.currentTime + 1.2);
+
+      showToast(`正在播放段落试听音频 (${freq}Hz)`, 'info');
+    }
+
+    function toggleMasterPlay() {
+      const btn = document.getElementById('masterPlayBtn');
+      const icon = document.getElementById('masterPlayIcon');
+
+      if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      if (audioCtx.state === 'suspended') audioCtx.resume();
+
+      if (!isPlaying) {
+        isPlaying = true;
+        btn.classList.replace('bg-brand-600', 'bg-amber-500');
+        icon.setAttribute('data-lucide', 'pause');
+        lucide.createIcons();
+
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.frequency.setValueAtTime(140, audioCtx.currentTime);
+        gain.gain.setValueAtTime(0.15, audioCtx.currentTime);
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start();
+        osc.stop(audioCtx.currentTime + 4);
+
+        showToast('全章母带播放已启动', 'success');
+      } else {
+        isPlaying = false;
+        btn.classList.replace('bg-amber-500', 'bg-brand-600');
+        icon.setAttribute('data-lucide', 'play');
+        lucide.createIcons();
+        showToast('播放已暂停', 'info');
+      }
+    }
+
+    function simulateBatchSynth() {
+      const btn = document.getElementById('batchSynthBtn');
+      btn.innerHTML = `<i data-lucide="loader-2" class="w-4 h-4 animate-spin"></i><span>GPU 推理中...</span>`;
+      lucide.createIcons();
+
+      setTimeout(() => {
+        btn.innerHTML = `<i data-lucide="check" class="w-4 h-4 text-emerald-300"></i><span>批量合成完成</span>`;
+        lucide.createIcons();
+        showToast('当前章所有段落已通过 CosyVoice 2 推理完毕！', 'success');
+      }, 1500);
+    }
+
+    function showToast(msg, type = 'info') {
+      const container = document.getElementById('toastContainer');
+      const toast = document.createElement('div');
+      const bg = type === 'success' ? 'bg-emerald-600/90 border-emerald-500/50 text-white' : 'bg-surface-card border-surface-border text-slate-200';
+      toast.className = `${bg} border px-4 py-2.5 rounded-xl text-xs shadow-xl flex items-center space-x-2 pointer-events-auto`;
+      toast.innerHTML = `<i data-lucide="info" class="w-4 h-4 text-brand-400"></i><span>${msg}</span>`;
+      container.appendChild(toast);
+      lucide.createIcons();
+      setTimeout(() => toast.remove(), 2500);
+    }
+  </script>
+</body>
+</html>

@@ -1,0 +1,582 @@
+<!DOCTYPE html>
+<html lang="zh-CN" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>VoiceNovel AI - 我的剧目</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            ink: {
+              900: '#0A0A0B',
+              850: '#0E0E11',
+              800: '#141417',
+              750: '#17171B',
+              700: '#1C1C21',
+              600: '#26262C',
+            },
+            accent: {
+              DEFAULT: '#F0297C',
+              400: '#FF5C9D',
+              600: '#CE1264',
+            },
+          },
+          fontFamily: {
+            sans: ['-apple-system', 'BlinkMacSystemFont', 'PingFang SC', 'HarmonyOS Sans SC', 'Microsoft YaHei', 'Helvetica Neue', 'sans-serif'],
+          },
+        },
+      },
+    };
+  </script>
+  <style>
+    body { background: #0a0a0b; }
+    ::-webkit-scrollbar { width: 10px; height: 10px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: #26262c; border-radius: 99px; border: 3px solid #0a0a0b; }
+    ::-webkit-scrollbar-thumb:hover { background: #3a3a42; }
+    .hairline { border-color: rgba(255, 255, 255, 0.07); }
+    .nav-item { transition: background-color .14s ease, color .14s ease; }
+    .nav-item:hover { background: rgba(255, 255, 255, 0.05); color: #fff; }
+    .card-cover { background: radial-gradient(120% 90% at 20% 0%, #22222a 0%, #16161a 55%, #101013 100%); }
+    .card-shell { transition: border-color .16s ease, transform .16s ease; }
+    .card-shell:hover { border-color: rgba(255, 255, 255, 0.16); }
+    [contenteditable]:focus { outline: none; color: #fff; }
+    [contenteditable]:focus { text-decoration: underline dotted rgba(255,255,255,.35); text-underline-offset: 3px; }
+  </style>
+</head>
+<body class="text-white/70 min-h-screen font-sans antialiased selection:bg-accent/30 selection:text-white">
+
+<div class="flex min-h-screen">
+
+  <!-- ==================== LEFT SIDEBAR ==================== -->
+  <aside class="hidden lg:flex fixed inset-y-0 left-0 z-40 w-[236px] flex-col border-r hairline bg-ink-900">
+    <div class="flex h-16 items-center px-5">
+      <a href="index.html" class="text-[20px] font-extrabold tracking-tight text-white">Voice<span class="text-accent">Novel</span></a>
+    </div>
+
+    <nav class="flex-1 overflow-y-auto px-3 pb-3">
+      <div class="space-y-0.5">
+        <button onclick="openImportModal()" class="nav-item flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-[13px] text-white/65">
+          <i data-lucide="plus" class="h-4 w-4"></i><span>新建剧目</span>
+        </button>
+        <a href="project-hub.html" class="nav-item flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-[13px] text-white/65">
+          <i data-lucide="layout-grid" class="h-4 w-4"></i><span>剧目看板</span>
+        </a>
+        <a href="chapter-studio.html" class="nav-item flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-[13px] text-white/65">
+          <i data-lucide="audio-lines" class="h-4 w-4"></i><span>章节工作台</span>
+        </a>
+        <a href="export-center.html" class="nav-item flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-[13px] text-white/65">
+          <i data-lucide="disc-3" class="h-4 w-4"></i><span>母带导出</span>
+        </a>
+        <a href="voice-library.html" class="nav-item flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-[13px] text-white/65">
+          <i data-lucide="mic-vocal" class="h-4 w-4"></i><span>声线资产库</span>
+        </a>
+      </div>
+
+      <div class="my-3 h-px bg-white/[0.07]"></div>
+
+      <button id="projectsToggle" class="nav-item flex w-full items-center gap-2.5 rounded-lg bg-white/[0.06] px-3 py-2 text-[13px] font-medium text-white">
+        <i data-lucide="folder-open" class="h-4 w-4 text-white/50"></i>
+        <span class="flex-1 text-left">我的剧目</span>
+        <i data-lucide="chevron-right" class="h-3.5 w-3.5 text-white/35 transition-transform" id="projectsChevron"></i>
+      </button>
+      <div id="projectSublist" class="mt-0.5 space-y-0.5 pl-3">
+        <a href="project-hub.html" class="nav-item flex items-center gap-2.5 rounded-lg py-1.5 pl-3 pr-2 text-[12.5px] text-white/50">
+          <i data-lucide="folder" class="h-3.5 w-3.5 shrink-0 text-white/25"></i>
+          <span class="truncate">诡秘之主：第一部</span>
+        </a>
+        <a href="project-hub.html" class="nav-item flex items-center gap-2.5 rounded-lg py-1.5 pl-3 pr-2 text-[12.5px] text-white/50">
+          <i data-lucide="folder" class="h-3.5 w-3.5 shrink-0 text-white/25"></i>
+          <span class="truncate">长夜余火：灰土列车</span>
+        </a>
+        <a href="project-hub.html" class="nav-item flex items-center gap-2.5 rounded-lg py-1.5 pl-3 pr-2 text-[12.5px] text-white/50">
+          <i data-lucide="folder" class="h-3.5 w-3.5 shrink-0 text-white/25"></i>
+          <span class="truncate">道诡异仙：清旺来</span>
+        </a>
+      </div>
+    </nav>
+
+    <div class="px-3 pb-3">
+      <div class="flex items-center gap-2 rounded-xl border hairline bg-ink-800 px-3 py-2.5">
+        <span class="h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-400"></span>
+        <span class="text-[12px] text-white/60">CosyVoice 2 推理集群 · 就绪</span>
+      </div>
+    </div>
+    <div class="flex items-center gap-1 border-t hairline px-4 py-3 text-white/35">
+      <button class="nav-item rounded-md p-1.5" title="帮助"><i data-lucide="circle-help" class="h-4 w-4"></i></button>
+      <button class="nav-item rounded-md p-1.5" title="更新日志"><i data-lucide="book-open" class="h-4 w-4"></i></button>
+      <button class="nav-item rounded-md p-1.5" title="生产记录"><i data-lucide="history" class="h-4 w-4"></i></button>
+      <button class="nav-item rounded-md p-1.5" title="反馈"><i data-lucide="message-circle" class="h-4 w-4"></i></button>
+    </div>
+  </aside>
+
+  <!-- ==================== CONTENT COLUMN ==================== -->
+  <div class="flex min-w-0 flex-1 flex-col lg:ml-[236px]">
+
+    <!-- Top bar -->
+    <header class="sticky top-0 z-30 flex h-16 shrink-0 items-center justify-between gap-3 border-b hairline bg-ink-900/85 px-5 backdrop-blur-md sm:px-8">
+      <button onclick="openImportModal()" class="flex items-center gap-2 rounded-lg border hairline bg-ink-800 px-3 py-2 text-[13px] text-white/70 hover:bg-ink-700 lg:hidden">
+        <i data-lucide="plus" class="h-4 w-4"></i>新建
+      </button>
+      <div class="hidden lg:block"></div>
+
+      <div class="flex items-center gap-2">
+        <a href="export-center.html" class="hidden items-center gap-2 rounded-full border hairline bg-ink-800 py-1.5 pl-1.5 pr-3.5 text-[12.5px] text-white/70 hover:border-white/20 xl:flex">
+          <span class="flex h-6 w-6 items-center justify-center rounded-full bg-accent/15 text-[11px] font-bold text-accent-400">新</span>
+          拆本引擎 v3：EPUB 章节自动识别
+        </a>
+        <button class="hidden items-center gap-2 rounded-full border hairline bg-ink-800 px-3.5 py-2 text-[12.5px] text-white/70 hover:border-white/20 md:flex">
+          <i data-lucide="crown" class="h-3.5 w-3.5 text-amber-400"></i>
+          <span>会员订阅</span>
+          <span class="h-3 w-px bg-white/10"></span>
+          <span class="text-amber-400/90">剩 620 分钟</span>
+        </button>
+        <button class="flex items-center gap-1.5 rounded-full border hairline bg-ink-800 px-3 py-2 text-[12.5px] text-white/80 hover:border-white/20">
+          <i data-lucide="coins" class="h-3.5 w-3.5 text-white/40"></i>
+          <span class="font-mono">6,240</span>
+          <span class="rounded bg-white/10 px-1.5 py-0.5 text-[10px] font-semibold text-white/60">PRO</span>
+        </button>
+        <button class="relative rounded-lg p-2 text-white/50 hover:bg-white/5 hover:text-white" title="通知">
+          <i data-lucide="bell" class="h-[18px] w-[18px]"></i>
+          <span class="absolute -right-1 -top-1 flex h-4 min-w-[17px] items-center justify-center rounded-full bg-accent px-1 text-[9px] font-bold text-white">12</span>
+        </button>
+        <button class="ml-1 h-8 w-8 shrink-0 rounded-full bg-ink-700 text-[12px] font-bold text-white/70 ring-1 ring-white/10 hover:ring-white/25">L</button>
+      </div>
+    </header>
+
+    <!-- ==================== BOOKSHELF ==================== -->
+    <main class="flex-1 px-5 pb-16 pt-8 sm:px-8">
+      <h1 class="text-[26px] font-bold leading-none tracking-tight text-white">我的剧目</h1>
+
+      <!-- Tabs + toolbar -->
+      <div class="mt-7 flex flex-wrap items-center justify-between gap-4">
+        <div class="flex items-center gap-1" id="tabs">
+          <button data-tab="全部" class="tab rounded-lg px-2.5 py-1.5 text-[15px] font-semibold text-white">全部</button>
+          <button data-tab="制作中" class="tab rounded-lg px-2.5 py-1.5 text-[15px] text-white/40 hover:text-white/70">制作中</button>
+          <button data-tab="母带就绪" class="tab rounded-lg px-2.5 py-1.5 text-[15px] text-white/40 hover:text-white/70">母带就绪</button>
+          <button data-tab="回收站" class="tab rounded-lg px-2.5 py-1.5 text-[15px] text-white/40 hover:text-white/70">回收站</button>
+        </div>
+
+        <div class="flex items-center gap-2">
+          <button onclick="createFolder()" class="flex items-center gap-1.5 rounded-full border hairline bg-ink-800 px-3.5 py-2 text-[12.5px] text-white/70 hover:border-white/20 hover:text-white">
+            <i data-lucide="folder-plus" class="h-3.5 w-3.5"></i>新建文件夹
+          </button>
+          <button id="favBtn" title="只看收藏" class="rounded-full border hairline bg-ink-800 p-2 text-white/50 hover:text-white">
+            <i data-lucide="star" class="h-4 w-4"></i>
+          </button>
+          <div class="relative">
+            <button id="sortBtn" title="排序" class="rounded-full border hairline bg-ink-800 p-2 text-white/50 hover:text-white">
+              <i data-lucide="filter" class="h-4 w-4"></i>
+            </button>
+            <div id="sortMenu" class="absolute right-0 top-11 hidden w-40 overflow-hidden rounded-xl border hairline bg-ink-750 py-1 shadow-2xl shadow-black/60">
+              <button data-sort="edited" class="sort-opt flex w-full items-center justify-between px-3 py-2 text-[12.5px] text-white/70 hover:bg-white/5">最近编辑</button>
+              <button data-sort="progress" class="sort-opt flex w-full items-center justify-between px-3 py-2 text-[12.5px] text-white/70 hover:bg-white/5">按进度</button>
+              <button data-sort="duration" class="sort-opt flex w-full items-center justify-between px-3 py-2 text-[12.5px] text-white/70 hover:bg-white/5">按已生成时长</button>
+            </div>
+          </div>
+          <div class="relative">
+            <i data-lucide="search" class="pointer-events-none absolute left-3.5 top-2.5 h-4 w-4 text-white/30"></i>
+            <input id="q" type="text" placeholder="搜索剧目" class="w-[164px] rounded-full border hairline bg-ink-800 py-2 pl-9 pr-3 text-[12.5px] text-white placeholder:text-white/30 focus:border-accent/60 focus:outline-none xl:w-[220px]">
+          </div>
+        </div>
+      </div>
+
+      <!-- Card grid -->
+      <div id="grid" class="mt-6 grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+
+        <!-- New project placeholder -->
+        <div class="flex min-h-[236px] items-center justify-center rounded-2xl border border-dashed border-white/10 bg-ink-850">
+          <button onclick="openImportModal()" class="flex items-center gap-2 rounded-full border hairline bg-ink-700 px-5 py-2.5 text-[13px] font-medium text-white/80 hover:bg-ink-600 hover:text-white">
+            <i data-lucide="plus" class="h-4 w-4"></i>新建项目
+          </button>
+        </div>
+
+        <!-- Folder card -->
+        <article data-card data-type="folder" data-status="全部" data-title="东方民俗系列" data-edited="17" data-fav="0" class="card-shell relative rounded-2xl border hairline bg-ink-800">
+          <a href="index.html" class="card-cover flex aspect-[16/10] items-center justify-center rounded-t-2xl">
+            <i data-lucide="folder" class="h-9 w-9 text-white/20"></i>
+          </a>
+          <div class="flex items-end justify-between gap-2 border-t hairline px-4 py-3">
+            <div class="min-w-0">
+              <h3 class="truncate text-[14px] font-medium text-white" contenteditable="false">东方民俗系列</h3>
+              <p class="mt-1 truncate text-[11.5px] text-white/35">2 部剧目 · 1 周前</p>
+            </div>
+            <button class="more-btn shrink-0 rounded-md p-1 text-white/30 hover:bg-white/5 hover:text-white/70"><i data-lucide="more-horizontal" class="h-4 w-4"></i></button>
+          </div>
+          <div class="card-menu absolute bottom-[54px] right-3 z-20 hidden w-36 overflow-hidden rounded-xl border hairline bg-ink-750 py-1 shadow-2xl shadow-black/60"></div>
+        </article>
+
+        <!-- 诡秘之主 -->
+        <article data-card data-status="制作中" data-title="诡秘之主：第一部 愚者" data-edited="30" data-progress="25" data-duration="14.3" data-fav="1" class="card-shell relative rounded-2xl border hairline bg-ink-800">
+          <a href="project-hub.html" class="card-cover group relative block aspect-[16/10] overflow-hidden rounded-t-2xl">
+            <span class="absolute left-4 top-4 flex items-center gap-1.5 rounded-full bg-black/45 px-2.5 py-1 text-[10.5px] font-medium text-white/75 ring-1 ring-white/10">
+              <span class="h-1.5 w-1.5 rounded-full bg-accent"></span>克苏鲁 / 西幻
+            </span>
+            <svg viewBox="0 0 320 120" preserveAspectRatio="none" class="waveform absolute inset-x-0 top-1/2 h-16 w-full -translate-y-1/2 px-5" data-progress="25" data-seed="7"></svg>
+            <div class="absolute inset-x-4 bottom-4">
+              <div class="mb-1.5 flex items-center justify-between text-[10.5px] text-white/35">
+                <span>第 001 章 / 共 12 章</span>
+                <span class="font-mono">25%</span>
+              </div>
+              <div class="h-[3px] w-full overflow-hidden rounded-full bg-white/10">
+                <div class="h-full rounded-full bg-accent" style="width:25%"></div>
+              </div>
+            </div>
+          </a>
+          <div class="flex items-end justify-between gap-2 border-t hairline px-4 py-3">
+            <div class="min-w-0">
+              <h3 class="truncate text-[14px] font-medium text-white" contenteditable="false">诡秘之主：第一部 愚者</h3>
+              <p class="mt-1 truncate text-[11.5px] text-white/35">12 章 · 进度 25% · 已生成 14分18秒 · 3 天前</p>
+            </div>
+            <button class="more-btn shrink-0 rounded-md p-1 text-white/30 hover:bg-white/5 hover:text-white/70"><i data-lucide="more-horizontal" class="h-4 w-4"></i></button>
+          </div>
+          <div class="card-menu absolute bottom-[54px] right-3 z-20 hidden w-36 overflow-hidden rounded-xl border hairline bg-ink-750 py-1 shadow-2xl shadow-black/60"></div>
+        </article>
+
+        <!-- 道诡异仙 -->
+        <article data-card data-status="母带就绪" data-title="道诡异仙：清旺来" data-edited="8" data-progress="100" data-duration="18.7" data-fav="0" class="card-shell relative rounded-2xl border hairline bg-ink-800">
+          <a href="project-hub.html" class="card-cover group relative block aspect-[16/10] overflow-hidden rounded-t-2xl">
+            <span class="absolute left-4 top-4 flex items-center gap-1.5 rounded-full bg-black/45 px-2.5 py-1 text-[10.5px] font-medium text-white/75 ring-1 ring-white/10">
+              <span class="h-1.5 w-1.5 rounded-full bg-emerald-400"></span>东方民俗 / 悬疑
+            </span>
+            <span class="absolute right-4 top-4 rounded-full bg-emerald-400/10 px-2.5 py-1 text-[10.5px] font-medium text-emerald-300 ring-1 ring-emerald-400/20">可导出 M4B</span>
+            <svg viewBox="0 0 320 120" preserveAspectRatio="none" class="waveform absolute inset-x-0 top-1/2 h-16 w-full -translate-y-1/2 px-5" data-progress="100" data-seed="23"></svg>
+            <div class="absolute inset-x-4 bottom-4">
+              <div class="mb-1.5 flex items-center justify-between text-[10.5px] text-white/35">
+                <span>全章混音完成</span>
+                <span class="font-mono text-emerald-400/80">100%</span>
+              </div>
+              <div class="h-[3px] w-full overflow-hidden rounded-full bg-white/10">
+                <div class="h-full rounded-full bg-accent" style="width:100%"></div>
+              </div>
+            </div>
+          </a>
+          <div class="flex items-end justify-between gap-2 border-t hairline px-4 py-3">
+            <div class="min-w-0">
+              <h3 class="truncate text-[14px] font-medium text-white" contenteditable="false">道诡异仙：清旺来</h3>
+              <p class="mt-1 truncate text-[11.5px] text-white/35">1 章 · 进度 100% · 已生成 18分40秒 · 8 小时前</p>
+            </div>
+            <button class="more-btn shrink-0 rounded-md p-1 text-white/30 hover:bg-white/5 hover:text-white/70"><i data-lucide="more-horizontal" class="h-4 w-4"></i></button>
+          </div>
+          <div class="card-menu absolute bottom-[54px] right-3 z-20 hidden w-36 overflow-hidden rounded-xl border hairline bg-ink-750 py-1 shadow-2xl shadow-black/60"></div>
+        </article>
+
+        <!-- 长夜余火 -->
+        <article data-card data-status="制作中" data-title="长夜余火：灰土列车" data-edited="52" data-progress="10" data-duration="0" data-fav="0" class="card-shell relative rounded-2xl border hairline bg-ink-800">
+          <a href="project-hub.html" class="card-cover group relative block aspect-[16/10] overflow-hidden rounded-t-2xl">
+            <span class="absolute left-4 top-4 flex items-center gap-1.5 rounded-full bg-black/45 px-2.5 py-1 text-[10.5px] font-medium text-white/75 ring-1 ring-white/10">
+              <span class="h-1.5 w-1.5 rounded-full bg-amber-400"></span>废土 / 科幻
+            </span>
+            <svg viewBox="0 0 320 120" preserveAspectRatio="none" class="waveform absolute inset-x-0 top-1/2 h-16 w-full -translate-y-1/2 px-5" data-progress="10" data-seed="41"></svg>
+            <div class="absolute inset-x-4 bottom-4">
+              <div class="mb-1.5 flex items-center justify-between text-[10.5px] text-white/35">
+                <span>3 位角色待选角</span>
+                <span class="font-mono">10%</span>
+              </div>
+              <div class="h-[3px] w-full overflow-hidden rounded-full bg-white/10">
+                <div class="h-full rounded-full bg-accent" style="width:10%"></div>
+              </div>
+            </div>
+          </a>
+          <div class="flex items-end justify-between gap-2 border-t hairline px-4 py-3">
+            <div class="min-w-0">
+              <h3 class="truncate text-[14px] font-medium text-white" contenteditable="false">长夜余火：灰土列车</h3>
+              <p class="mt-1 truncate text-[11.5px] text-white/35">8 章 · 进度 10% · 待批量生成 · 5 天前</p>
+            </div>
+            <button class="more-btn shrink-0 rounded-md p-1 text-white/30 hover:bg-white/5 hover:text-white/70"><i data-lucide="more-horizontal" class="h-4 w-4"></i></button>
+          </div>
+          <div class="card-menu absolute bottom-[54px] right-3 z-20 hidden w-36 overflow-hidden rounded-xl border hairline bg-ink-750 py-1 shadow-2xl shadow-black/60"></div>
+        </article>
+
+        <!-- 空状态 -->
+        <div id="emptyState" class="hidden min-h-[236px] rounded-2xl border border-dashed border-white/10 bg-ink-850 p-8 sm:col-span-2 xl:col-span-3">
+          <div class="flex h-full flex-col items-center justify-center text-center">
+            <i data-lucide="inbox" class="h-7 w-7 text-white/20"></i>
+            <p id="emptyText" class="mt-3 text-[13px] text-white/45">没有符合条件的剧目</p>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+</div>
+
+<!-- Right-edge floating actions -->
+<div class="fixed right-4 top-1/2 z-30 hidden -translate-y-1/2 flex-col gap-2 2xl:flex">
+  <button title="意见反馈" class="flex h-9 w-9 items-center justify-center rounded-full border hairline bg-ink-800 text-white/50 hover:text-white"><i data-lucide="message-circle-more" class="h-4 w-4"></i></button>
+  <button title="快捷键" class="flex h-9 w-9 items-center justify-center rounded-full border hairline bg-ink-800 text-white/50 hover:text-white"><i data-lucide="keyboard" class="h-4 w-4"></i></button>
+</div>
+
+<!-- ==================== MODAL: 导入小说新建剧目 ==================== -->
+<div id="importModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/75 p-4 backdrop-blur-sm">
+  <div class="w-full max-w-[520px] rounded-2xl border hairline bg-ink-800 shadow-2xl shadow-black/70">
+    <div class="flex items-center justify-between border-b hairline px-6 py-4">
+      <div>
+        <h3 class="text-[15px] font-semibold text-white">导入小说，创建有声剧目</h3>
+        <p class="mt-0.5 text-[11.5px] text-white/40">自动识别章节标记，拆分对白与旁白并建立生产流水线</p>
+      </div>
+      <button onclick="closeImportModal()" class="rounded-md p-1.5 text-white/40 hover:bg-white/5 hover:text-white"><i data-lucide="x" class="h-4 w-4"></i></button>
+    </div>
+
+    <div class="space-y-5 px-6 py-5">
+      <div>
+        <label class="mb-1.5 block text-[12.5px] font-medium text-white/75">剧目名称</label>
+        <input type="text" placeholder="例如：诡秘之主：第一部 愚者" class="w-full rounded-lg border hairline bg-ink-900 px-3 py-2.5 text-[13px] text-white placeholder:text-white/25 focus:border-accent/60 focus:outline-none">
+      </div>
+
+      <div>
+        <label class="mb-1.5 block text-[12.5px] font-medium text-white/75">电子书文件（.txt / .epub）</label>
+        <div class="cursor-pointer rounded-xl border border-dashed border-white/12 bg-ink-900/60 px-6 py-8 text-center transition-colors hover:border-accent/50">
+          <i data-lucide="upload" class="mx-auto mb-2.5 h-6 w-6 text-white/30"></i>
+          <div class="text-[13px] text-white/75">点击或拖拽文件到此处</div>
+          <div class="mt-1 text-[11px] text-white/35">单本最大 20 MB · 解析后可在剧目看板校对章节</div>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-2 gap-4">
+        <div>
+          <label class="mb-1.5 block text-[12.5px] font-medium text-white/75">默认 TTS 模型</label>
+          <select class="w-full rounded-lg border hairline bg-ink-900 px-3 py-2.5 text-[13px] text-white focus:border-accent/60 focus:outline-none">
+            <option>CosyVoice 2.0</option>
+            <option>Fish Speech 1.5</option>
+            <option>F5-TTS</option>
+          </select>
+        </div>
+        <div>
+          <label class="mb-1.5 block text-[12.5px] font-medium text-white/75">归属文件夹</label>
+          <select class="w-full rounded-lg border hairline bg-ink-900 px-3 py-2.5 text-[13px] text-white focus:border-accent/60 focus:outline-none">
+            <option>根目录</option>
+            <option>东方民俗系列</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <div class="flex items-center justify-end gap-2 border-t hairline px-6 py-4">
+      <button onclick="closeImportModal()" class="rounded-lg border hairline px-4 py-2 text-[13px] text-white/65 hover:bg-white/5 hover:text-white">取消</button>
+      <a href="project-hub.html" class="flex items-center gap-1.5 rounded-lg bg-accent px-4 py-2 text-[13px] font-medium text-white hover:bg-accent-600">
+        开始解析并进入剧目<i data-lucide="arrow-right" class="h-4 w-4"></i>
+      </a>
+    </div>
+  </div>
+</div>
+
+<script>
+  lucide.createIcons();
+
+  /* ---------- cover waveforms ---------- */
+  function drawWaveform(svg) {
+    const bars = 42;
+    const filled = Math.round(bars * (Number(svg.dataset.progress) || 0) / 100);
+    const gap = 320 / bars;
+    const bw = gap * 0.34;
+    let seed = Number(svg.dataset.seed) || 1;
+    const rnd = () => ((seed = (seed * 9301 + 49297) % 233280) / 233280);
+    let out = '';
+    for (let i = 0; i < bars; i++) {
+      const h = 12 + rnd() * 48;
+      const x = i * gap + (gap - bw) / 2;
+      const on = i < filled;
+      out += `<rect x="${x.toFixed(1)}" y="${(60 - h / 2).toFixed(1)}" width="${bw.toFixed(1)}" height="${h.toFixed(1)}" rx="${(bw / 2).toFixed(1)}" fill="${on ? 'rgba(240,41,124,.6)' : 'rgba(255,255,255,.13)'}"/>`;
+    }
+    svg.innerHTML = out;
+  }
+  document.querySelectorAll('svg.waveform').forEach(drawWaveform);
+
+  /* ---------- modal ---------- */
+  const modal = document.getElementById('importModal');
+  function openImportModal() {
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+  }
+  function closeImportModal() {
+    modal.classList.add('hidden');
+    modal.classList.remove('flex');
+  }
+  modal.addEventListener('click', (e) => { if (e.target === modal) closeImportModal(); });
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') { closeImportModal(); closeAllMenus(); } });
+
+  /* ---------- sidebar project group ---------- */
+  const sublist = document.getElementById('projectSublist');
+  document.getElementById('projectsToggle').addEventListener('click', () => {
+    const collapsed = sublist.classList.toggle('hidden');
+    document.getElementById('projectsChevron').style.transform = collapsed ? '' : 'rotate(90deg)';
+  });
+  document.getElementById('projectsChevron').style.transform = 'rotate(90deg)';
+
+  /* ---------- tabs / search / fav / sort ---------- */
+  const grid = document.getElementById('grid');
+  const emptyState = document.getElementById('emptyState');
+  const emptyText = document.getElementById('emptyText');
+  let tab = '全部';
+  let favOnly = false;
+  let keyword = '';
+
+  function cards() {
+    return Array.from(grid.querySelectorAll('[data-card]'));
+  }
+
+  function applyFilter() {
+    let visible = 0;
+    cards().forEach((c) => {
+      const st = c.dataset.status;
+      const hitTab = tab === '全部' ? st !== '回收站' : st === tab;
+      const hitFav = !favOnly || c.dataset.fav === '1';
+      const hitKw = !keyword || c.dataset.title.toLowerCase().includes(keyword);
+      const show = hitTab && hitFav && hitKw;
+      c.classList.toggle('hidden', !show);
+      if (show) visible++;
+    });
+    emptyState.classList.toggle('hidden', visible > 0);
+    emptyText.textContent = tab === '回收站' && !keyword && !favOnly
+      ? '回收站是空的'
+      : '没有符合条件的剧目';
+  }
+
+  document.getElementById('tabs').addEventListener('click', (e) => {
+    const btn = e.target.closest('.tab');
+    if (!btn) return;
+    tab = btn.dataset.tab;
+    document.querySelectorAll('.tab').forEach((t) => {
+      const on = t === btn;
+      t.classList.toggle('text-white', on);
+      t.classList.toggle('font-semibold', on);
+      t.classList.toggle('text-white/40', !on);
+    });
+    applyFilter();
+  });
+
+  const favBtn = document.getElementById('favBtn');
+  favBtn.addEventListener('click', () => {
+    favOnly = !favOnly;
+    favBtn.classList.toggle('bg-accent/15', favOnly);
+    favBtn.classList.toggle('text-accent-400', favOnly);
+    favBtn.classList.toggle('border-accent/30', favOnly);
+    applyFilter();
+  });
+
+  document.getElementById('q').addEventListener('input', (e) => {
+    keyword = e.target.value.trim().toLowerCase();
+    applyFilter();
+  });
+
+  const sortMenu = document.getElementById('sortMenu');
+  document.getElementById('sortBtn').addEventListener('click', (e) => {
+    e.stopPropagation();
+    sortMenu.classList.toggle('hidden');
+  });
+  sortMenu.addEventListener('click', (e) => {
+    const opt = e.target.closest('.sort-opt');
+    if (!opt) return;
+    const key = opt.dataset.sort;
+    const placeholder = grid.firstElementChild;
+    const ordered = cards().sort((a, b) => Number(b.dataset[key] || 0) - Number(a.dataset[key] || 0));
+    ordered.forEach((c) => grid.appendChild(c));
+    grid.appendChild(emptyState);
+    grid.insertBefore(placeholder, grid.firstElementChild);
+    document.querySelectorAll('.sort-opt').forEach((o) => o.classList.toggle('text-accent-400', o === opt));
+    sortMenu.classList.add('hidden');
+  });
+
+  /* ---------- card menus ---------- */
+  function closeAllMenus() {
+    document.querySelectorAll('.card-menu').forEach((m) => m.classList.add('hidden'));
+  }
+
+  function buildMenu(card) {
+    const menu = card.querySelector('.card-menu');
+    const trashed = card.dataset.status === '回收站';
+    const fav = card.dataset.fav === '1';
+    const rows = trashed
+      ? [['restore', 'rotate-ccw', '恢复'], ['purge', 'trash-2', '彻底删除']]
+      : [
+          ['open', 'arrow-up-right', '打开'],
+          ['rename', 'pencil', '重命名'],
+          ['fav', 'star', fav ? '取消收藏' : '收藏'],
+          ['trash', 'folder-x', '移入回收站'],
+        ];
+    menu.innerHTML = rows
+      .map(([act, icon, label]) =>
+        `<button data-act="${act}" class="flex w-full items-center gap-2.5 px-3 py-2 text-left text-[12.5px] text-white/70 hover:bg-white/5 hover:text-white">
+           <i data-lucide="${icon}" class="h-3.5 w-3.5 opacity-60"></i>${label}
+         </button>`)
+      .join('');
+    lucide.createIcons();
+  }
+
+  grid.addEventListener('click', (e) => {
+    const trigger = e.target.closest('.more-btn');
+    if (trigger) {
+      e.stopPropagation();
+      const card = trigger.closest('[data-card]');
+      const menu = card.querySelector('.card-menu');
+      const wasOpen = !menu.classList.contains('hidden');
+      closeAllMenus();
+      if (!wasOpen) {
+        buildMenu(card);
+        menu.classList.remove('hidden');
+      }
+      return;
+    }
+
+    const item = e.target.closest('.card-menu [data-act]');
+    if (item) {
+      e.stopPropagation();
+      const card = item.closest('[data-card]');
+      const menu = card.querySelector('.card-menu');
+      const titleEl = card.querySelector('h3');
+      const act = item.dataset.act;
+
+      if (act === 'open') location.href = card.dataset.type === 'folder' ? 'index.html' : 'project-hub.html';
+      if (act === 'rename') {
+        titleEl.contentEditable = 'true';
+        titleEl.focus();
+        document.getSelection().selectAllChildren(titleEl);
+      }
+      if (act === 'fav') {
+        card.dataset.fav = card.dataset.fav === '1' ? '0' : '1';
+        applyFilter();
+      }
+      if (act === 'trash') { card.dataset.status = '回收站'; applyFilter(); }
+      if (act === 'restore') { card.dataset.status = '制作中'; applyFilter(); }
+      if (act === 'purge') card.remove();
+      menu.classList.add('hidden');
+      return;
+    }
+
+    closeAllMenus();
+    sortMenu.classList.add('hidden');
+  });
+
+  document.addEventListener('focusout', (e) => {
+    if (e.target.matches('h3[contenteditable="true"]')) {
+      e.target.contentEditable = 'false';
+      const card = e.target.closest('[data-card]');
+      if (card) card.dataset.title = e.target.textContent.trim();
+    }
+  });
+
+  /* ---------- new folder ---------- */
+  function createFolder() {
+    const tpl = document.querySelector('[data-type="folder"]');
+    const el = tpl.cloneNode(true);
+    el.dataset.edited = Date.now();
+    el.dataset.title = '未命名文件夹';
+    el.querySelector('h3').textContent = '未命名文件夹';
+    el.querySelector('p').textContent = '0 部剧目 · 刚刚';
+    grid.insertBefore(el, grid.children[1]);
+    const name = el.querySelector('h3');
+    name.contentEditable = 'true';
+    name.focus();
+    document.getSelection().selectAllChildren(name);
+    if (tab !== '全部') document.querySelector('[data-tab="全部"]').click();
+  }
+
+  applyFilter();
+</script>
+</body>
+</html>

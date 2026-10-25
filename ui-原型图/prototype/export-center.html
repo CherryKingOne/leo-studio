@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="zh-CN" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>VoiceNovel AI - 《诡秘之主》母带导出与发布中心</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              500: '#6366f1',
+              600: '#4f46e5',
+              700: '#4338ca',
+            },
+            surface: {
+              base: '#090A0F',
+              card: '#12141F',
+              hover: '#191D2D',
+              border: '#202638'
+            }
+          }
+        }
+      }
+    }
+  </script>
+</head>
+<body class="bg-surface-base text-slate-200 min-h-screen flex flex-col font-sans antialiased selection:bg-brand-500/30">
+
+  <!-- ==================== 1. PROJECT SCOPED HEADER ==================== -->
+  <header class="h-16 border-b border-surface-border bg-surface-card/90 backdrop-blur-md px-6 flex items-center justify-between sticky top-0 z-30">
+    <div class="flex items-center space-x-6">
+      <!-- Back to Book Hub -->
+      <a href="project-hub.html" class="flex items-center space-x-1.5 text-slate-400 hover:text-white px-2.5 py-1.5 rounded-lg hover:bg-surface-hover text-xs font-medium transition-colors">
+        <i data-lucide="chevron-left" class="w-4 h-4"></i>
+        <span>返回《诡秘之主》看板</span>
+      </a>
+
+      <div class="h-4 w-[1px] bg-surface-border"></div>
+
+      <!-- Current Breadcrumb -->
+      <div class="flex items-center space-x-2 text-xs">
+        <span class="text-slate-400">《诡秘之主：第一部》</span>
+        <i data-lucide="chevron-right" class="w-3.5 h-3.5 text-slate-600"></i>
+        <span class="text-white font-bold">整书母带导出与发布</span>
+      </div>
+    </div>
+
+    <!-- Right Engine Status -->
+    <div class="flex items-center space-x-3 text-xs text-slate-400">
+      <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
+      <span>FFmpeg 6.1 (Libopus / FDK-AAC) 渲染引擎已就绪</span>
+    </div>
+  </header>
+
+  <!-- ==================== 2. MAIN EXPORT INTERFACE ==================== -->
+  <main class="flex-1 max-w-6xl w-full mx-auto px-6 py-8 space-y-8">
+
+    <!-- Section Header -->
+    <div class="border-b border-surface-border pb-4">
+      <h2 class="text-lg font-bold text-white">母带压制与成品交付</h2>
+      <p class="text-xs text-slate-400 mt-1">系统将自动聚合《诡秘之主》所有已合成章节音频、配乐音轨与章节索引元数据，输出专业商业级发行母带。</p>
+    </div>
+
+    <!-- 2 Column Layout (Form + Player Mockup) -->
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+
+      <!-- Left 7 Cols: Export Specs Form -->
+      <div class="lg:col-span-7 space-y-6">
+
+        <!-- Format Options -->
+        <div class="bg-surface-card border border-surface-border rounded-2xl p-6 space-y-4">
+          <label class="block text-slate-200 font-bold text-sm">1. 选择交付目标格式</label>
+
+          <div class="space-y-3 text-xs">
+            <!-- M4B -->
+            <label class="p-4 rounded-xl border border-brand-500 bg-brand-500/10 flex items-start space-x-3 cursor-pointer block">
+              <input type="radio" name="format" checked class="mt-1 accent-brand-500">
+              <div class="flex-1">
+                <div class="flex items-center justify-between">
+                  <span class="font-bold text-white text-xs">M4B 广播级有声书 (Audible / Apple Books 标准)</span>
+                  <span class="text-[10px] font-mono bg-brand-500/20 text-brand-300 px-2 py-0.5 rounded">商业推荐</span>
+                </div>
+                <p class="text-[11px] text-slate-400 mt-1">单文件封装全书，内嵌无缝章节目录索引、精准断点续听与封面图，支持各大听书 App 原生解析。</p>
+              </div>
+            </label>
+
+            <!-- MP3 -->
+            <label class="p-4 rounded-xl border border-surface-border bg-surface-base/40 hover:border-slate-700 flex items-start space-x-3 cursor-pointer block transition-colors">
+              <input type="radio" name="format" class="mt-1 accent-brand-500">
+              <div class="flex-1">
+                <div class="flex items-center justify-between">
+                  <span class="font-bold text-slate-200 text-xs">MP3 播客标准包 (320kbps + ID3v2 章节标记)</span>
+                  <span class="text-[10px] font-mono text-slate-400">高兼容性</span>
+                </div>
+                <p class="text-[11px] text-slate-400 mt-1">适配车载系统、喜马拉雅等传统播客托管平台。</p>
+              </div>
+            </label>
+
+            <!-- Stems -->
+            <label class="p-4 rounded-xl border border-surface-border bg-surface-base/40 hover:border-slate-700 flex items-start space-x-3 cursor-pointer block transition-colors">
+              <input type="radio" name="format" class="mt-1 accent-brand-500">
+              <div class="flex-1">
+                <div class="flex items-center justify-between">
+                  <span class="font-bold text-slate-200 text-xs">多轨分轨工程包 (Stems ZIP)</span>
+                  <span class="text-[10px] font-mono text-slate-400">后期制作</span>
+                </div>
+                <p class="text-[11px] text-slate-400 mt-1">分别导出纯人声干音轨、BGM轨、拟音音效轨 WAV，便于二次导入 Reaper/Audition 混音。</p>
+              </div>
+            </label>
+          </div>
+        </div>
+
+        <!-- Audio Specs -->
+        <div class="bg-surface-card border border-surface-border rounded-2xl p-6 space-y-4">
+          <label class="block text-slate-200 font-bold text-sm">2. 母带声学标准控制</label>
+
+          <div class="grid grid-cols-2 gap-4 text-xs">
+            <div>
+              <label class="text-slate-400 block mb-1">音频编码规格</label>
+              <select class="w-full bg-surface-base border border-surface-border rounded-lg px-3 py-2 text-slate-200">
+                <option selected>AAC-LC 192 kbps (广播标准)</option>
+                <option>AAC-LC 256 kbps (极致音质)</option>
+                <option>FLAC 24-bit (无损母带)</option>
+              </select>
+            </div>
+
+            <div>
+              <label class="text-slate-400 block mb-1">目标响度标准化 (LUFS)</label>
+              <select class="w-full bg-surface-base border border-surface-border rounded-lg px-3 py-2 text-slate-200">
+                <option selected>-14.0 LUFS (Audible / 喜马拉雅)</option>
+                <option>-16.0 LUFS (Apple Podcasts 标准)</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="pt-2 flex items-center space-x-4 text-xs">
+            <label class="flex items-center space-x-2 cursor-pointer text-slate-300">
+              <input type="checkbox" checked class="accent-brand-500 rounded">
+              <span>同步打包 LRC / VTT 逐字双语对齐字幕文件</span>
+            </label>
+          </div>
+        </div>
+
+        <!-- Metadata -->
+        <div class="bg-surface-card border border-surface-border rounded-2xl p-6 space-y-4">
+          <label class="block text-slate-200 font-bold text-sm">3. 全书发行元数据信息</label>
+
+          <div class="grid grid-cols-2 gap-4 text-xs">
+            <div>
+              <label class="text-slate-400 block mb-1">作品名称</label>
+              <input type="text" value="诡秘之主：第一部 愚者" class="w-full bg-surface-base border border-surface-border rounded-lg px-3 py-2 text-slate-200">
+            </div>
+            <div>
+              <label class="text-slate-400 block mb-1">原著作者</label>
+              <input type="text" value="爱潜水的乌贼" class="w-full bg-surface-base border border-surface-border rounded-lg px-3 py-2 text-slate-200">
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Right 5 Cols: Live Player Mockup Preview -->
+      <div class="lg:col-span-5 space-y-6">
+
+        <div class="bg-surface-card border border-surface-border rounded-3xl p-6 shadow-2xl flex flex-col items-center space-y-5">
+          <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider">手机端最终听书效果模拟</span>
+
+          <!-- Artwork Box -->
+          <div class="w-48 h-48 rounded-2xl bg-gradient-to-tr from-slate-900 via-indigo-950 to-purple-950 border border-surface-border shadow-2xl flex flex-col items-center justify-center text-center p-4 relative group">
+            <i data-lucide="book-open" class="w-12 h-12 text-brand-400 mb-2"></i>
+            <span class="font-bold text-xs text-white">诡秘之主</span>
+            <span class="text-[10px] text-slate-400 mt-0.5">VoiceNovel AI 广播剧制作组</span>
+            <div class="absolute inset-0 bg-black/60 rounded-2xl opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity cursor-pointer text-xs text-white font-medium">
+              更换封面图片
+            </div>
+          </div>
+
+          <!-- Title -->
+          <div class="text-center">
+            <h4 class="font-bold text-sm text-white">第001章 绯红之月</h4>
+            <p class="text-xs text-slate-400 mt-0.5">全长 14 分 18 秒 • 4 位配音员</p>
+          </div>
+
+          <!-- Scrubber Mockup -->
+          <div class="w-full space-y-2">
+            <div class="w-full bg-surface-base h-1.5 rounded-full overflow-hidden">
+              <div class="bg-brand-500 h-full w-[45%]"></div>
+            </div>
+            <div class="flex justify-between text-[10px] font-mono text-slate-500">
+              <span>06:25</span>
+              <span>14:18</span>
+            </div>
+          </div>
+
+          <!-- Included Chapters Preview -->
+          <div class="w-full p-3 rounded-xl bg-surface-base/60 border border-surface-border text-xs space-y-1.5">
+            <span class="text-[10px] font-semibold text-slate-400 block mb-1">内嵌 M4B 章节目录 (共12章):</span>
+            <div class="text-slate-300 text-[11px] truncate">• 第001章 绯红之月 (00:00)</div>
+            <div class="text-slate-400 text-[11px] truncate">• 第002章 宿命之枪 (14:18)</div>
+            <div class="text-slate-400 text-[11px] truncate">• 第003章 罗塞尔日记 (29:48)</div>
+          </div>
+
+          <!-- Master Render Trigger Button -->
+          <div class="w-full space-y-2 pt-2">
+            <button onclick="startExportRender()" id="exportBtn" class="w-full py-3 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold text-xs shadow-lg shadow-emerald-500/25 flex items-center justify-center space-x-2 transition-all">
+              <i data-lucide="sparkles" class="w-4 h-4"></i>
+              <span>立即一键母带渲染并打包</span>
+            </button>
+            <div class="text-center text-[10px] text-slate-500">
+              预计压制耗时: 约 18 秒 (预估体积 142.5 MB)
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+    </div>
+
+  </main>
+
+  <div id="toastContainer" class="fixed bottom-6 right-6 z-50 flex flex-col space-y-2 pointer-events-none"></div>
+
+  <script>
+    lucide.createIcons();
+
+    function startExportRender() {
+      const btn = document.getElementById('exportBtn');
+      btn.innerHTML = `<i data-lucide="loader-2" class="w-4 h-4 animate-spin"></i><span>母带混音与 M4B 封装中...</span>`;
+      lucide.createIcons();
+
+      setTimeout(() => {
+        btn.classList.replace('from-emerald-600', 'from-brand-600');
+        btn.classList.replace('to-teal-600', 'to-indigo-600');
+        btn.innerHTML = `<i data-lucide="download" class="w-4 h-4"></i><span>下载成品: 《诡秘之主》.m4b (142.5MB)</span>`;
+        lucide.createIcons();
+        showToast('母带渲染成功！标准 M4B 章节文件已生成完毕。', 'success');
+      }, 2000);
+    }
+
+    function showToast(msg, type = 'info') {
+      const container = document.getElementById('toastContainer');
+      const toast = document.createElement('div');
+      const bg = type === 'success' ? 'bg-emerald-600/90 border-emerald-500/50 text-white' : 'bg-surface-card border-surface-border text-slate-200';
+      toast.className = `${bg} border px-4 py-2.5 rounded-xl text-xs shadow-xl flex items-center space-x-2 pointer-events-auto`;
+      toast.innerHTML = `<i data-lucide="check-circle-2" class="w-4 h-4 text-emerald-400"></i><span>${msg}</span>`;
+      container.appendChild(toast);
+      lucide.createIcons();
+      setTimeout(() => toast.remove(), 2500);
+    }
+  </script>
+</body>
+</html>

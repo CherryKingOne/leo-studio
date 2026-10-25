@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="zh-CN" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>VoiceNovel AI - 全局声线资产库</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              500: '#6366f1',
+              600: '#4f46e5',
+              700: '#4338ca',
+            },
+            surface: {
+              base: '#090A0F',
+              card: '#12141F',
+              hover: '#191D2D',
+              border: '#202638'
+            }
+          }
+        }
+      }
+    }
+  </script>
+</head>
+<body class="bg-surface-base text-slate-200 min-h-screen flex flex-col font-sans antialiased selection:bg-brand-500/30">
+
+  <!-- ==================== 1. GLOBAL WORKSPACE NAVBAR ==================== -->
+  <header class="h-16 border-b border-surface-border bg-surface-card/80 backdrop-blur-md px-6 flex items-center justify-between sticky top-0 z-30">
+    <div class="flex items-center space-x-8">
+      <a href="index.html" class="flex items-center space-x-2.5">
+        <div class="w-9 h-9 rounded-xl bg-gradient-to-tr from-brand-600 to-violet-500 flex items-center justify-center shadow-lg shadow-indigo-500/20 text-white">
+          <i data-lucide="headphones" class="w-5 h-5"></i>
+        </div>
+        <div>
+          <span class="font-bold text-sm tracking-wide text-white block">VoiceNovel <span class="text-brand-500">AI</span></span>
+          <span class="text-[10px] text-slate-400 block -mt-0.5">有声书与全景广播剧制作系统</span>
+        </div>
+      </a>
+
+      <!-- Global Navigation -->
+      <nav class="hidden md:flex items-center space-x-1 text-xs font-medium">
+        <a href="index.html" class="px-3.5 py-2 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-surface-hover transition-colors flex items-center space-x-1.5">
+          <i data-lucide="book-marked" class="w-4 h-4"></i>
+          <span>我的书架 (作品库)</span>
+        </a>
+        <a href="voice-library.html" class="px-3.5 py-2 rounded-lg bg-surface-hover text-white flex items-center space-x-1.5 border border-surface-border">
+          <i data-lucide="mic-2" class="w-4 h-4 text-brand-500"></i>
+          <span>全局声线资产库</span>
+        </a>
+      </nav>
+    </div>
+
+    <!-- Right Actions -->
+    <div class="flex items-center space-x-3 text-xs">
+      <button onclick="openVoiceCloneModal()" class="flex items-center space-x-1.5 bg-brand-600 hover:bg-brand-500 text-white px-4 py-2 rounded-lg font-medium shadow-md shadow-brand-500/20 transition-all">
+        <i data-lucide="mic" class="w-4 h-4"></i>
+        <span>3秒极速克隆新声线</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- ==================== 2. MAIN VOICE LIBRARY ==================== -->
+  <main class="flex-1 max-w-7xl w-full mx-auto px-6 py-8 space-y-8">
+
+    <!-- Header Section -->
+    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-surface-border pb-4">
+      <div>
+        <h2 class="text-lg font-bold text-white">全局声纹与音色资产中心</h2>
+        <p class="text-xs text-slate-400 mt-1">管理您账号下的全部预置演播员声线与零样本克隆模型，可直接供全书库各角色绑定调用。</p>
+      </div>
+
+      <div class="flex items-center space-x-3 text-xs">
+        <div class="relative">
+          <i data-lucide="search" class="w-4 h-4 text-slate-500 absolute left-3 top-2.5"></i>
+          <input type="text" placeholder="搜索音色标签、声线名称..." class="bg-surface-card border border-surface-border rounded-lg pl-9 pr-3 py-1.5 text-slate-200 focus:outline-none focus:border-brand-500 w-64">
+        </div>
+        <select class="bg-surface-card border border-surface-border rounded-lg px-3 py-1.5 text-slate-300 focus:outline-none">
+          <option>全部声线 (24)</option>
+          <option>官方预置精选 (18)</option>
+          <option>自建克隆声线 (6)</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- Voice Grid -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+
+      <!-- Voice 1 -->
+      <div class="bg-surface-card border border-surface-border hover:border-brand-500/50 rounded-2xl p-5 flex flex-col justify-between transition-all group">
+        <div>
+          <div class="flex items-start justify-between">
+            <div class="flex space-x-3.5">
+              <div class="w-12 h-12 rounded-xl bg-blue-600/20 text-blue-400 border border-blue-500/30 flex items-center justify-center font-bold text-sm">
+                中
+              </div>
+              <div>
+                <div class="flex items-center space-x-1.5">
+                  <h4 class="font-bold text-slate-100 text-sm">沧桑质感男中音</h4>
+                  <span class="text-[10px] bg-blue-500/10 text-blue-400 px-1.5 py-0.5 rounded">官方预置</span>
+                </div>
+                <div class="text-xs text-slate-400 mt-0.5">CosyVoice 2 基座 • 沉稳厚重</div>
+              </div>
+            </div>
+            <button onclick="auditionTone(220)" class="w-8 h-8 rounded-lg bg-surface-base hover:bg-blue-600 text-slate-300 hover:text-white flex items-center justify-center transition-colors" title="试听声线">
+              <i data-lucide="volume-2" class="w-4 h-4"></i>
+            </button>
+          </div>
+
+          <div class="mt-4 p-3 bg-surface-base/50 rounded-xl border border-surface-border text-xs space-y-1.5 text-slate-400">
+            <div>适用场景: <span class="text-slate-200">主干旁白、历史文学、严肃长篇</span></div>
+            <div>音质指标: <span class="text-emerald-400 font-mono">44.1kHz / 0.98 自然度</span></div>
+          </div>
+        </div>
+
+        <div class="mt-5 pt-3 border-t border-surface-border/60 flex items-center justify-between text-xs">
+          <span class="text-slate-500">已在 2 本书中引用</span>
+          <button onclick="showToast('已复制声线标识符', 'success')" class="text-brand-400 hover:underline">调用声线</button>
+        </div>
+      </div>
+
+      <!-- Voice 2 -->
+      <div class="bg-surface-card border border-brand-500/40 rounded-2xl p-5 flex flex-col justify-between shadow-lg shadow-brand-500/5 transition-all group">
+        <div>
+          <div class="flex items-start justify-between">
+            <div class="flex space-x-3.5">
+              <div class="w-12 h-12 rounded-xl bg-violet-600/20 text-violet-300 border border-violet-500/40 flex items-center justify-center font-bold text-sm">
+                青
+              </div>
+              <div>
+                <div class="flex items-center space-x-1.5">
+                  <h4 class="font-bold text-slate-100 text-sm">英伦青年男主音</h4>
+                  <span class="text-[10px] bg-violet-500/20 text-violet-300 px-1.5 py-0.5 rounded font-mono">Zero-Shot 克隆</span>
+                </div>
+                <div class="text-xs text-slate-400 mt-0.5">自建声线 • 带有克莱恩情绪特征</div>
+              </div>
+            </div>
+            <button onclick="auditionTone(330)" class="w-8 h-8 rounded-lg bg-brand-600 hover:bg-brand-500 text-white flex items-center justify-center transition-colors" title="试听声线">
+              <i data-lucide="volume-2" class="w-4 h-4"></i>
+            </button>
+          </div>
+
+          <div class="mt-4 p-3 bg-surface-base/50 rounded-xl border border-surface-border text-xs space-y-1.5 text-slate-400">
+            <div>适用场景: <span class="text-slate-200">青年主角、悬疑探险、激烈对白</span></div>
+            <div>声纹来源: <span class="text-violet-300 font-mono">5.4秒干音提取 (192维向量)</span></div>
+          </div>
+        </div>
+
+        <div class="mt-5 pt-3 border-t border-surface-border/60 flex items-center justify-between text-xs">
+          <span class="text-slate-500">已在《诡秘之主》中引用</span>
+          <button onclick="showToast('已打开微调面板', 'info')" class="text-brand-400 hover:underline">微调模型</button>
+        </div>
+      </div>
+
+      <!-- Voice 3 -->
+      <div class="bg-surface-card border border-surface-border hover:border-pink-500/40 rounded-2xl p-5 flex flex-col justify-between transition-all group">
+        <div>
+          <div class="flex items-start justify-between">
+            <div class="flex space-x-3.5">
+              <div class="w-12 h-12 rounded-xl bg-pink-600/20 text-pink-400 border border-pink-500/30 flex items-center justify-center font-bold text-sm">
+                清
+              </div>
+              <div>
+                <div class="flex items-center space-x-1.5">
+                  <h4 class="font-bold text-slate-100 text-sm">清澈少女音</h4>
+                  <span class="text-[10px] bg-pink-500/10 text-pink-400 px-1.5 py-0.5 rounded">官方预置</span>
+                </div>
+                <div class="text-xs text-slate-400 mt-0.5">Fish Speech 基座 • 自然纯真</div>
+              </div>
+            </div>
+            <button onclick="auditionTone(440)" class="w-8 h-8 rounded-lg bg-surface-base hover:bg-pink-600 text-slate-300 hover:text-white flex items-center justify-center transition-colors" title="试听声线">
+              <i data-lucide="volume-2" class="w-4 h-4"></i>
+            </button>
+          </div>
+
+          <div class="mt-4 p-3 bg-surface-base/50 rounded-xl border border-surface-border text-xs space-y-1.5 text-slate-400">
+            <div>适用场景: <span class="text-slate-200">年轻女性、妹妹角色、日常轻快</span></div>
+            <div>音质指标: <span class="text-emerald-400 font-mono">48.0kHz / 极高表现力</span></div>
+          </div>
+        </div>
+
+        <div class="mt-5 pt-3 border-t border-surface-border/60 flex items-center justify-between text-xs">
+          <span class="text-slate-500">已在 1 本书中引用</span>
+          <button onclick="showToast('已复制声线标识符', 'success')" class="text-brand-400 hover:underline">调用声线</button>
+        </div>
+      </div>
+
+    </div>
+
+  </main>
+
+  <!-- ==================== MODAL: ZERO-SHOT CLONE ==================== -->
+  <div id="voiceCloneModal" class="hidden fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="bg-surface-card border border-surface-border rounded-2xl w-full max-w-lg shadow-2xl p-6 text-xs text-slate-200">
+      <div class="flex items-center justify-between pb-3 border-b border-surface-border mb-4">
+        <h3 class="font-bold text-sm text-white flex items-center space-x-2">
+          <i data-lucide="mic" class="w-4 h-4 text-brand-500"></i>
+          <span>3秒零样本声音克隆工作台 (Zero-Shot)</span>
+        </h3>
+        <button onclick="closeVoiceCloneModal()" class="text-slate-400 hover:text-white p-1">
+          <i data-lucide="x" class="w-4 h-4"></i>
+        </button>
+      </div>
+
+      <div class="space-y-4">
+        <div>
+          <label class="block text-slate-300 font-semibold mb-1">声线名称与标签</label>
+          <input type="text" placeholder="例如: 冷峻反派男低音·阿蒙" class="w-full bg-surface-base border border-surface-border rounded-lg px-3 py-2 text-slate-200 focus:outline-none focus:border-brand-500">
+        </div>
+
+        <div>
+          <label class="block text-slate-300 font-semibold mb-1">上传参考干音 (3 ~ 10 秒)</label>
+          <div class="border-2 border-dashed border-surface-border hover:border-brand-500/60 rounded-xl p-6 text-center bg-surface-base/40 cursor-pointer">
+            <i data-lucide="upload-cloud" class="w-7 h-7 text-brand-500 mx-auto mb-1.5"></i>
+            <div class="text-slate-300 font-medium">点击或拖拽参考干音频到此处</div>
+            <div class="text-[10px] text-slate-500 mt-0.5">支持 WAV / MP3 / M4A，无背景音乐与混响最佳</div>
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-slate-300 font-semibold mb-1">参考文本 (对应音频台词)</label>
+          <textarea rows="2" placeholder="在此输入参考音频所说的内容..." class="w-full bg-surface-base border border-surface-border rounded-lg px-3 py-2 text-slate-200 focus:outline-none focus:border-brand-500 text-xs"></textarea>
+        </div>
+      </div>
+
+      <div class="flex justify-end space-x-2 mt-6 pt-3 border-t border-surface-border">
+        <button onclick="closeVoiceCloneModal()" class="px-4 py-2 rounded-lg border border-surface-border text-slate-300 hover:bg-surface-hover">取消</button>
+        <button onclick="showToast('声纹抽取成功！已持久化至全局声线库。', 'success'); closeVoiceCloneModal();" class="px-4 py-2 rounded-lg bg-brand-600 hover:bg-brand-500 text-white font-medium">开始提取并保存</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="toastContainer" class="fixed bottom-6 right-6 z-50 flex flex-col space-y-2 pointer-events-none"></div>
+
+  <script>
+    lucide.createIcons();
+
+    let audioCtx = null;
+    function auditionTone(freq) {
+      if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      if (audioCtx.state === 'suspended') audioCtx.resume();
+
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+      gain.gain.setValueAtTime(0.2, audioCtx.currentTime);
+      gain.gain.linearRampToValueAtTime(0.01, audioCtx.currentTime + 0.6);
+      osc.connect(gain);
+      gain.connect(audioCtx.destination);
+      osc.start();
+      osc.stop(audioCtx.currentTime + 0.6);
+
+      showToast(`正在播放全局声线试听音 (${freq}Hz)`, 'info');
+    }
+
+    function openVoiceCloneModal() {
+      document.getElementById('voiceCloneModal').classList.remove('hidden');
+    }
+    function closeVoiceCloneModal() {
+      document.getElementById('voiceCloneModal').classList.add('hidden');
+    }
+
+    function showToast(msg, type = 'info') {
+      const container = document.getElementById('toastContainer');
+      const toast = document.createElement('div');
+      const bg = type === 'success' ? 'bg-emerald-600/90 border-emerald-500/50 text-white' : 'bg-surface-card border-surface-border text-slate-200';
+      toast.className = `${bg} border px-4 py-2.5 rounded-xl text-xs shadow-xl flex items-center space-x-2 pointer-events-auto`;
+      toast.innerHTML = `<i data-lucide="info" class="w-4 h-4 text-brand-400"></i><span>${msg}</span>`;
+      container.appendChild(toast);
+      lucide.createIcons();
+      setTimeout(() => toast.remove(), 2500);
+    }
+  </script>
+</body>
+</html>

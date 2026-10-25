@@ -1,0 +1,426 @@
+<!DOCTYPE html>
+<html lang="zh-CN" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>VoiceNovel AI - 《诡秘之主》剧目看板与角色阵容</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              500: '#6366f1',
+              600: '#4f46e5',
+              700: '#4338ca',
+            },
+            surface: {
+              base: '#090A0F',
+              card: '#12141F',
+              hover: '#191D2D',
+              border: '#202638'
+            }
+          }
+        }
+      }
+    }
+  </script>
+</head>
+<body class="bg-surface-base text-slate-200 min-h-screen flex flex-col font-sans antialiased selection:bg-brand-500/30">
+
+  <!-- ==================== 1. PROJECT SCOPED HEADER ==================== -->
+  <header class="h-16 border-b border-surface-border bg-surface-card/90 backdrop-blur-md px-6 flex items-center justify-between sticky top-0 z-30">
+    <div class="flex items-center space-x-6">
+      <!-- Back to Bookshelf -->
+      <a href="index.html" class="flex items-center space-x-1.5 text-slate-400 hover:text-white px-2.5 py-1.5 rounded-lg hover:bg-surface-hover text-xs font-medium transition-colors">
+        <i data-lucide="chevron-left" class="w-4 h-4"></i>
+        <span>返回书架</span>
+      </a>
+
+      <div class="h-4 w-[1px] bg-surface-border"></div>
+
+      <!-- Current Book Context -->
+      <div class="flex items-center space-x-3">
+        <div class="w-8 h-8 rounded-lg bg-indigo-950 border border-brand-500/30 flex items-center justify-center text-brand-400">
+          <i data-lucide="book-open" class="w-4 h-4"></i>
+        </div>
+        <div>
+          <div class="flex items-center space-x-2">
+            <h1 class="font-bold text-sm text-white">《诡秘之主：第一部 愚者》</h1>
+            <span class="text-[10px] bg-brand-500/20 text-brand-300 font-mono px-2 py-0.5 rounded border border-brand-500/30">12 章节</span>
+          </div>
+          <div class="text-[11px] text-slate-400">爱潜水的乌贼 著 • 4.8万字 • 预估全剧 2.8 小时</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Right Actions -->
+    <div class="flex items-center space-x-3 text-xs">
+      <div class="hidden md:flex items-center space-x-2 text-slate-400 mr-2">
+        <span>全书制作进度:</span>
+        <div class="w-24 bg-surface-base h-2 rounded-full overflow-hidden border border-surface-border">
+          <div class="bg-brand-500 h-full w-[25%] rounded-full"></div>
+        </div>
+        <span class="font-mono text-brand-400 font-bold">25%</span>
+      </div>
+
+      <!-- Go to Master Export -->
+      <a href="export-center.html" class="flex items-center space-x-1.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white px-4 py-2 rounded-lg font-medium shadow-md shadow-emerald-500/20 transition-all">
+        <i data-lucide="download" class="w-4 h-4"></i>
+        <span>整书母带导出 (M4B)</span>
+      </a>
+    </div>
+  </header>
+
+  <!-- ==================== 2. MAIN HUB CONTENT ==================== -->
+  <main class="flex-1 max-w-7xl w-full mx-auto px-6 py-8 space-y-6">
+
+    <!-- Primary Tab Navigation (Within this book) -->
+    <div class="flex items-center justify-between border-b border-surface-border pb-2">
+      <div class="flex space-x-2">
+        <button onclick="switchTab('pipeline')" id="tabBtnPipeline" class="px-4 py-2 rounded-lg bg-surface-card border border-brand-500/40 text-white font-medium text-xs flex items-center space-x-2 shadow-sm">
+          <i data-lucide="list-ordered" class="w-4 h-4 text-brand-400"></i>
+          <span>章节生产流水线 (12)</span>
+        </button>
+        <button onclick="switchTab('cast')" id="tabBtnCast" class="px-4 py-2 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-surface-hover font-medium text-xs flex items-center space-x-2 transition-colors">
+          <i data-lucide="users" class="w-4 h-4"></i>
+          <span>全书角色阵容与选角 (5)</span>
+        </button>
+      </div>
+
+      <div class="text-xs text-slate-400 flex items-center space-x-2">
+        <i data-lucide="info" class="w-3.5 h-3.5 text-brand-400"></i>
+        <span>点击任意章节右侧【进入制作工作台】，即可开始段落级精调与试听</span>
+      </div>
+    </div>
+
+    <!-- ==================== TAB 1: CHAPTER PRODUCTION PIPELINE ==================== -->
+    <div id="tabPipeline" class="space-y-4">
+      <div class="bg-surface-card border border-surface-border rounded-2xl overflow-hidden shadow-xl">
+        <table class="w-full text-left text-xs">
+          <thead class="bg-surface-base/80 border-b border-surface-border text-slate-400 uppercase font-mono text-[10px]">
+            <tr>
+              <th class="py-3.5 px-6">章节序号与标题</th>
+              <th class="py-3.5 px-4">字数与时长</th>
+              <th class="py-3.5 px-4">对白角色识别</th>
+              <th class="py-3.5 px-4">生产流水线状态</th>
+              <th class="py-3.5 px-6 text-right">操作</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-surface-border">
+
+            <!-- Chapter 1 (Finished) -->
+            <tr class="hover:bg-surface-hover/60 transition-colors group">
+              <td class="py-4 px-6">
+                <div class="flex items-center space-x-3">
+                  <div class="w-7 h-7 rounded-lg bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 flex items-center justify-center font-bold text-xs font-mono">
+                    01
+                  </div>
+                  <div>
+                    <span class="font-bold text-white text-sm group-hover:text-brand-400 transition-colors">第001章 绯红之月</span>
+                    <div class="text-[11px] text-slate-400 mt-0.5">痛！好痛！头好痛……</div>
+                  </div>
+                </div>
+              </td>
+              <td class="py-4 px-4 font-mono">
+                <div class="text-slate-200">3,428 字</div>
+                <div class="text-emerald-400 text-[11px]">14:18 (已渲染)</div>
+              </td>
+              <td class="py-4 px-4">
+                <div class="flex items-center space-x-1.5">
+                  <span class="px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-400 text-[10px] border border-blue-500/20">旁白</span>
+                  <span class="px-1.5 py-0.5 rounded bg-brand-500/20 text-brand-300 text-[10px] border border-brand-500/30">克莱恩</span>
+                  <span class="px-1.5 py-0.5 rounded bg-pink-500/10 text-pink-400 text-[10px] border border-pink-500/20">梅丽莎</span>
+                </div>
+              </td>
+              <td class="py-4 px-4">
+                <span class="inline-flex items-center space-x-1 px-2.5 py-1 rounded-full text-[11px] font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                  <i data-lucide="check-circle" class="w-3.5 h-3.5"></i>
+                  <span>全章母带就绪</span>
+                </span>
+              </td>
+              <td class="py-4 px-6 text-right">
+                <!-- Direct link to Chapter Studio -->
+                <a href="chapter-studio.html" class="inline-flex items-center space-x-1.5 px-3.5 py-1.5 rounded-lg bg-brand-600 hover:bg-brand-500 text-white font-medium shadow-md shadow-brand-500/20 transition-all">
+                  <i data-lucide="edit-3" class="w-3.5 h-3.5"></i>
+                  <span>进入制作工作台</span>
+                </a>
+              </td>
+            </tr>
+
+            <!-- Chapter 2 -->
+            <tr class="hover:bg-surface-hover/60 transition-colors group">
+              <td class="py-4 px-6">
+                <div class="flex items-center space-x-3">
+                  <div class="w-7 h-7 rounded-lg bg-surface-base text-slate-400 border border-surface-border flex items-center justify-center font-bold text-xs font-mono">
+                    02
+                  </div>
+                  <div>
+                    <span class="font-bold text-slate-200 text-sm group-hover:text-amber-400 transition-colors">第002章 宿命之枪</span>
+                    <div class="text-[11px] text-slate-500 mt-0.5">左轮手枪与桌上的自杀日记</div>
+                  </div>
+                </div>
+              </td>
+              <td class="py-4 px-4 font-mono">
+                <div class="text-slate-200">3,810 字</div>
+                <div class="text-slate-500 text-[11px]">预估 15:30</div>
+              </td>
+              <td class="py-4 px-4">
+                <div class="flex items-center space-x-1.5">
+                  <span class="px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-400 text-[10px]">旁白</span>
+                  <span class="px-1.5 py-0.5 rounded bg-brand-500/20 text-brand-300 text-[10px]">克莱恩</span>
+                </div>
+              </td>
+              <td class="py-4 px-4">
+                <span class="inline-flex items-center space-x-1 px-2.5 py-1 rounded-full text-[11px] font-medium bg-amber-500/10 text-amber-300 border border-amber-500/20">
+                  <i data-lucide="clock" class="w-3.5 h-3.5"></i>
+                  <span>剧本化完成 · 待合成</span>
+                </span>
+              </td>
+              <td class="py-4 px-6 text-right">
+                <a href="chapter-studio.html" class="inline-flex items-center space-x-1.5 px-3.5 py-1.5 rounded-lg bg-surface-hover hover:bg-slate-800 text-slate-200 border border-surface-border font-medium transition-all">
+                  <i data-lucide="sliders" class="w-3.5 h-3.5"></i>
+                  <span>开始制作本章</span>
+                </a>
+              </td>
+            </tr>
+
+            <!-- Chapter 3 -->
+            <tr class="hover:bg-surface-hover/60 transition-colors group">
+              <td class="py-4 px-6">
+                <div class="flex items-center space-x-3">
+                  <div class="w-7 h-7 rounded-lg bg-surface-base text-slate-500 border border-surface-border flex items-center justify-center font-bold text-xs font-mono">
+                    03
+                  </div>
+                  <div>
+                    <span class="font-bold text-slate-400 text-sm">第003章 罗塞尔日记</span>
+                    <div class="text-[11px] text-slate-600 mt-0.5">穿越者前辈的隐秘手稿</div>
+                  </div>
+                </div>
+              </td>
+              <td class="py-4 px-4 font-mono">
+                <div class="text-slate-400">4,120 字</div>
+                <div class="text-slate-600 text-[11px]">未合成</div>
+              </td>
+              <td class="py-4 px-4">
+                <span class="text-slate-500 text-[11px]">待解析</span>
+              </td>
+              <td class="py-4 px-4">
+                <span class="inline-flex items-center space-x-1 px-2.5 py-1 rounded-full text-[11px] font-medium bg-slate-800 text-slate-400">
+                  <span>排队中</span>
+                </span>
+              </td>
+              <td class="py-4 px-6 text-right">
+                <button onclick="showToast('正在启动章节 LLM 角色对白分析...', 'info')" class="px-3 py-1.5 rounded-lg bg-surface-base hover:bg-surface-hover text-slate-400 hover:text-slate-200 border border-surface-border">
+                  一键拆解
+                </button>
+              </td>
+            </tr>
+
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ==================== TAB 2: CAST MATRIX & VOICES ==================== -->
+    <div id="tabCast" class="hidden space-y-6">
+      <div class="flex items-center justify-between">
+        <div>
+          <h3 class="font-bold text-sm text-white">本书出场角色台账 (Cast Ledger)</h3>
+          <p class="text-xs text-slate-400 mt-0.5">为全书人物绑定对应的声线模型，设定语速与情感张力基调。</p>
+        </div>
+        <button onclick="openVoiceCloneModal()" class="flex items-center space-x-1.5 bg-brand-600 hover:bg-brand-500 text-white px-3.5 py-1.5 rounded-lg text-xs font-medium shadow-md shadow-brand-500/20">
+          <i data-lucide="mic" class="w-4 h-4"></i>
+          <span>克隆新音色加入本书</span>
+        </button>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+
+        <!-- Cast 1: 旁白 -->
+        <div class="bg-surface-card border border-surface-border hover:border-blue-500/40 rounded-2xl p-5 flex flex-col justify-between">
+          <div>
+            <div class="flex items-start justify-between">
+              <div class="flex space-x-3.5">
+                <div class="w-12 h-12 rounded-xl bg-blue-600/20 text-blue-400 border border-blue-500/30 flex items-center justify-center font-bold text-sm">
+                  白
+                </div>
+                <div>
+                  <div class="flex items-center space-x-1.5">
+                    <h4 class="font-bold text-slate-100 text-sm">旁白 (全知视角)</h4>
+                    <span class="text-[10px] bg-blue-500/10 text-blue-400 px-1.5 py-0.5 rounded">主叙事</span>
+                  </div>
+                  <div class="text-xs text-slate-400 mt-1">沉稳稳健、历史沧桑厚重感</div>
+                </div>
+              </div>
+              <button onclick="auditionTone(220)" class="w-8 h-8 rounded-lg bg-surface-base hover:bg-blue-600 text-slate-300 hover:text-white flex items-center justify-center transition-colors" title="试听">
+                <i data-lucide="volume-2" class="w-4 h-4"></i>
+              </button>
+            </div>
+
+            <div class="mt-4 p-3 rounded-xl bg-surface-base/60 border border-surface-border text-xs space-y-1.5">
+              <div class="flex justify-between">
+                <span class="text-slate-400">绑定声线:</span>
+                <span class="text-slate-200 font-medium">沧桑男中音 (CosyVoice-Pre)</span>
+              </div>
+              <div class="flex justify-between">
+                <span class="text-slate-400">语速控制:</span>
+                <span class="text-slate-200 font-mono">1.05x</span>
+              </div>
+              <div class="flex justify-between">
+                <span class="text-slate-400">台词覆盖:</span>
+                <span class="text-blue-400 font-mono">68 段 (64% 占比)</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="mt-5 pt-3 border-t border-surface-border/60 flex items-center justify-between text-xs">
+            <span class="text-emerald-400">已就绪</span>
+            <button onclick="showToast('已打开音色切换抽屉', 'info')" class="text-brand-400 hover:underline">更换音色</button>
+          </div>
+        </div>
+
+        <!-- Cast 2: 克莱恩·莫雷蒂 -->
+        <div class="bg-surface-card border border-brand-500/40 rounded-2xl p-5 flex flex-col justify-between shadow-lg shadow-brand-500/5">
+          <div>
+            <div class="flex items-start justify-between">
+              <div class="flex space-x-3.5">
+                <div class="w-12 h-12 rounded-xl bg-brand-600/20 text-brand-300 border border-brand-500/40 flex items-center justify-center font-bold text-sm">
+                  克
+                </div>
+                <div>
+                  <div class="flex items-center space-x-1.5">
+                    <h4 class="font-bold text-slate-100 text-sm">克莱恩·莫雷蒂</h4>
+                    <span class="text-[10px] bg-brand-500/20 text-brand-300 px-1.5 py-0.5 rounded font-medium">男主角</span>
+                  </div>
+                  <div class="text-xs text-slate-400 mt-1">深思冷静、情绪激荡时带喘息颤音</div>
+                </div>
+              </div>
+              <button onclick="auditionTone(330)" class="w-8 h-8 rounded-lg bg-brand-600 hover:bg-brand-500 text-white flex items-center justify-center transition-colors" title="试听">
+                <i data-lucide="volume-2" class="w-4 h-4"></i>
+              </button>
+            </div>
+
+            <div class="mt-4 p-3 rounded-xl bg-surface-base/60 border border-surface-border text-xs space-y-1.5">
+              <div class="flex justify-between">
+                <span class="text-slate-400">绑定声线:</span>
+                <span class="text-violet-300 font-medium">英伦青年音 (零样本克隆)</span>
+              </div>
+              <div class="flex justify-between">
+                <span class="text-slate-400">语速控制:</span>
+                <span class="text-slate-200 font-mono">1.00x</span>
+              </div>
+              <div class="flex justify-between">
+                <span class="text-slate-400">台词覆盖:</span>
+                <span class="text-brand-400 font-mono">34 段 (24% 占比)</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="mt-5 pt-3 border-t border-surface-border/60 flex items-center justify-between text-xs">
+            <span class="text-violet-400 font-mono text-[10px]">Zero-Shot 克隆</span>
+            <button onclick="showToast('已打开微调面板', 'info')" class="text-brand-400 hover:underline">调优声线</button>
+          </div>
+        </div>
+
+        <!-- Cast 3: 梅丽莎·莫雷蒂 -->
+        <div class="bg-surface-card border border-surface-border hover:border-pink-500/40 rounded-2xl p-5 flex flex-col justify-between">
+          <div>
+            <div class="flex items-start justify-between">
+              <div class="flex space-x-3.5">
+                <div class="w-12 h-12 rounded-xl bg-pink-600/20 text-pink-400 border border-pink-500/30 flex items-center justify-center font-bold text-sm">
+                  梅
+                </div>
+                <div>
+                  <div class="flex items-center space-x-1.5">
+                    <h4 class="font-bold text-slate-100 text-sm">梅丽莎·莫雷蒂</h4>
+                    <span class="text-[10px] bg-pink-500/10 text-pink-400 px-1.5 py-0.5 rounded">妹妹</span>
+                  </div>
+                  <div class="text-xs text-slate-400 mt-1">清澈纯真、略带担忧的少女音</div>
+                </div>
+              </div>
+              <button onclick="auditionTone(440)" class="w-8 h-8 rounded-lg bg-surface-base hover:bg-pink-600 text-slate-300 hover:text-white flex items-center justify-center transition-colors" title="试听">
+                <i data-lucide="volume-2" class="w-4 h-4"></i>
+              </button>
+            </div>
+
+            <div class="mt-4 p-3 rounded-xl bg-surface-base/60 border border-surface-border text-xs space-y-1.5">
+              <div class="flex justify-between">
+                <span class="text-slate-400">绑定声线:</span>
+                <span class="text-slate-200 font-medium">清澈少女音 (Fish-Studio)</span>
+              </div>
+              <div class="flex justify-between">
+                <span class="text-slate-400">语速 / 音调:</span>
+                <span class="text-slate-200 font-mono">0.98x / +0.5st</span>
+              </div>
+              <div class="flex justify-between">
+                <span class="text-slate-400">台词覆盖:</span>
+                <span class="text-pink-400 font-mono">12 段 (8% 占比)</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="mt-5 pt-3 border-t border-surface-border/60 flex items-center justify-between text-xs">
+            <span class="text-emerald-400">已就绪</span>
+            <button onclick="showToast('已打开音色切换抽屉', 'info')" class="text-brand-400 hover:underline">更换音色</button>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+  </main>
+
+  <div id="toastContainer" class="fixed bottom-6 right-6 z-50 flex flex-col space-y-2 pointer-events-none"></div>
+
+  <script>
+    lucide.createIcons();
+
+    function switchTab(tab) {
+      if (tab === 'pipeline') {
+        document.getElementById('tabPipeline').classList.remove('hidden');
+        document.getElementById('tabCast').classList.add('hidden');
+        document.getElementById('tabBtnPipeline').className = "px-4 py-2 rounded-lg bg-surface-card border border-brand-500/40 text-white font-medium text-xs flex items-center space-x-2 shadow-sm";
+        document.getElementById('tabBtnCast').className = "px-4 py-2 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-surface-hover font-medium text-xs flex items-center space-x-2 transition-colors";
+      } else {
+        document.getElementById('tabPipeline').classList.add('hidden');
+        document.getElementById('tabCast').classList.remove('hidden');
+        document.getElementById('tabBtnCast').className = "px-4 py-2 rounded-lg bg-surface-card border border-brand-500/40 text-white font-medium text-xs flex items-center space-x-2 shadow-sm";
+        document.getElementById('tabBtnPipeline').className = "px-4 py-2 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-surface-hover font-medium text-xs flex items-center space-x-2 transition-colors";
+      }
+    }
+
+    let audioCtx = null;
+    function auditionTone(freq) {
+      if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      if (audioCtx.state === 'suspended') audioCtx.resume();
+
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+      gain.gain.setValueAtTime(0.2, audioCtx.currentTime);
+      gain.gain.linearRampToValueAtTime(0.01, audioCtx.currentTime + 0.6);
+      osc.connect(gain);
+      gain.connect(audioCtx.destination);
+      osc.start();
+      osc.stop(audioCtx.currentTime + 0.6);
+
+      showToast(`正在播放特征声线试听音 (${freq}Hz)`, 'info');
+    }
+
+    function showToast(msg, type = 'info') {
+      const container = document.getElementById('toastContainer');
+      const toast = document.createElement('div');
+      const bg = type === 'success' ? 'bg-emerald-600/90 border-emerald-500/50 text-white' : 'bg-surface-card border-surface-border text-slate-200';
+      toast.className = `${bg} border px-4 py-2.5 rounded-xl text-xs shadow-xl flex items-center space-x-2 pointer-events-auto`;
+      toast.innerHTML = `<i data-lucide="info" class="w-4 h-4 text-brand-400"></i><span>${msg}</span>`;
+      container.appendChild(toast);
+      lucide.createIcons();
+      setTimeout(() => toast.remove(), 2500);
+    }
+  </script>
+</body>
+</html>
