@@ -163,7 +163,7 @@
         </div>
 
         <div class="flex items-center gap-2">
-          <button onclick="createFolder()" class="flex items-center gap-1.5 rounded-full border hairline bg-ink-800 px-3.5 py-2 text-[12.5px] text-white/70 hover:border-white/20 hover:text-white">
+          <button onclick="openFolderModal()" class="flex items-center gap-1.5 rounded-full border hairline bg-ink-800 px-3.5 py-2 text-[12.5px] text-white/70 hover:border-white/20 hover:text-white">
             <i data-lucide="folder-plus" class="h-3.5 w-3.5"></i>新建文件夹
           </button>
           <button id="favBtn" title="只看收藏" class="rounded-full border hairline bg-ink-800 p-2 text-white/50 hover:text-white">
@@ -337,23 +337,6 @@
         </div>
       </div>
 
-      <div class="grid grid-cols-2 gap-4">
-        <div>
-          <label class="mb-1.5 block text-[12.5px] font-medium text-white/75">默认 TTS 模型</label>
-          <select class="w-full rounded-lg border hairline bg-ink-900 px-3 py-2.5 text-[13px] text-white focus:border-accent/60 focus:outline-none">
-            <option>CosyVoice 2.0</option>
-            <option>Fish Speech 1.5</option>
-            <option>F5-TTS</option>
-          </select>
-        </div>
-        <div>
-          <label class="mb-1.5 block text-[12.5px] font-medium text-white/75">归属文件夹</label>
-          <select class="w-full rounded-lg border hairline bg-ink-900 px-3 py-2.5 text-[13px] text-white focus:border-accent/60 focus:outline-none">
-            <option>根目录</option>
-            <option>东方民俗系列</option>
-          </select>
-        </div>
-      </div>
     </div>
 
     <div class="flex items-center justify-end gap-2 border-t hairline px-6 py-4">
@@ -362,6 +345,31 @@
         开始解析并进入剧目<i data-lucide="arrow-right" class="h-4 w-4"></i>
       </a>
     </div>
+  </div>
+</div>
+
+<!-- ==================== MODAL: 新建文件夹 ==================== -->
+<div id="folderModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/75 p-4 backdrop-blur-sm">
+  <div class="w-full max-w-[520px] rounded-2xl border hairline bg-ink-800 shadow-2xl shadow-black/70">
+    <div class="flex items-center justify-between border-b hairline px-6 py-4">
+      <div>
+        <h3 class="text-[15px] font-semibold text-white">新建文件夹</h3>
+        <p class="mt-0.5 text-[11.5px] text-white/40">把同一系列或同一作者的剧目归到一起</p>
+      </div>
+      <button onclick="closeFolderModal()" class="rounded-md p-1.5 text-white/40 hover:bg-white/5 hover:text-white"><i data-lucide="x" class="h-4 w-4"></i></button>
+    </div>
+
+    <form onsubmit="submitFolder(event)">
+      <div class="px-6 py-5">
+        <label for="folderName" class="mb-1.5 block text-[12.5px] font-medium text-white/75">文件夹名称</label>
+        <input id="folderName" type="text" placeholder="例如：东方民俗系列" oninput="toggleFolderSubmit()" class="w-full rounded-lg border hairline bg-ink-900 px-3 py-2.5 text-[13px] text-white placeholder:text-white/25 focus:border-accent/60 focus:outline-none">
+      </div>
+
+      <div class="flex items-center justify-end gap-2 border-t hairline px-6 py-4">
+        <button type="button" onclick="closeFolderModal()" class="rounded-lg border hairline px-4 py-2 text-[13px] text-white/65 hover:bg-white/5 hover:text-white">取消</button>
+        <button id="folderSubmit" type="submit" disabled class="rounded-lg bg-accent px-4 py-2 text-[13px] font-medium text-white hover:bg-accent-600 disabled:cursor-not-allowed disabled:opacity-40">创建</button>
+      </div>
+    </form>
   </div>
 </div>
 
@@ -398,7 +406,36 @@
     modal.classList.remove('flex');
   }
   modal.addEventListener('click', (e) => { if (e.target === modal) closeImportModal(); });
-  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') { closeImportModal(); closeAllMenus(); } });
+
+  /* ---------- folder modal ---------- */
+  const folderModal = document.getElementById('folderModal');
+  const folderName = document.getElementById('folderName');
+  const folderSubmit = document.getElementById('folderSubmit');
+
+  function openFolderModal() {
+    folderName.value = '';
+    toggleFolderSubmit();
+    folderModal.classList.remove('hidden');
+    folderModal.classList.add('flex');
+    folderName.focus();
+  }
+  function closeFolderModal() {
+    folderModal.classList.add('hidden');
+    folderModal.classList.remove('flex');
+  }
+  function toggleFolderSubmit() {
+    folderSubmit.disabled = !folderName.value.trim();
+  }
+  function submitFolder(e) {
+    e.preventDefault();
+    const title = folderName.value.trim();
+    if (!title) return;
+    createFolder(title);
+    closeFolderModal();
+  }
+  folderModal.addEventListener('click', (e) => { if (e.target === folderModal) closeFolderModal(); });
+
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') { closeImportModal(); closeFolderModal(); closeAllMenus(); } });
 
   /* ---------- sidebar project group ---------- */
   const sublist = document.getElementById('projectSublist');
@@ -561,18 +598,14 @@
   });
 
   /* ---------- new folder ---------- */
-  function createFolder() {
+  function createFolder(title) {
     const tpl = document.querySelector('[data-type="folder"]');
     const el = tpl.cloneNode(true);
     el.dataset.edited = Date.now();
-    el.dataset.title = '未命名文件夹';
-    el.querySelector('h3').textContent = '未命名文件夹';
+    el.dataset.title = title;
+    el.querySelector('h3').textContent = title;
     el.querySelector('p').textContent = '0 部剧目 · 刚刚';
     grid.insertBefore(el, grid.children[1]);
-    const name = el.querySelector('h3');
-    name.contentEditable = 'true';
-    name.focus();
-    document.getSelection().selectAllChildren(name);
     if (tab !== '全部') document.querySelector('[data-tab="全部"]').click();
   }
 
