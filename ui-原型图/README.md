@@ -12,6 +12,7 @@
 flowchart TD
     subgraph Global["第一层：平台全局资产层 (Global Workspace)"]
         A1["我的书架 / 作品库大盘 (index.html)"]
+        A3["剧目文件夹视图 (folder-view.html)"]
         A2["全局声线资产中心 (voice-library.html)"]
     end
 
@@ -36,6 +37,8 @@ flowchart TD
     end
 
     A1 -->|"点击打开书籍作品"| B
+    A1 -->|"点击文件夹卡片"| A3
+    A3 -->|"点击文件夹内剧目"| B
     B --> B1 & B2
     B1 -->|"点击进入单章制作"| C
     B -->|"点击全书导出"| D
@@ -53,6 +56,17 @@ flowchart TD
 | **3. 章节核心制作工作台** | [prototype/chapter-studio.html](file:///Users/leo/Documents/One-project/leo/prototype/chapter-studio.html) | 章节制作 | 核心制作工坊：剧本对白分色、多音字划词纠错、单句换种子局部重绘、场景配乐与拟音 (Foley) 编排、底部母带播放器。 |
 | **4. 整书母带导出中心** | [prototype/export-center.html](file:///Users/leo/Documents/One-project/leo/prototype/export-center.html) | 单书交付 | 全书 M4B 商业级有声书压制封装（内嵌章节书签与封面）、-14 LUFS 响度标准化、真机听书效果预览。 |
 | **5. 全局声线资产库** | [prototype/voice-library.html](file:///Users/leo/Documents/One-project/leo/prototype/voice-library.html) | 全局资产 | 账号级全局音色库：官方预置声线、3秒零样本克隆实验室 (Zero-Shot Clone)。 |
+| **6. 剧目文件夹视图** | [prototype/folder-view.html](file:///Users/leo/Documents/One-project/leo-studio/ui-原型图/prototype/folder-view.html) | 全局大盘 | 从书架点击文件夹卡片进入：返回按钮 + 文件夹名 + 文件夹内剧目网格，仅保留搜索，无 tab / 排序 / 新建文件夹入口。 |
+
+---
+
+## 🧩 原型 → desktop 移植流程（强制）
+
+1. 页面一律先在本目录 `prototype/*.html` 里设计与调整；
+2. 每个页面**逐页**交由使用者核对确认后，才允许在 `desktop/`（Next.js）里新建或改写对应页面；
+3. 严禁跳过核对，直接把原型改动同步进 `desktop/`。
+
+`desktop/` 当前已移植：`prototype/index.html` → `desktop/app/project/page.tsx`（路由 `/project`）。`folder-view.html` 等其余页面尚未移植。
 
 ---
 
