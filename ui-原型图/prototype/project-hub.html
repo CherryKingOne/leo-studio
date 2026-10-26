@@ -12,387 +12,790 @@
       theme: {
         extend: {
           colors: {
-            brand: {
-              500: '#6366f1',
-              600: '#4f46e5',
-              700: '#4338ca',
+            ink: {
+              900: '#0A0A0B',
+              850: '#0E0E11',
+              800: '#141417',
+              750: '#17171B',
+              700: '#1C1C21',
+              600: '#26262C',
             },
-            surface: {
-              base: '#090A0F',
-              card: '#12141F',
-              hover: '#191D2D',
-              border: '#202638'
-            }
-          }
-        }
-      }
-    }
+            accent: {
+              DEFAULT: '#F0297C',
+              400: '#FF5C9D',
+              600: '#CE1264',
+            },
+          },
+          fontFamily: {
+            sans: ['-apple-system', 'BlinkMacSystemFont', 'PingFang SC', 'HarmonyOS Sans SC', 'Microsoft YaHei', 'Helvetica Neue', 'sans-serif'],
+          },
+        },
+      },
+    };
   </script>
+  <style>
+    body { background: #0a0a0b; }
+    ::-webkit-scrollbar { width: 10px; height: 10px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: #26262c; border-radius: 99px; border: 3px solid #0a0a0b; }
+    ::-webkit-scrollbar-thumb:hover { background: #3a3a42; }
+    .hairline { border-color: rgba(255, 255, 255, 0.07); }
+    .card-shell { transition: border-color .16s ease, transform .16s ease; }
+    .card-shell:hover { border-color: rgba(255, 255, 255, 0.16); }
+    .check { appearance: none; width: 15px; height: 15px; border-radius: 4px; border: 1px solid rgba(255,255,255,.18); background: #141417; cursor: pointer; transition: background-color .14s, border-color .14s; }
+    .check:checked { background: #F0297C; border-color: #F0297C; }
+    .check:checked::after { content: ''; display: block; width: 4px; height: 8px; margin: 0 auto; border: solid #fff; border-width: 0 2px 2px 0; transform: rotate(45deg) translate(-1px, -2px); }
+    [contenteditable]:focus { outline: none; color: #fff; text-decoration: underline dotted rgba(255,255,255,.35); text-underline-offset: 3px; }
+  </style>
 </head>
-<body class="bg-surface-base text-slate-200 min-h-screen flex flex-col font-sans antialiased selection:bg-brand-500/30">
+<body class="text-white/70 min-h-screen flex flex-col font-sans antialiased selection:bg-accent/30 selection:text-white">
 
   <!-- ==================== 1. PROJECT SCOPED HEADER ==================== -->
-  <header class="h-16 border-b border-surface-border bg-surface-card/90 backdrop-blur-md px-6 flex items-center justify-between sticky top-0 z-30">
-    <div class="flex items-center space-x-6">
+  <header class="sticky top-0 z-30 flex h-16 shrink-0 items-center justify-between gap-3 border-b hairline bg-ink-900/85 px-5 backdrop-blur-md sm:px-8">
+    <div class="flex min-w-0 items-center gap-4">
       <!-- Back to Bookshelf -->
-      <a href="index.html" class="flex items-center space-x-1.5 text-slate-400 hover:text-white px-2.5 py-1.5 rounded-lg hover:bg-surface-hover text-xs font-medium transition-colors">
-        <i data-lucide="chevron-left" class="w-4 h-4"></i>
+      <a href="index.html" class="flex shrink-0 items-center gap-1.5 rounded-lg border hairline bg-ink-800 px-2.5 py-1.5 text-[12.5px] text-white/60 transition-colors hover:bg-ink-700 hover:text-white">
+        <i data-lucide="chevron-left" class="h-4 w-4"></i>
         <span>返回书架</span>
       </a>
 
-      <div class="h-4 w-[1px] bg-surface-border"></div>
+      <div class="h-4 w-px shrink-0 bg-white/[0.07]"></div>
 
       <!-- Current Book Context -->
-      <div class="flex items-center space-x-3">
-        <div class="w-8 h-8 rounded-lg bg-indigo-950 border border-brand-500/30 flex items-center justify-center text-brand-400">
-          <i data-lucide="book-open" class="w-4 h-4"></i>
+      <div class="flex min-w-0 items-center gap-3">
+        <div class="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border hairline bg-ink-800 text-white/50">
+          <i data-lucide="book-open" class="h-[18px] w-[18px]"></i>
         </div>
-        <div>
-          <div class="flex items-center space-x-2">
-            <h1 class="font-bold text-sm text-white">《诡秘之主：第一部 愚者》</h1>
-            <span class="text-[10px] bg-brand-500/20 text-brand-300 font-mono px-2 py-0.5 rounded border border-brand-500/30">12 章节</span>
+        <div class="min-w-0">
+          <div class="flex items-center gap-2">
+            <h1 id="projTitle" contenteditable="false" spellcheck="false" class="truncate text-[15px] font-semibold leading-none tracking-tight text-white">诡秘之主：第一部 愚者</h1>
+            <span class="shrink-0 rounded-full border hairline bg-ink-800 px-2 py-0.5 font-mono text-[10.5px] text-white/50">12 章节</span>
           </div>
-          <div class="text-[11px] text-slate-400">爱潜水的乌贼 著 • 4.8万字 • 预估全剧 2.8 小时</div>
+          <div class="mt-1 truncate text-[11.5px] text-white/35">爱潜水的乌贼 著 · 4.8 万字 · 预估全剧 2.8 小时</div>
         </div>
       </div>
     </div>
 
     <!-- Right Actions -->
-    <div class="flex items-center space-x-3 text-xs">
-      <div class="hidden md:flex items-center space-x-2 text-slate-400 mr-2">
-        <span>全书制作进度:</span>
-        <div class="w-24 bg-surface-base h-2 rounded-full overflow-hidden border border-surface-border">
-          <div class="bg-brand-500 h-full w-[25%] rounded-full"></div>
+    <div class="flex shrink-0 items-center gap-3">
+      <div class="hidden items-center gap-2 text-[12px] text-white/45 lg:flex">
+        <span>全书进度</span>
+        <div class="h-[3px] w-24 overflow-hidden rounded-full bg-white/10">
+          <div class="h-full w-[25%] rounded-full bg-accent"></div>
         </div>
-        <span class="font-mono text-brand-400 font-bold">25%</span>
+        <span class="font-mono text-white/60">25%</span>
       </div>
 
       <!-- Go to Master Export -->
-      <a href="export-center.html" class="flex items-center space-x-1.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white px-4 py-2 rounded-lg font-medium shadow-md shadow-emerald-500/20 transition-all">
-        <i data-lucide="download" class="w-4 h-4"></i>
-        <span>整书母带导出 (M4B)</span>
+      <a href="export-center.html" class="flex items-center gap-2 rounded-lg border hairline bg-ink-800 px-3.5 py-2 text-[12.5px] font-medium text-white/75 transition-colors hover:border-emerald-400/30 hover:bg-emerald-400/10 hover:text-emerald-300">
+        <i data-lucide="download" class="h-4 w-4 text-emerald-400/80"></i>
+        <span>导出音频</span>
       </a>
     </div>
   </header>
 
   <!-- ==================== 2. MAIN HUB CONTENT ==================== -->
-  <main class="flex-1 max-w-7xl w-full mx-auto px-6 py-8 space-y-6">
+  <main class="mx-auto w-full max-w-6xl flex-1 px-5 pb-16 pt-8 sm:px-8">
 
-    <!-- Primary Tab Navigation (Within this book) -->
-    <div class="flex items-center justify-between border-b border-surface-border pb-2">
-      <div class="flex space-x-2">
-        <button onclick="switchTab('pipeline')" id="tabBtnPipeline" class="px-4 py-2 rounded-lg bg-surface-card border border-brand-500/40 text-white font-medium text-xs flex items-center space-x-2 shadow-sm">
-          <i data-lucide="list-ordered" class="w-4 h-4 text-brand-400"></i>
+    <!-- ---------- Primary Tab Navigation (Within this book) ---------- -->
+    <div class="mt-7 flex flex-wrap items-center justify-between gap-4 border-b hairline pb-2">
+      <div class="flex items-center gap-1">
+        <button onclick="switchTab('pipeline')" id="tabBtnPipeline" class="tab flex items-center gap-2 rounded-lg px-2.5 py-1.5 text-[15px] font-semibold text-white">
+          <i data-lucide="list-ordered" class="h-4 w-4"></i>
           <span>章节生产流水线 (12)</span>
         </button>
-        <button onclick="switchTab('cast')" id="tabBtnCast" class="px-4 py-2 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-surface-hover font-medium text-xs flex items-center space-x-2 transition-colors">
-          <i data-lucide="users" class="w-4 h-4"></i>
+        <button onclick="switchTab('cast')" id="tabBtnCast" class="tab flex items-center gap-2 rounded-lg px-2.5 py-1.5 text-[15px] text-white/40 transition-colors hover:text-white/70">
+          <i data-lucide="users" class="h-4 w-4"></i>
           <span>全书角色阵容与选角 (5)</span>
         </button>
       </div>
 
-      <div class="text-xs text-slate-400 flex items-center space-x-2">
-        <i data-lucide="info" class="w-3.5 h-3.5 text-brand-400"></i>
-        <span>点击任意章节右侧【进入制作工作台】，即可开始段落级精调与试听</span>
+      <div class="flex items-center gap-2">
+        <button id="readyBtn" title="只看已就绪" class="rounded-full border hairline bg-ink-800 p-2 text-white/50 transition-colors hover:text-white">
+          <i data-lucide="star" class="h-4 w-4"></i>
+        </button>
+        <div class="relative">
+          <i data-lucide="search" class="pointer-events-none absolute left-3.5 top-2.5 h-4 w-4 text-white/30"></i>
+          <input id="q" type="text" placeholder="搜索章节或角色" class="w-[168px] rounded-full border hairline bg-ink-800 py-2 pl-9 pr-3 text-[12.5px] text-white placeholder:text-white/30 focus:border-accent/60 focus:outline-none xl:w-[220px]">
+        </div>
       </div>
     </div>
 
     <!-- ==================== TAB 1: CHAPTER PRODUCTION PIPELINE ==================== -->
-    <div id="tabPipeline" class="space-y-4">
-      <div class="bg-surface-card border border-surface-border rounded-2xl overflow-hidden shadow-xl">
-        <table class="w-full text-left text-xs">
-          <thead class="bg-surface-base/80 border-b border-surface-border text-slate-400 uppercase font-mono text-[10px]">
+    <div id="tabPipeline" class="mt-5">
+      <!-- 状态筛选 + 批量操作 -->
+      <div class="flex flex-wrap items-center justify-between gap-3">
+        <div class="flex flex-wrap items-center gap-1.5" id="chips">
+          <button data-chip="全部" class="chip rounded-full border border-white/[0.12] bg-white/[0.07] px-3 py-1.5 text-[12px] text-white">全部</button>
+          <button data-chip="待拆解" class="chip rounded-full border hairline bg-ink-800 px-3 py-1.5 text-[12px] text-white/50 transition-colors hover:text-white">待拆解</button>
+          <button data-chip="待合成" class="chip rounded-full border hairline bg-ink-800 px-3 py-1.5 text-[12px] text-white/50 transition-colors hover:text-white">待合成</button>
+          <button data-chip="合成中" class="chip rounded-full border hairline bg-ink-800 px-3 py-1.5 text-[12px] text-white/50 transition-colors hover:text-white">合成中</button>
+          <button data-chip="已就绪" class="chip rounded-full border hairline bg-ink-800 px-3 py-1.5 text-[12px] text-white/50 transition-colors hover:text-white">母带就绪</button>
+        </div>
+
+        <div class="flex items-center gap-2">
+          <span id="selCount" class="hidden font-mono text-[11.5px] text-white/40">已选 0 章</span>
+          <button id="batchBtn" disabled class="flex items-center gap-1.5 rounded-full border hairline bg-ink-800 px-3.5 py-2 text-[12.5px] text-white/70 transition-colors hover:border-white/20 hover:text-white disabled:cursor-not-allowed disabled:opacity-40">
+            <i data-lucide="play" class="h-3.5 w-3.5"></i>批量合成所选
+          </button>
+          <button onclick="showToast('已把 8 章加入拆本队列，预计 6 分钟完成', 'info')" class="flex items-center gap-1.5 rounded-full border hairline bg-ink-800 px-3.5 py-2 text-[12.5px] text-white/70 transition-colors hover:border-white/20 hover:text-white">
+            <i data-lucide="wand-sparkles" class="h-3.5 w-3.5"></i>一键拆解全书
+          </button>
+        </div>
+      </div>
+
+      <div class="mt-4 overflow-x-auto rounded-2xl border hairline bg-ink-800">
+        <table class="w-full min-w-[920px] text-left text-[12.5px]">
+          <thead class="border-b hairline bg-ink-850/80 font-mono text-[10.5px] uppercase text-white/35">
             <tr>
-              <th class="py-3.5 px-6">章节序号与标题</th>
-              <th class="py-3.5 px-4">字数与时长</th>
-              <th class="py-3.5 px-4">对白角色识别</th>
-              <th class="py-3.5 px-4">生产流水线状态</th>
-              <th class="py-3.5 px-6 text-right">操作</th>
+              <th class="w-11 py-3 pl-4 pr-1"><span class="flex items-center"><input type="checkbox" id="checkAll" class="check" title="全选可合成章节"></span></th>
+              <th class="px-4 py-3 font-medium">章节序号与标题</th>
+              <th class="px-4 py-3 font-medium">字数与时长</th>
+              <th class="px-4 py-3 font-medium">对白角色识别</th>
+              <th class="px-4 py-3 font-medium">生产流水线状态</th>
+              <th class="px-6 py-3 text-right font-medium">操作</th>
             </tr>
           </thead>
-          <tbody class="divide-y divide-surface-border">
+          <tbody id="rows" class="divide-y divide-white/[0.06]">
 
             <!-- Chapter 1 (Finished) -->
-            <tr class="hover:bg-surface-hover/60 transition-colors group">
-              <td class="py-4 px-6">
-                <div class="flex items-center space-x-3">
-                  <div class="w-7 h-7 rounded-lg bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 flex items-center justify-center font-bold text-xs font-mono">
-                    01
-                  </div>
-                  <div>
-                    <span class="font-bold text-white text-sm group-hover:text-brand-400 transition-colors">第001章 绯红之月</span>
-                    <div class="text-[11px] text-slate-400 mt-0.5">痛！好痛！头好痛……</div>
+            <tr data-row data-state="已就绪" data-title="第001章 绯红之月" data-say="旁白 克莱恩 梅丽莎" class="group transition-colors hover:bg-white/[0.03]">
+              <td class="py-4 pl-4 pr-1"><span class="flex items-center"><input type="checkbox" class="check row-check" disabled title="已完成，无需再生成"></span></td>
+              <td class="px-4 py-4">
+                <div class="flex items-center gap-3">
+                  <div class="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-emerald-400/20 bg-emerald-400/10 font-mono text-[11px] font-bold text-emerald-400/90">01</div>
+                  <div class="min-w-0">
+                    <a href="chapter-studio.html" class="block truncate text-[13.5px] font-medium text-white transition-colors group-hover:text-accent-400">第001章 绯红之月</a>
+                    <div class="mt-0.5 truncate text-[11px] text-white/35">痛！好痛！头好痛！狂暴的剧痛如同一柄烧红的钢铁长矛……</div>
                   </div>
                 </div>
               </td>
-              <td class="py-4 px-4 font-mono">
-                <div class="text-slate-200">3,428 字</div>
-                <div class="text-emerald-400 text-[11px]">14:18 (已渲染)</div>
+              <td class="px-4 py-4 font-mono">
+                <div class="text-white/75">3,428 字</div>
+                <div class="mt-0.5 text-[11px] text-emerald-400/80">14:18 (已渲染)</div>
               </td>
-              <td class="py-4 px-4">
-                <div class="flex items-center space-x-1.5">
-                  <span class="px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-400 text-[10px] border border-blue-500/20">旁白</span>
-                  <span class="px-1.5 py-0.5 rounded bg-brand-500/20 text-brand-300 text-[10px] border border-brand-500/30">克莱恩</span>
-                  <span class="px-1.5 py-0.5 rounded bg-pink-500/10 text-pink-400 text-[10px] border border-pink-500/20">梅丽莎</span>
+              <td class="px-4 py-4">
+                <div data-cell="speakers" class="flex flex-wrap items-center gap-1.5">
+                  <span class="rounded border border-white/10 bg-white/5 px-1.5 py-0.5 text-[10px] text-white/60">旁白</span>
+                  <span class="rounded border border-accent/25 bg-accent/10 px-1.5 py-0.5 text-[10px] text-accent-400">克莱恩</span>
+                  <span class="rounded border border-violet-400/20 bg-violet-400/10 px-1.5 py-0.5 text-[10px] text-violet-300">梅丽莎</span>
                 </div>
               </td>
-              <td class="py-4 px-4">
-                <span class="inline-flex items-center space-x-1 px-2.5 py-1 rounded-full text-[11px] font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-                  <i data-lucide="check-circle" class="w-3.5 h-3.5"></i>
-                  <span>全章母带就绪</span>
+              <td class="px-4 py-4">
+                <span data-cell="status" class="inline-flex items-center gap-1.5 rounded-full border border-emerald-400/20 bg-emerald-400/10 px-2.5 py-1 text-[11px] font-medium text-emerald-300">
+                  <i data-lucide="badge-check" class="h-3.5 w-3.5"></i><span>全章母带就绪</span>
                 </span>
               </td>
-              <td class="py-4 px-6 text-right">
-                <!-- Direct link to Chapter Studio -->
-                <a href="chapter-studio.html" class="inline-flex items-center space-x-1.5 px-3.5 py-1.5 rounded-lg bg-brand-600 hover:bg-brand-500 text-white font-medium shadow-md shadow-brand-500/20 transition-all">
-                  <i data-lucide="edit-3" class="w-3.5 h-3.5"></i>
+              <td class="px-6 py-4 text-right">
+                <a href="chapter-studio.html" class="inline-flex items-center gap-1.5 rounded-lg bg-accent px-3.5 py-1.5 text-[12.5px] font-medium text-white transition-colors hover:bg-accent-600">
+                  <i data-lucide="sliders-horizontal" class="h-3.5 w-3.5"></i>
                   <span>进入制作工作台</span>
                 </a>
               </td>
             </tr>
 
-            <!-- Chapter 2 -->
-            <tr class="hover:bg-surface-hover/60 transition-colors group">
-              <td class="py-4 px-6">
-                <div class="flex items-center space-x-3">
-                  <div class="w-7 h-7 rounded-lg bg-surface-base text-slate-400 border border-surface-border flex items-center justify-center font-bold text-xs font-mono">
-                    02
-                  </div>
-                  <div>
-                    <span class="font-bold text-slate-200 text-sm group-hover:text-amber-400 transition-colors">第002章 宿命之枪</span>
-                    <div class="text-[11px] text-slate-500 mt-0.5">左轮手枪与桌上的自杀日记</div>
-                  </div>
-                </div>
-              </td>
-              <td class="py-4 px-4 font-mono">
-                <div class="text-slate-200">3,810 字</div>
-                <div class="text-slate-500 text-[11px]">预估 15:30</div>
-              </td>
-              <td class="py-4 px-4">
-                <div class="flex items-center space-x-1.5">
-                  <span class="px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-400 text-[10px]">旁白</span>
-                  <span class="px-1.5 py-0.5 rounded bg-brand-500/20 text-brand-300 text-[10px]">克莱恩</span>
-                </div>
-              </td>
-              <td class="py-4 px-4">
-                <span class="inline-flex items-center space-x-1 px-2.5 py-1 rounded-full text-[11px] font-medium bg-amber-500/10 text-amber-300 border border-amber-500/20">
-                  <i data-lucide="clock" class="w-3.5 h-3.5"></i>
-                  <span>剧本化完成 · 待合成</span>
-                </span>
-              </td>
-              <td class="py-4 px-6 text-right">
-                <a href="chapter-studio.html" class="inline-flex items-center space-x-1.5 px-3.5 py-1.5 rounded-lg bg-surface-hover hover:bg-slate-800 text-slate-200 border border-surface-border font-medium transition-all">
-                  <i data-lucide="sliders" class="w-3.5 h-3.5"></i>
-                  <span>开始制作本章</span>
-                </a>
-              </td>
-            </tr>
-
-            <!-- Chapter 3 -->
-            <tr class="hover:bg-surface-hover/60 transition-colors group">
-              <td class="py-4 px-6">
-                <div class="flex items-center space-x-3">
-                  <div class="w-7 h-7 rounded-lg bg-surface-base text-slate-500 border border-surface-border flex items-center justify-center font-bold text-xs font-mono">
-                    03
-                  </div>
-                  <div>
-                    <span class="font-bold text-slate-400 text-sm">第003章 罗塞尔日记</span>
-                    <div class="text-[11px] text-slate-600 mt-0.5">穿越者前辈的隐秘手稿</div>
+            <!-- Chapter 2 (Synthesizing) -->
+            <tr data-row data-state="合成中" data-title="第002章 宿命之枪" data-say="旁白 克莱恩" class="group bg-accent/[0.03] transition-colors hover:bg-white/[0.03]">
+              <td class="py-4 pl-4 pr-1"><span class="flex items-center"><input type="checkbox" class="check row-check" disabled></span></td>
+              <td class="px-4 py-4">
+                <div class="flex items-center gap-3">
+                  <div class="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-accent/25 bg-accent/10 font-mono text-[11px] font-bold text-accent-400">02</div>
+                  <div class="min-w-0">
+                    <a href="chapter-studio.html" class="block truncate text-[13.5px] font-medium text-white transition-colors group-hover:text-accent-400">第002章 宿命之枪</a>
+                    <div class="mt-0.5 truncate text-[11px] text-white/35">左轮手枪与桌上的自杀日记，黄铜握柄还残留着体温。</div>
                   </div>
                 </div>
               </td>
-              <td class="py-4 px-4 font-mono">
-                <div class="text-slate-400">4,120 字</div>
-                <div class="text-slate-600 text-[11px]">未合成</div>
+              <td class="px-4 py-4 font-mono">
+                <div class="text-white/75">3,810 字</div>
+                <div class="mt-0.5 text-[11px] text-white/30">预估 15:30</div>
               </td>
-              <td class="py-4 px-4">
-                <span class="text-slate-500 text-[11px]">待解析</span>
+              <td class="px-4 py-4">
+                <div data-cell="speakers" class="flex flex-wrap items-center gap-1.5">
+                  <span class="rounded border border-white/10 bg-white/5 px-1.5 py-0.5 text-[10px] text-white/60">旁白</span>
+                  <span class="rounded border border-accent/25 bg-accent/10 px-1.5 py-0.5 text-[10px] text-accent-400">克莱恩</span>
+                </div>
               </td>
-              <td class="py-4 px-4">
-                <span class="inline-flex items-center space-x-1 px-2.5 py-1 rounded-full text-[11px] font-medium bg-slate-800 text-slate-400">
-                  <span>排队中</span>
-                </span>
+              <td class="px-4 py-4">
+                <div data-cell="status">
+                  <div class="flex items-center justify-between gap-3 font-mono text-[10.5px] text-white/40">
+                    <span class="flex items-center gap-1.5 text-accent-400"><span class="h-1.5 w-1.5 animate-pulse rounded-full bg-accent"></span>合成中</span>
+                    <span id="ch002pct">62%</span>
+                  </div>
+                  <div class="mt-1.5 h-[3px] w-28 overflow-hidden rounded-full bg-white/10">
+                    <div id="ch002bar" class="h-full rounded-full bg-accent transition-all duration-700" style="width:62%"></div>
+                  </div>
+                </div>
               </td>
-              <td class="py-4 px-6 text-right">
-                <button onclick="showToast('正在启动章节 LLM 角色对白分析...', 'info')" class="px-3 py-1.5 rounded-lg bg-surface-base hover:bg-surface-hover text-slate-400 hover:text-slate-200 border border-surface-border">
-                  一键拆解
+              <td class="px-6 py-4 text-right">
+                <button onclick="showToast('本章正在推理集群中生成，可先试听已完成段落', 'info')" class="inline-flex items-center gap-1.5 rounded-lg border hairline bg-ink-850 px-3.5 py-1.5 text-[12.5px] text-white/45 transition-colors hover:bg-ink-750 hover:text-white/80">
+                  <i data-lucide="hourglass" class="h-3.5 w-3.5"></i>查看进度
                 </button>
               </td>
             </tr>
 
+            <!-- Chapter 3 (Scripted, ready to synthesize) -->
+            <tr data-row data-state="待合成" data-title="第003章 罗塞尔日记" data-say="旁白 克莱恩 罗塞尔" class="group transition-colors hover:bg-white/[0.03]">
+              <td class="py-4 pl-4 pr-1"><span class="flex items-center"><input type="checkbox" class="check row-check"></span></td>
+              <td class="px-4 py-4">
+                <div class="flex items-center gap-3">
+                  <div class="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border hairline bg-ink-850 font-mono text-[11px] font-bold text-white/50">03</div>
+                  <div class="min-w-0">
+                    <a href="chapter-studio.html" class="block truncate text-[13.5px] font-medium text-white transition-colors group-hover:text-accent-400">第003章 罗塞尔日记</a>
+                    <div class="mt-0.5 truncate text-[11px] text-white/35">穿越者前辈的隐秘手稿，字符在月光下缓慢重组。</div>
+                  </div>
+                </div>
+              </td>
+              <td class="px-4 py-4 font-mono">
+                <div class="text-white/75">4,120 字</div>
+                <div class="mt-0.5 text-[11px] text-white/30">预估 16:44</div>
+              </td>
+              <td class="px-4 py-4">
+                <div data-cell="speakers" class="flex flex-wrap items-center gap-1.5">
+                  <span class="rounded border border-white/10 bg-white/5 px-1.5 py-0.5 text-[10px] text-white/60">旁白</span>
+                  <span class="rounded border border-accent/25 bg-accent/10 px-1.5 py-0.5 text-[10px] text-accent-400">克莱恩</span>
+                  <span class="rounded border border-amber-400/20 bg-amber-400/10 px-1.5 py-0.5 text-[10px] text-amber-300">罗塞尔</span>
+                </div>
+              </td>
+              <td class="px-4 py-4">
+                <span data-cell="status" class="inline-flex items-center gap-1.5 rounded-full border border-amber-400/20 bg-amber-400/10 px-2.5 py-1 text-[11px] font-medium text-amber-300">
+                  <i data-lucide="file-check-2" class="h-3.5 w-3.5"></i><span>剧本化完成 · 待合成</span>
+                </span>
+              </td>
+              <td class="px-6 py-4 text-right">
+                <div class="inline-flex items-center gap-1.5">
+                  <button data-act="synth" class="rounded-lg bg-accent px-3.5 py-1.5 text-[12.5px] font-medium text-white transition-colors hover:bg-accent-600">合成本章</button>
+                  <a href="chapter-studio.html" title="进入制作工作台" class="rounded-lg border hairline bg-ink-850 p-1.5 text-white/45 transition-colors hover:text-white"><i data-lucide="sliders-horizontal" class="h-3.5 w-3.5"></i></a>
+                </div>
+              </td>
+            </tr>
+
+            <!-- Chapter 4 (Not parsed yet) -->
+            <tr data-row data-state="待拆解" data-title="第004章 灰雾之上的盛宴" data-say="待解析" class="group transition-colors hover:bg-white/[0.03]">
+              <td class="py-4 pl-4 pr-1"><span class="flex items-center"><input type="checkbox" class="check row-check"></span></td>
+              <td class="px-4 py-4">
+                <div class="flex items-center gap-3">
+                  <div class="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border hairline bg-ink-850 font-mono text-[11px] font-bold text-white/35">04</div>
+                  <div class="min-w-0">
+                    <span class="block truncate text-[13.5px] font-medium text-white/60">第004章 灰雾之上的盛宴</span>
+                    <div class="mt-0.5 truncate text-[11px] text-white/25">长桌、烛火与不属于这个世界的低语者。</div>
+                  </div>
+                </div>
+              </td>
+              <td class="px-4 py-4 font-mono">
+                <div class="text-white/50">3,966 字</div>
+                <div class="mt-0.5 text-[11px] text-white/25">未合成</div>
+              </td>
+              <td class="px-4 py-4">
+                <div data-cell="speakers" class="text-[11px] text-white/30">待解析</div>
+              </td>
+              <td class="px-4 py-4">
+                <span data-cell="status" class="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-[11px] font-medium text-white/45">
+                  <i data-lucide="scan-search" class="h-3.5 w-3.5"></i><span>待拆解</span>
+                </span>
+              </td>
+              <td class="px-6 py-4 text-right">
+                <button data-act="split" class="inline-flex items-center gap-1.5 rounded-lg border hairline bg-ink-850 px-3.5 py-1.5 text-[12.5px] text-white/50 transition-colors hover:bg-ink-750 hover:text-white/80">
+                  <i data-lucide="wand-sparkles" class="h-3.5 w-3.5"></i>一键拆解
+                </button>
+              </td>
+            </tr>
+
+            <!-- Chapter 5 (Queued) -->
+            <tr data-row data-state="待合成" data-title="第005章 占卜师的世界" data-say="旁白 克莱恩 邓恩" class="group transition-colors hover:bg-white/[0.03]">
+              <td class="py-4 pl-4 pr-1"><span class="flex items-center"><input type="checkbox" class="check row-check"></span></td>
+              <td class="px-4 py-4">
+                <div class="flex items-center gap-3">
+                  <div class="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border hairline bg-ink-850 font-mono text-[11px] font-bold text-white/35">05</div>
+                  <div class="min-w-0">
+                    <span class="block truncate text-[13.5px] font-medium text-white/60">第005章 占卜师的世界</span>
+                    <div class="mt-0.5 truncate text-[11px] text-white/25">黄铜镜片、灵性与一整套谨慎的自我介绍。</div>
+                  </div>
+                </div>
+              </td>
+              <td class="px-4 py-4 font-mono">
+                <div class="text-white/50">3,512 字</div>
+                <div class="mt-0.5 text-[11px] text-white/25">预估 14:20</div>
+              </td>
+              <td class="px-4 py-4">
+                <div data-cell="speakers" class="flex flex-wrap items-center gap-1.5">
+                  <span class="rounded border border-white/10 bg-white/5 px-1.5 py-0.5 text-[10px] text-white/60">旁白</span>
+                  <span class="rounded border border-accent/25 bg-accent/10 px-1.5 py-0.5 text-[10px] text-accent-400">克莱恩</span>
+                  <span class="rounded border border-white/10 bg-white/5 px-1.5 py-0.5 text-[10px] text-white/45">邓恩</span>
+                </div>
+              </td>
+              <td class="px-4 py-4">
+                <span data-cell="status" class="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-[11px] font-medium text-white/45">
+                  <i data-lucide="align-left" class="h-3.5 w-3.5"></i><span>排队中</span>
+                </span>
+              </td>
+              <td class="px-6 py-4 text-right">
+                <button data-act="synth" class="rounded-lg border hairline bg-ink-850 px-3.5 py-1.5 text-[12.5px] text-white/50 transition-colors hover:bg-accent hover:text-white">合成本章</button>
+              </td>
+            </tr>
+
+            <!-- Chapter 6 (Missing cast) -->
+            <tr data-row data-state="待合成" data-title="第006章 尊严就是相位" data-say="旁白 未选角" class="group bg-amber-400/[0.03] transition-colors hover:bg-white/[0.03]">
+              <td class="py-4 pl-4 pr-1"><span class="flex items-center"><input type="checkbox" class="check row-check"></span></td>
+              <td class="px-4 py-4">
+                <div class="flex items-center gap-3">
+                  <div class="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-amber-400/20 bg-amber-400/10 font-mono text-[11px] font-bold text-amber-300">06</div>
+                  <div class="min-w-0">
+                    <a href="chapter-studio.html" class="block truncate text-[13.5px] font-medium text-white transition-colors group-hover:text-accent-400">第006章 尊严就是相位</a>
+                    <div class="mt-0.5 truncate text-[11px] text-amber-300/60">2 段对白未能匹配声线，合成前需完成选角。</div>
+                  </div>
+                </div>
+              </td>
+              <td class="px-4 py-4 font-mono">
+                <div class="text-white/75">3,704 字</div>
+                <div class="mt-0.5 text-[11px] text-white/30">预估 15:08</div>
+              </td>
+              <td class="px-4 py-4">
+                <div data-cell="speakers" class="flex flex-wrap items-center gap-1.5">
+                  <span class="rounded border border-white/10 bg-white/5 px-1.5 py-0.5 text-[10px] text-white/60">旁白</span>
+                  <span class="rounded border border-amber-400/20 bg-amber-400/10 px-1.5 py-0.5 text-[10px] text-amber-300">未选角 2</span>
+                </div>
+              </td>
+              <td class="px-4 py-4">
+                <span data-cell="status" class="inline-flex items-center gap-1.5 rounded-full border border-amber-400/20 bg-amber-400/10 px-2.5 py-1 text-[11px] font-medium text-amber-300">
+                  <i data-lucide="user-round-search" class="h-3.5 w-3.5"></i><span>待选角</span>
+                </span>
+              </td>
+              <td class="px-6 py-4 text-right">
+                <button data-act="cast" class="rounded-lg border border-amber-400/25 bg-amber-400/10 px-3.5 py-1.5 text-[12.5px] font-medium text-amber-200 transition-colors hover:bg-amber-400/20">去选角</button>
+              </td>
+            </tr>
+
+            <tr id="emptyRow" class="hidden">
+              <td colspan="6" class="px-6 py-14 text-center"><p class="text-[13px] text-white/40">没有符合条件的章节</p></td>
+            </tr>
           </tbody>
         </table>
       </div>
+
+      <button id="moreBtn" class="mt-3 flex w-full items-center justify-center gap-1.5 rounded-xl border border-dashed border-white/10 bg-ink-850 py-2.5 text-[12.5px] text-white/45 transition-colors hover:border-white/20 hover:text-white">
+        <i data-lucide="chevron-down" class="h-3.5 w-3.5"></i>展开全部 12 章（其余 6 章待拆解）
+      </button>
     </div>
 
     <!-- ==================== TAB 2: CAST MATRIX & VOICES ==================== -->
-    <div id="tabCast" class="hidden space-y-6">
-      <div class="flex items-center justify-between">
+    <div id="tabCast" class="mt-5 hidden">
+      <div class="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h3 class="font-bold text-sm text-white">本书出场角色台账 (Cast Ledger)</h3>
-          <p class="text-xs text-slate-400 mt-0.5">为全书人物绑定对应的声线模型，设定语速与情感张力基调。</p>
+          <h3 class="text-[15px] font-semibold text-white">本书出场角色台账</h3>
+          <p class="mt-1 text-[11.5px] text-white/35">为全书人物绑定对应的声线模型，设定语速与情感张力基调；改绑仅影响后续合成。</p>
         </div>
-        <button onclick="openVoiceCloneModal()" class="flex items-center space-x-1.5 bg-brand-600 hover:bg-brand-500 text-white px-3.5 py-1.5 rounded-lg text-xs font-medium shadow-md shadow-brand-500/20">
-          <i data-lucide="mic" class="w-4 h-4"></i>
+        <button onclick="openCloneModal()" class="flex items-center gap-1.5 rounded-full bg-accent px-3.5 py-2 text-[12.5px] font-medium text-white hover:bg-accent-600">
+          <i data-lucide="mic" class="h-3.5 w-3.5"></i>
           <span>克隆新音色加入本书</span>
         </button>
       </div>
 
-      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <div class="mt-5 grid grid-cols-1 gap-5 md:grid-cols-2">
 
         <!-- Cast 1: 旁白 -->
-        <div class="bg-surface-card border border-surface-border hover:border-blue-500/40 rounded-2xl p-5 flex flex-col justify-between">
+        <div data-card data-state="已就绪" data-title="旁白" class="card-shell flex flex-col justify-between rounded-2xl border hairline bg-ink-800 p-5">
           <div>
-            <div class="flex items-start justify-between">
-              <div class="flex space-x-3.5">
-                <div class="w-12 h-12 rounded-xl bg-blue-600/20 text-blue-400 border border-blue-500/30 flex items-center justify-center font-bold text-sm">
-                  白
-                </div>
-                <div>
-                  <div class="flex items-center space-x-1.5">
-                    <h4 class="font-bold text-slate-100 text-sm">旁白 (全知视角)</h4>
-                    <span class="text-[10px] bg-blue-500/10 text-blue-400 px-1.5 py-0.5 rounded">主叙事</span>
+            <div class="flex items-start justify-between gap-3">
+              <div class="flex min-w-0 gap-3.5">
+                <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-[13px] font-bold text-white/70">白</div>
+                <div class="min-w-0">
+                  <div class="flex items-center gap-1.5">
+                    <h4 class="truncate text-[13.5px] font-semibold text-white">旁白 (全知视角)</h4>
+                    <span class="shrink-0 rounded border border-white/10 bg-white/5 px-1.5 py-0.5 text-[10px] text-white/55">主叙事</span>
                   </div>
-                  <div class="text-xs text-slate-400 mt-1">沉稳稳健、历史沧桑厚重感</div>
+                  <div class="mt-1 text-[11.5px] text-white/40">沉稳稳健、历史沧桑厚重感</div>
                 </div>
               </div>
-              <button onclick="auditionTone(220)" class="w-8 h-8 rounded-lg bg-surface-base hover:bg-blue-600 text-slate-300 hover:text-white flex items-center justify-center transition-colors" title="试听">
-                <i data-lucide="volume-2" class="w-4 h-4"></i>
+              <button onclick="auditionTone(220)" title="试听" class="shrink-0 rounded-lg border hairline bg-ink-850 p-2 text-white/50 transition-colors hover:border-white/25 hover:bg-white/5 hover:text-white">
+                <i data-lucide="volume-2" class="h-4 w-4"></i>
               </button>
             </div>
 
-            <div class="mt-4 p-3 rounded-xl bg-surface-base/60 border border-surface-border text-xs space-y-1.5">
-              <div class="flex justify-between">
-                <span class="text-slate-400">绑定声线:</span>
-                <span class="text-slate-200 font-medium">沧桑男中音 (CosyVoice-Pre)</span>
-              </div>
-              <div class="flex justify-between">
-                <span class="text-slate-400">语速控制:</span>
-                <span class="text-slate-200 font-mono">1.05x</span>
-              </div>
-              <div class="flex justify-between">
-                <span class="text-slate-400">台词覆盖:</span>
-                <span class="text-blue-400 font-mono">68 段 (64% 占比)</span>
-              </div>
+            <div class="mt-4 space-y-1.5 rounded-xl border hairline bg-ink-850/70 p-3 text-[11.5px]">
+              <div class="flex justify-between gap-2"><span class="shrink-0 text-white/35">绑定声线:</span><span class="truncate text-white/75">沧桑男中音 (CosyVoice-Pre)</span></div>
+              <div class="flex justify-between gap-2"><span class="shrink-0 text-white/35">语速控制:</span><span class="font-mono text-white/75">1.05x</span></div>
+              <div class="flex justify-between gap-2"><span class="shrink-0 text-white/35">台词覆盖:</span><span class="font-mono text-white/75">268 段 (64% 占比)</span></div>
             </div>
           </div>
 
-          <div class="mt-5 pt-3 border-t border-surface-border/60 flex items-center justify-between text-xs">
-            <span class="text-emerald-400">已就绪</span>
-            <button onclick="showToast('已打开音色切换抽屉', 'info')" class="text-brand-400 hover:underline">更换音色</button>
+          <div class="mt-4 flex items-center justify-between border-t hairline pt-3 text-[12px]">
+            <span class="flex items-center gap-1.5 text-emerald-300/80"><span class="h-1.5 w-1.5 rounded-full bg-emerald-400"></span>已就绪</span>
+            <div class="flex shrink-0 items-center gap-3 whitespace-nowrap">
+              <a href="voice-library.html" class="text-white/45 transition-colors hover:text-white">更换音色</a>
+              <button onclick="showToast('已打开声线微调面板', 'info')" class="text-accent-400 hover:underline">调优</button>
+            </div>
           </div>
         </div>
 
         <!-- Cast 2: 克莱恩·莫雷蒂 -->
-        <div class="bg-surface-card border border-brand-500/40 rounded-2xl p-5 flex flex-col justify-between shadow-lg shadow-brand-500/5">
+        <div data-card data-state="已就绪" data-title="克莱恩·莫雷蒂" class="card-shell flex flex-col justify-between rounded-2xl border border-accent/25 bg-ink-800 p-5">
           <div>
-            <div class="flex items-start justify-between">
-              <div class="flex space-x-3.5">
-                <div class="w-12 h-12 rounded-xl bg-brand-600/20 text-brand-300 border border-brand-500/40 flex items-center justify-center font-bold text-sm">
-                  克
-                </div>
-                <div>
-                  <div class="flex items-center space-x-1.5">
-                    <h4 class="font-bold text-slate-100 text-sm">克莱恩·莫雷蒂</h4>
-                    <span class="text-[10px] bg-brand-500/20 text-brand-300 px-1.5 py-0.5 rounded font-medium">男主角</span>
+            <div class="flex items-start justify-between gap-3">
+              <div class="flex min-w-0 gap-3.5">
+                <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border border-accent/30 bg-accent/10 text-[13px] font-bold text-accent-400">克</div>
+                <div class="min-w-0">
+                  <div class="flex items-center gap-1.5">
+                    <h4 class="truncate text-[13.5px] font-semibold text-white">克莱恩·莫雷蒂</h4>
+                    <span class="shrink-0 rounded border border-accent/25 bg-accent/10 px-1.5 py-0.5 text-[10px] font-medium text-accent-400">男主角</span>
                   </div>
-                  <div class="text-xs text-slate-400 mt-1">深思冷静、情绪激荡时带喘息颤音</div>
+                  <div class="mt-1 text-[11.5px] text-white/40">深思冷静、情绪激荡时带喘息颤音</div>
                 </div>
               </div>
-              <button onclick="auditionTone(330)" class="w-8 h-8 rounded-lg bg-brand-600 hover:bg-brand-500 text-white flex items-center justify-center transition-colors" title="试听">
-                <i data-lucide="volume-2" class="w-4 h-4"></i>
+              <button onclick="auditionTone(330)" title="试听" class="shrink-0 rounded-lg bg-accent p-2 text-white transition-colors hover:bg-accent-600">
+                <i data-lucide="volume-2" class="h-4 w-4"></i>
               </button>
             </div>
 
-            <div class="mt-4 p-3 rounded-xl bg-surface-base/60 border border-surface-border text-xs space-y-1.5">
-              <div class="flex justify-between">
-                <span class="text-slate-400">绑定声线:</span>
-                <span class="text-violet-300 font-medium">英伦青年音 (零样本克隆)</span>
-              </div>
-              <div class="flex justify-between">
-                <span class="text-slate-400">语速控制:</span>
-                <span class="text-slate-200 font-mono">1.00x</span>
-              </div>
-              <div class="flex justify-between">
-                <span class="text-slate-400">台词覆盖:</span>
-                <span class="text-brand-400 font-mono">34 段 (24% 占比)</span>
-              </div>
+            <div class="mt-4 space-y-1.5 rounded-xl border hairline bg-ink-850/70 p-3 text-[11.5px]">
+              <div class="flex justify-between gap-2"><span class="shrink-0 text-white/35">绑定声线:</span><span class="truncate text-white/75">英伦青年音 (零样本克隆)</span></div>
+              <div class="flex justify-between gap-2"><span class="shrink-0 text-white/35">情绪基线:</span><span class="font-mono text-white/75">惊恐 85% · 克制 60%</span></div>
+              <div class="flex justify-between gap-2"><span class="shrink-0 text-white/35">台词覆盖:</span><span class="font-mono text-accent-400">96 段 (24% 占比)</span></div>
             </div>
           </div>
 
-          <div class="mt-5 pt-3 border-t border-surface-border/60 flex items-center justify-between text-xs">
-            <span class="text-violet-400 font-mono text-[10px]">Zero-Shot 克隆</span>
-            <button onclick="showToast('已打开微调面板', 'info')" class="text-brand-400 hover:underline">调优声线</button>
+          <div class="mt-4 flex items-center justify-between gap-2 border-t hairline pt-3 text-[12px]">
+            <span class="truncate font-mono text-[10.5px] text-accent-400/80">Zero-Shot · Seed 8421</span>
+            <div class="flex shrink-0 items-center gap-3 whitespace-nowrap">
+              <a href="chapter-studio.html" class="text-white/45 transition-colors hover:text-white">逐句精修</a>
+              <button onclick="showToast('已打开声线微调面板', 'info')" class="text-accent-400 hover:underline">调优</button>
+            </div>
           </div>
         </div>
 
         <!-- Cast 3: 梅丽莎·莫雷蒂 -->
-        <div class="bg-surface-card border border-surface-border hover:border-pink-500/40 rounded-2xl p-5 flex flex-col justify-between">
+        <div data-card data-state="已就绪" data-title="梅丽莎·莫雷蒂" class="card-shell flex flex-col justify-between rounded-2xl border hairline bg-ink-800 p-5">
           <div>
-            <div class="flex items-start justify-between">
-              <div class="flex space-x-3.5">
-                <div class="w-12 h-12 rounded-xl bg-pink-600/20 text-pink-400 border border-pink-500/30 flex items-center justify-center font-bold text-sm">
-                  梅
-                </div>
-                <div>
-                  <div class="flex items-center space-x-1.5">
-                    <h4 class="font-bold text-slate-100 text-sm">梅丽莎·莫雷蒂</h4>
-                    <span class="text-[10px] bg-pink-500/10 text-pink-400 px-1.5 py-0.5 rounded">妹妹</span>
+            <div class="flex items-start justify-between gap-3">
+              <div class="flex min-w-0 gap-3.5">
+                <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border border-violet-400/20 bg-violet-400/10 text-[13px] font-bold text-violet-300">梅</div>
+                <div class="min-w-0">
+                  <div class="flex items-center gap-1.5">
+                    <h4 class="truncate text-[13.5px] font-semibold text-white">梅丽莎·莫雷蒂</h4>
+                    <span class="shrink-0 rounded border border-white/10 bg-white/5 px-1.5 py-0.5 text-[10px] text-white/55">妹妹</span>
                   </div>
-                  <div class="text-xs text-slate-400 mt-1">清澈纯真、略带担忧的少女音</div>
+                  <div class="mt-1 text-[11.5px] text-white/40">清澈纯真、略带担忧的少女音</div>
                 </div>
               </div>
-              <button onclick="auditionTone(440)" class="w-8 h-8 rounded-lg bg-surface-base hover:bg-pink-600 text-slate-300 hover:text-white flex items-center justify-center transition-colors" title="试听">
-                <i data-lucide="volume-2" class="w-4 h-4"></i>
+              <button onclick="auditionTone(440)" title="试听" class="shrink-0 rounded-lg border hairline bg-ink-850 p-2 text-white/50 transition-colors hover:border-violet-400/40 hover:bg-violet-400/10 hover:text-violet-300">
+                <i data-lucide="volume-2" class="h-4 w-4"></i>
               </button>
             </div>
 
-            <div class="mt-4 p-3 rounded-xl bg-surface-base/60 border border-surface-border text-xs space-y-1.5">
-              <div class="flex justify-between">
-                <span class="text-slate-400">绑定声线:</span>
-                <span class="text-slate-200 font-medium">清澈少女音 (Fish-Studio)</span>
-              </div>
-              <div class="flex justify-between">
-                <span class="text-slate-400">语速 / 音调:</span>
-                <span class="text-slate-200 font-mono">0.98x / +0.5st</span>
-              </div>
-              <div class="flex justify-between">
-                <span class="text-slate-400">台词覆盖:</span>
-                <span class="text-pink-400 font-mono">12 段 (8% 占比)</span>
-              </div>
+            <div class="mt-4 space-y-1.5 rounded-xl border hairline bg-ink-850/70 p-3 text-[11.5px]">
+              <div class="flex justify-between gap-2"><span class="shrink-0 text-white/35">绑定声线:</span><span class="truncate text-white/75">清澈少女音 (Fish-Studio)</span></div>
+              <div class="flex justify-between gap-2"><span class="shrink-0 text-white/35">语速 / 音调:</span><span class="font-mono text-white/75">0.98x / +0.5st</span></div>
+              <div class="flex justify-between gap-2"><span class="shrink-0 text-white/35">台词覆盖:</span><span class="font-mono text-violet-300">34 段 (8% 占比)</span></div>
             </div>
           </div>
 
-          <div class="mt-5 pt-3 border-t border-surface-border/60 flex items-center justify-between text-xs">
-            <span class="text-emerald-400">已就绪</span>
-            <button onclick="showToast('已打开音色切换抽屉', 'info')" class="text-brand-400 hover:underline">更换音色</button>
+          <div class="mt-4 flex items-center justify-between border-t hairline pt-3 text-[12px]">
+            <span class="flex items-center gap-1.5 text-emerald-300/80"><span class="h-1.5 w-1.5 rounded-full bg-emerald-400"></span>已就绪</span>
+            <div class="flex shrink-0 items-center gap-3 whitespace-nowrap">
+              <a href="voice-library.html" class="text-white/45 transition-colors hover:text-white">更换音色</a>
+              <button onclick="showToast('已打开声线微调面板', 'info')" class="text-accent-400 hover:underline">调优</button>
+            </div>
           </div>
+        </div>
+
+        <!-- Cast 4: 班森·莫雷蒂（待确认） -->
+        <div data-card data-state="待合成" data-title="班森·莫雷蒂" class="card-shell flex flex-col justify-between rounded-2xl border hairline bg-ink-800 p-5">
+          <div>
+            <div class="flex items-start justify-between gap-3">
+              <div class="flex min-w-0 gap-3.5">
+                <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border hairline bg-ink-850 text-[13px] font-bold text-white/45">班</div>
+                <div class="min-w-0">
+                  <div class="flex items-center gap-1.5">
+                    <h4 class="truncate text-[13.5px] font-semibold text-white">班森·莫雷蒂</h4>
+                    <span class="shrink-0 rounded border border-white/10 bg-white/5 px-1.5 py-0.5 text-[10px] text-white/55">兄长</span>
+                  </div>
+                  <div class="mt-1 text-[11.5px] text-white/40">温和持家、说话节奏偏慢</div>
+                </div>
+              </div>
+              <button onclick="auditionTone(180)" title="试听" class="shrink-0 rounded-lg border hairline bg-ink-850 p-2 text-white/50 transition-colors hover:border-white/25 hover:bg-white/5 hover:text-white">
+                <i data-lucide="volume-2" class="h-4 w-4"></i>
+              </button>
+            </div>
+
+            <div class="mt-4 space-y-1.5 rounded-xl border hairline bg-ink-850/70 p-3 text-[11.5px]">
+              <div class="flex justify-between gap-2"><span class="shrink-0 text-white/35">候选声线:</span><span class="truncate text-white/75">温厚长兄音 · 未确认</span></div>
+              <div class="flex justify-between gap-2"><span class="shrink-0 text-white/35">出现章节:</span><span class="font-mono text-white/75">第 1、2、7 章</span></div>
+              <div class="flex justify-between gap-2"><span class="shrink-0 text-white/35">台词覆盖:</span><span class="font-mono text-white/50">18 段 (4% 占比)</span></div>
+            </div>
+          </div>
+
+          <div class="mt-4 flex items-center justify-between border-t hairline pt-3 text-[12px]">
+            <span class="flex items-center gap-1.5 text-amber-300"><span class="h-1.5 w-1.5 rounded-full bg-amber-400"></span>待确认音色</span>
+            <div class="flex shrink-0 items-center gap-3 whitespace-nowrap">
+              <a href="voice-library.html" class="text-white/45 transition-colors hover:text-white">挑声线</a>
+              <button onclick="showToast('已把「班森·莫雷蒂」绑定到温厚长兄音', 'success')" class="text-accent-400 hover:underline">绑定</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- 未命名说话人 -->
+        <div class="flex flex-col justify-between rounded-2xl border border-dashed border-white/10 bg-ink-850 p-5 md:col-span-2">
+          <div class="flex flex-wrap items-start justify-between gap-4">
+            <div class="flex min-w-0 gap-3.5">
+              <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border border-amber-400/20 bg-amber-400/10">
+                <i data-lucide="circle-help" class="h-5 w-5 text-amber-300/80"></i>
+              </div>
+              <div class="min-w-0">
+                <h4 class="text-[13.5px] font-semibold text-white">2 位未命名说话人</h4>
+                <p class="mt-1 text-[11.5px] text-white/40">拆本时归入 speaker_07 / speaker_11，全书共 14 段对白</p>
+              </div>
+            </div>
+            <div class="flex items-center gap-2">
+              <button onclick="showToast('已按上下文把 speaker_07 归并为旁白', 'success')" class="rounded-full border hairline bg-ink-800 px-3.5 py-2 text-[12.5px] text-white/70 transition-colors hover:border-white/20 hover:text-white">智能归并</button>
+              <button onclick="showToast('请先在章节流水线中定位该说话人出现的段落', 'info')" class="rounded-full bg-accent px-3.5 py-2 text-[12.5px] font-medium text-white hover:bg-accent-600">命名并选角</button>
+            </div>
+          </div>
+          <ul class="mt-4 space-y-1.5 text-[11.5px] text-white/40">
+            <li class="flex items-start gap-2"><i data-lucide="quote" class="mt-0.5 h-3 w-3 shrink-0 text-white/20"></i><span class="truncate">「……灰雾之上的那位，似乎在看我们。」 · 第 004 章</span></li>
+            <li class="flex items-start gap-2"><i data-lucide="quote" class="mt-0.5 h-3 w-3 shrink-0 text-white/20"></i><span class="truncate">「廷根大学的面试，别迟到了。」 · 第 002 章</span></li>
+          </ul>
         </div>
 
       </div>
     </div>
-
   </main>
 
-  <div id="toastContainer" class="fixed bottom-6 right-6 z-50 flex flex-col space-y-2 pointer-events-none"></div>
+  <!-- ==================== MODAL: 克隆新音色 ==================== -->
+  <div id="cloneModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/75 p-4 backdrop-blur-sm">
+    <div class="w-full max-w-[520px] rounded-2xl border hairline bg-ink-800 shadow-2xl shadow-black/70">
+      <div class="flex items-center justify-between border-b hairline px-6 py-4">
+        <div>
+          <h3 class="text-[15px] font-semibold text-white">克隆新音色加入本书</h3>
+          <p class="mt-0.5 text-[11.5px] text-white/40">上传 10–20 秒干净人声样本，零样本克隆后可直接绑定角色</p>
+        </div>
+        <button onclick="closeCloneModal()" class="rounded-md p-1.5 text-white/40 hover:bg-white/5 hover:text-white"><i data-lucide="x" class="h-4 w-4"></i></button>
+      </div>
+
+      <div class="space-y-5 px-6 py-5">
+        <div>
+          <label class="mb-1.5 block text-[12.5px] font-medium text-white/75">音色名称</label>
+          <input type="text" placeholder="例如：英伦青年音" class="w-full rounded-lg border hairline bg-ink-900 px-3 py-2.5 text-[13px] text-white placeholder:text-white/25 focus:border-accent/60 focus:outline-none">
+        </div>
+
+        <div>
+          <label class="mb-1.5 block text-[12.5px] font-medium text-white/75">人声样本（.wav / .mp3）</label>
+          <div class="cursor-pointer rounded-xl border border-dashed border-white/12 bg-ink-900/60 px-6 py-8 text-center transition-colors hover:border-accent/50">
+            <i data-lucide="upload" class="mx-auto mb-2.5 h-6 w-6 text-white/30"></i>
+            <div class="text-[13px] text-white/75">点击或拖拽音频到此处</div>
+            <div class="mt-1 text-[11px] text-white/35">单条最大 10 MB · 建议安静环境录制，无 BGM 干扰</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="flex items-center justify-end gap-2 border-t hairline px-6 py-4">
+        <button onclick="closeCloneModal()" class="rounded-lg border hairline px-4 py-2 text-[13px] text-white/65 hover:bg-white/5 hover:text-white">取消</button>
+        <button onclick="closeCloneModal(); showToast('已开始音色克隆，预计 30 秒完成', 'success')" class="flex items-center gap-1.5 rounded-lg bg-accent px-4 py-2 text-[13px] font-medium text-white hover:bg-accent-600">
+          开始克隆
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <div id="toastContainer" class="pointer-events-none fixed bottom-6 right-6 z-50 flex flex-col gap-2"></div>
 
   <script>
     lucide.createIcons();
 
+    /* ---------- tabs ---------- */
     function switchTab(tab) {
-      if (tab === 'pipeline') {
-        document.getElementById('tabPipeline').classList.remove('hidden');
-        document.getElementById('tabCast').classList.add('hidden');
-        document.getElementById('tabBtnPipeline').className = "px-4 py-2 rounded-lg bg-surface-card border border-brand-500/40 text-white font-medium text-xs flex items-center space-x-2 shadow-sm";
-        document.getElementById('tabBtnCast').className = "px-4 py-2 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-surface-hover font-medium text-xs flex items-center space-x-2 transition-colors";
-      } else {
-        document.getElementById('tabPipeline').classList.add('hidden');
-        document.getElementById('tabCast').classList.remove('hidden');
-        document.getElementById('tabBtnCast').className = "px-4 py-2 rounded-lg bg-surface-card border border-brand-500/40 text-white font-medium text-xs flex items-center space-x-2 shadow-sm";
-        document.getElementById('tabBtnPipeline').className = "px-4 py-2 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-surface-hover font-medium text-xs flex items-center space-x-2 transition-colors";
-      }
+      const pipelineOn = tab === 'pipeline';
+      document.getElementById('tabPipeline').classList.toggle('hidden', !pipelineOn);
+      document.getElementById('tabCast').classList.toggle('hidden', pipelineOn);
+      setTabStyle('tabBtnPipeline', pipelineOn);
+      setTabStyle('tabBtnCast', !pipelineOn);
+      keyword = '';
+      document.getElementById('q').value = '';
+      if (!pipelineOn) setChip('全部');
+      applyFilter();
     }
 
+    function setTabStyle(id, on) {
+      const btn = document.getElementById(id);
+      btn.classList.toggle('font-semibold', on);
+      btn.classList.toggle('text-white', on);
+      btn.classList.toggle('text-white/40', !on);
+    }
+
+    /* ---------- 状态筛选 / 搜索 ---------- */
+    const rows = document.getElementById('rows');
+    const castCards = Array.from(document.querySelectorAll('#tabCast [data-card]'));
+    const emptyRow = document.getElementById('emptyRow');
+    let state = '全部';
+    let keyword = '';
+    let readyOnly = false;
+
+    function applyFilter() {
+      const onCast = !document.getElementById('tabCast').classList.contains('hidden');
+      const list = onCast ? castCards : Array.from(rows.querySelectorAll('[data-row]'));
+      let visible = 0;
+      list.forEach((el) => {
+        const hay = `${el.dataset.title} ${el.dataset.say || ''}`.toLowerCase();
+        const show = (state === '全部' || el.dataset.state === state)
+          && (!readyOnly || el.dataset.state === '已就绪')
+          && (!keyword || hay.includes(keyword));
+        el.classList.toggle('hidden', !show);
+        if (show) visible++;
+      });
+      emptyRow.classList.toggle('hidden', onCast || visible > 0);
+    }
+
+    function setChip(chip) {
+      state = chip;
+      document.querySelectorAll('.chip').forEach((c) => {
+        const on = c.dataset.chip === chip;
+        c.classList.toggle('border-white/[0.12]', on);
+        c.classList.toggle('bg-white/[0.07]', on);
+        c.classList.toggle('text-white', on);
+        c.classList.toggle('hairline', !on);
+        c.classList.toggle('bg-ink-800', !on);
+        c.classList.toggle('text-white/50', !on);
+      });
+    }
+
+    document.getElementById('chips').addEventListener('click', (e) => {
+      const chip = e.target.closest('.chip');
+      if (!chip) return;
+      setChip(chip.dataset.chip);
+      applyFilter();
+    });
+
+    const readyBtn = document.getElementById('readyBtn');
+    readyBtn.addEventListener('click', () => {
+      readyOnly = !readyOnly;
+      readyBtn.classList.toggle('bg-accent/15', readyOnly);
+      readyBtn.classList.toggle('text-accent-400', readyOnly);
+      readyBtn.classList.toggle('border-accent/30', readyOnly);
+      applyFilter();
+    });
+
+    document.getElementById('q').addEventListener('input', (e) => {
+      keyword = e.target.value.trim().toLowerCase();
+      applyFilter();
+    });
+
+    /* ---------- 勾选与批量合成 ---------- */
+    const checkAll = document.getElementById('checkAll');
+    const batchBtn = document.getElementById('batchBtn');
+    const selCount = document.getElementById('selCount');
+
+    const checkedBoxes = () => Array.from(rows.querySelectorAll('.row-check:checked'));
+
+    function syncSelection() {
+      const n = checkedBoxes().length;
+      batchBtn.disabled = n === 0;
+      selCount.classList.toggle('hidden', n === 0);
+      selCount.textContent = `已选 ${n} 章`;
+      checkAll.checked = n > 0 && n === rows.querySelectorAll('.row-check:not(:disabled)').length;
+    }
+
+    rows.addEventListener('change', (e) => { if (e.target.matches('.row-check')) syncSelection(); });
+    checkAll.addEventListener('change', () => {
+      rows.querySelectorAll('.row-check:not(:disabled)').forEach((b) => { b.checked = checkAll.checked; });
+      syncSelection();
+    });
+    batchBtn.addEventListener('click', () => {
+      showToast(`已把 ${checkedBoxes().length} 章加入合成队列`, 'success');
+      rows.querySelectorAll('.row-check').forEach((b) => { b.checked = false; });
+      syncSelection();
+    });
+
+    /* ---------- 行操作 ---------- */
+    const pill = (label, tone) => `<span class="rounded border px-1.5 py-0.5 text-[10px] ${tone}">${label}</span>`;
+
+    rows.addEventListener('click', (e) => {
+      const btn = e.target.closest('[data-act]');
+      if (!btn) return;
+      const row = btn.closest('[data-row]');
+
+      if (btn.dataset.act === 'split') {
+        showToast(`正在用 Qwen2.5 拆解《${row.dataset.title}》的对白与情绪…`, 'info');
+        btn.disabled = true;
+        btn.innerHTML = '<i data-lucide="loader" class="h-3.5 w-3.5 animate-spin"></i>拆解中';
+        lucide.createIcons();
+        setTimeout(() => {
+          row.dataset.state = '待合成';
+          row.dataset.say = '旁白 克莱恩';
+          row.querySelector('[data-cell="speakers"]').className = 'flex flex-wrap items-center gap-1.5';
+          row.querySelector('[data-cell="speakers"]').innerHTML =
+            pill('旁白', 'border-white/10 bg-white/5 text-white/60') + pill('克莱恩', 'border-accent/25 bg-accent/10 text-accent-400');
+          row.querySelector('[data-cell="status"]').outerHTML =
+            '<span data-cell="status" class="inline-flex items-center gap-1.5 rounded-full border border-amber-400/20 bg-amber-400/10 px-2.5 py-1 text-[11px] font-medium text-amber-300"><i data-lucide="file-check-2" class="h-3.5 w-3.5"></i><span>剧本化完成 · 待合成</span></span>';
+          btn.outerHTML = '<button data-act="synth" class="rounded-lg bg-accent px-3.5 py-1.5 text-[12.5px] font-medium text-white transition-colors hover:bg-accent-600">合成本章</button>';
+          lucide.createIcons();
+          applyFilter();
+          showToast('拆解完成：识别出 2 位说话人、86 段对白', 'success');
+        }, 1600);
+        return;
+      }
+
+      if (btn.dataset.act === 'synth') {
+        showToast(`《${row.dataset.title}》已进入合成队列，预计 4 分钟`, 'info');
+        return;
+      }
+      if (btn.dataset.act === 'cast') switchTab('cast');
+    });
+
+    /* ---------- 展开其余章节 ---------- */
+    const rest = [
+      ['07', '第007章 塔罗会与愚者', '长桌两端，八张面孔与一张空位。', '3,288', '预估 13:26'],
+      ['08', '第008章 第一单生意', '灵性、黄铜镜片与讨价还价的仪式。', '3,610', '预估 14:48'],
+      ['09', '第009章 廷根大学的清晨', '面试通知书、煤炉与一家三口的早餐。', '2,940', '预估 12:04'],
+      ['10', '第010章 深夜的低语', '窗外的绯红月光又一次亮了。', '3,455', '预估 14:10'],
+      ['11', '第011章 序列九·占卜家', '服魔配方与不可逆的第一步。', '4,028', '预估 16:22'],
+      ['12', '第012章 灰雾之下的凝视', '祂始终没有离开那张长桌。', '3,772', '预估 15:30'],
+    ];
+
+    document.getElementById('moreBtn').addEventListener('click', (e) => {
+      const trigger = e.currentTarget;
+      emptyRow.insertAdjacentHTML('beforebegin', rest.map(([no, title, excerpt, words, eta]) => `
+        <tr data-row data-state="待拆解" data-title="${title}" data-say="待解析" class="group transition-colors hover:bg-white/[0.03]">
+          <td class="py-4 pl-4 pr-1"><span class="flex items-center"><input type="checkbox" class="check row-check"></span></td>
+          <td class="px-4 py-4">
+            <div class="flex items-center gap-3">
+              <div class="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border hairline bg-ink-850 font-mono text-[11px] font-bold text-white/35">${no}</div>
+              <div class="min-w-0">
+                <span class="block truncate text-[13.5px] font-medium text-white/60">${title}</span>
+                <div class="mt-0.5 truncate text-[11px] text-white/25">${excerpt}</div>
+              </div>
+            </div>
+          </td>
+          <td class="px-4 py-4 font-mono">
+            <div class="text-white/50">${words} 字</div>
+            <div class="mt-0.5 text-[11px] text-white/25">${eta}</div>
+          </td>
+          <td class="px-4 py-4"><div data-cell="speakers" class="text-[11px] text-white/30">待解析</div></td>
+          <td class="px-4 py-4">
+            <span data-cell="status" class="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-[11px] font-medium text-white/45"><i data-lucide="scan-search" class="h-3.5 w-3.5"></i><span>待拆解</span></span>
+          </td>
+          <td class="px-6 py-4 text-right">
+            <button data-act="split" class="inline-flex items-center gap-1.5 rounded-lg border hairline bg-ink-850 px-3.5 py-1.5 text-[12.5px] text-white/50 transition-colors hover:bg-ink-750 hover:text-white/80"><i data-lucide="wand-sparkles" class="h-3.5 w-3.5"></i>一键拆解</button>
+          </td>
+        </tr>`).join(''));
+      trigger.remove();
+      lucide.createIcons();
+      applyFilter();
+      syncSelection();
+    });
+
+    /* ---------- clone modal ---------- */
+    const cloneModal = document.getElementById('cloneModal');
+    function openCloneModal() {
+      cloneModal.classList.remove('hidden');
+      cloneModal.classList.add('flex');
+    }
+    function closeCloneModal() {
+      cloneModal.classList.add('hidden');
+      cloneModal.classList.remove('flex');
+    }
+    cloneModal.addEventListener('click', (e) => { if (e.target === cloneModal) closeCloneModal(); });
+    document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeCloneModal(); });
+
+    /* ---------- 声线试听 ---------- */
     let audioCtx = null;
     function auditionTone(freq) {
       if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -411,16 +814,42 @@
       showToast(`正在播放特征声线试听音 (${freq}Hz)`, 'info');
     }
 
+    /* ---------- 合成中章节进度推进 ---------- */
+    const bar = document.getElementById('ch002bar');
+    const pct = document.getElementById('ch002pct');
+    let done = 62;
+    const tick = setInterval(() => {
+      done = Math.min(100, done + 1);
+      bar.style.width = done + '%';
+      pct.textContent = done + '%';
+      if (done === 100) {
+        clearInterval(tick);
+        showToast('第002章 宿命之枪 已生成，可进入制作工作台试听', 'success');
+      }
+    }, 1800);
+
+    /* ---------- 剧目标题就地改名 ---------- */
+    const projTitle = document.getElementById('projTitle');
+    projTitle.addEventListener('dblclick', () => {
+      projTitle.contentEditable = 'true';
+      projTitle.focus();
+    });
+    projTitle.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') { e.preventDefault(); projTitle.blur(); showToast('剧目名称已更新', 'success'); }
+    });
+    projTitle.addEventListener('blur', () => { projTitle.contentEditable = 'false'; });
+
     function showToast(msg, type = 'info') {
       const container = document.getElementById('toastContainer');
       const toast = document.createElement('div');
-      const bg = type === 'success' ? 'bg-emerald-600/90 border-emerald-500/50 text-white' : 'bg-surface-card border-surface-border text-slate-200';
-      toast.className = `${bg} border px-4 py-2.5 rounded-xl text-xs shadow-xl flex items-center space-x-2 pointer-events-auto`;
-      toast.innerHTML = `<i data-lucide="info" class="w-4 h-4 text-brand-400"></i><span>${msg}</span>`;
+      toast.className = 'pointer-events-auto flex items-center gap-2 rounded-xl border hairline bg-ink-750 px-4 py-2.5 text-[12.5px] text-white/80 shadow-2xl shadow-black/60';
+      toast.innerHTML = `<i data-lucide="${type === 'success' ? 'check-circle' : 'info'}" class="h-4 w-4 ${type === 'success' ? 'text-emerald-400' : 'text-accent-400'}"></i><span>${msg}</span>`;
       container.appendChild(toast);
       lucide.createIcons();
       setTimeout(() => toast.remove(), 2500);
     }
+
+    applyFilter();
   </script>
 </body>
 </html>
