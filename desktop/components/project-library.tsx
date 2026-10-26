@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { useImportNovelModal } from "@/components/import-novel-modal";
 import { ProjectCard, type CardAction } from "@/components/project-card";
+import { CreateFolderModal } from "@/components/create-folder-modal";
 import {
   libraryTabs,
   sortEntries,
@@ -28,6 +29,7 @@ export function ProjectLibrary({ initialEntries }: { initialEntries: LibraryEntr
   const [sortMenuOpen, setSortMenuOpen] = useState(false);
   const [menuId, setMenuId] = useState<string | null>(null);
   const [renamingId, setRenamingId] = useState<string | null>(null);
+  const [folderModalOpen, setFolderModalOpen] = useState(false);
 
   useEffect(() => {
     const dismiss = (event: MouseEvent) => {
@@ -92,14 +94,19 @@ export function ProjectLibrary({ initialEntries }: { initialEntries: LibraryEntr
     if (action === "purge") setEntries((prev) => prev.filter((item) => item.id !== id));
   }
 
-  function createFolder() {
-    const id = `folder-${crypto.randomUUID()}`;
+  function addFolder(title: string) {
     setEntries((prev) => [
-      { kind: "folder", id, title: "未命名文件夹", editedHoursAgo: 0, fav: false, trashed: false },
+      {
+        kind: "folder",
+        id: `folder-${crypto.randomUUID()}`,
+        title,
+        editedHoursAgo: 0,
+        fav: false,
+        trashed: false,
+      },
       ...prev,
     ]);
     setTab("全部");
-    setRenamingId(id);
   }
 
   const emptyText =
@@ -126,7 +133,7 @@ export function ProjectLibrary({ initialEntries }: { initialEntries: LibraryEntr
         </div>
 
         <div className="flex items-center gap-2">
-          <button type="button" onClick={createFolder} className={toolbarButton}>
+          <button type="button" onClick={() => setFolderModalOpen(true)} className={toolbarButton}>
             <FolderPlus className="h-3.5 w-3.5" />
             新建文件夹
           </button>
@@ -224,6 +231,13 @@ export function ProjectLibrary({ initialEntries }: { initialEntries: LibraryEntr
           </div>
         )}
       </div>
+
+      {folderModalOpen && (
+        <CreateFolderModal
+          onClose={() => setFolderModalOpen(false)}
+          onCreate={addFolder}
+        />
+      )}
     </>
   );
 }

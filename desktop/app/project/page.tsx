@@ -3,18 +3,14 @@ import { ImportNovelModalProvider } from "@/components/import-novel-modal";
 import { ProjectLibrary } from "@/components/project-library";
 import { Sidebar } from "@/components/sidebar";
 import { TopBar } from "@/components/top-bar";
-import { initialEntries, ttsModels } from "@/lib/projects";
+import { initialEntries } from "@/lib/projects";
 
 const floatingButton =
   "flex h-9 w-9 items-center justify-center rounded-full border border-hairline bg-ink-800 text-white/50 transition-colors hover:text-white";
 
 export default function ProjectPage() {
-  const folders = initialEntries.flatMap((entry) =>
-    entry.kind === "folder" ? [entry.title] : [],
-  );
-
   return (
-    <ImportNovelModalProvider folders={folders} models={ttsModels}>
+    <ImportNovelModalProvider>
       <div className="flex min-h-screen">
         <Sidebar entries={initialEntries} />
 

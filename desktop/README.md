@@ -33,12 +33,14 @@ app/
   page.tsx              根路径占位跳转
   project/page.tsx      剧目库列表页
 components/
+  modal.tsx             弹窗外壳（遮罩、Esc/点击关闭、标题栏）与表单样式 token
   sidebar.tsx           左侧导航（文件夹用 Folder、剧目文件用 FileAudio 区分）
   top-bar.tsx           顶栏
   project-library.tsx   列表状态：tab / 搜索 / 只看收藏 / 排序 / 新建文件夹
   project-card.tsx      剧目与文件夹卡片，含卡片操作菜单
   waveform.tsx          封面声波，种子伪随机保证 SSR 与水合一致
   import-novel-modal.tsx 导入小说弹窗（Provider + hook + 弹窗本体）
+  create-folder-modal.tsx 新建文件夹弹窗，仅一个名称输入框
 lib/
   projects.ts           数据模型、mock 数据与格式化函数
 ```

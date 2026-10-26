@@ -45,8 +45,6 @@ export const sortOptions: { key: SortKey; label: string }[] = [
   { key: "duration", label: "按已生成时长" },
 ];
 
-export const ttsModels = ["CosyVoice 2.0", "Fish Speech 1.5", "F5-TTS"];
-
 export const initialEntries: LibraryEntry[] = [
   {
     kind: "folder",
