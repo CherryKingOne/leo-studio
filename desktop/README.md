@@ -19,7 +19,7 @@ pnpm lint  # ESLint
 | `/project` | 已实现 | 剧目库列表页，源码 `app/project/page.tsx` |
 | `/` | 占位 | 仅 `redirect("/project")`，见 `app/page.tsx`；真正的首屏后续补，改写该文件即可，**不要**把剧目库搬回根路径 |
 | `/project/[id]` | 未实现 | 剧目详情 / 看板（原型 `project-hub.html`） |
-| `/folder/[id]` | 未实现 | 文件夹视图 |
+| `/folder/[id]` | 已实现 | 剧目文件夹视图，源码 `app/folder/[id]/page.tsx`（原型 `folder-view.html`）；`generateStaticParams` 预渲染已知文件夹，未知 id 走 `notFound()` |
 | `/voice-library` | 未实现 | 全局声线资产库（原型 `voice-library.html`） |
 
 侧边栏与卡片里指向上面「未实现」路由的链接目前是空链，属预期状态。
@@ -32,11 +32,14 @@ app/
   globals.css           Tailwind 入口 + @theme 设计 token
   page.tsx              根路径占位跳转
   project/page.tsx      剧目库列表页
+  folder/[id]/page.tsx  剧目文件夹页
 components/
   modal.tsx             弹窗外壳（遮罩、Esc/点击关闭、标题栏）与表单样式 token
-  sidebar.tsx           左侧导航（文件夹用 Folder、剧目文件用 FileAudio 区分）
+  sidebar.tsx           左侧导航（文件夹用 Folder、剧目文件用 FileAudio 区分；activeFolderId 高亮当前文件夹）
   top-bar.tsx           顶栏
+  floating-actions.tsx  右缘悬浮按钮
   project-library.tsx   列表状态：tab / 搜索 / 只看收藏 / 排序 / 新建文件夹
+  folder-view.tsx       文件夹视图：返回 + 文件夹名 + 搜索 + 该文件夹内剧目网格
   project-card.tsx      剧目与文件夹卡片，含卡片操作菜单
   waveform.tsx          封面声波，种子伪随机保证 SSR 与水合一致
   import-novel-modal.tsx 导入小说弹窗（Provider + hook + 弹窗本体）
@@ -51,3 +54,4 @@ lib/
 - 弹窗独立成组件文件，由 Provider 持有开关、触发方通过 hook 调用，不在页面里复制弹窗 DOM。
 - 图标统一用 `lucide-react`。
 - 数据目前来自 `lib/projects.ts` 的 mock，接后端时替换该文件即可，组件层不直接依赖来源。
+- 原型页与 desktop 路由一一对应，每个原型页核对通过后再单独移植成一个独立页面/组件文件；不要把新页面写进已有页面的文件里。

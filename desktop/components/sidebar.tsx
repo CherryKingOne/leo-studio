@@ -22,7 +22,13 @@ const navItem =
 const subItem =
   "flex items-center gap-2.5 rounded-lg py-1.5 pl-3 pr-2 text-[12.5px] transition-colors hover:bg-white/5";
 
-export function Sidebar({ entries }: { entries: LibraryEntry[] }) {
+export function Sidebar({
+  entries,
+  activeFolderId,
+}: {
+  entries: LibraryEntry[];
+  activeFolderId?: string;
+}) {
   const { open: openImportModal } = useImportNovelModal();
   const [groupExpanded, setGroupExpanded] = useState(true);
 
@@ -75,9 +81,17 @@ export function Sidebar({ entries }: { entries: LibraryEntry[] }) {
               <Fragment key={folder.id}>
                 <Link
                   href={`/folder/${folder.id}`}
-                  className={`${subItem} font-medium text-white/70`}
+                  className={`${subItem} font-medium ${
+                    folder.id === activeFolderId
+                      ? "bg-white/6 text-white"
+                      : "text-white/70 hover:text-white"
+                  }`}
                 >
-                  <Folder className="h-3.5 w-3.5 shrink-0 text-amber-300/45" />
+                  {folder.id === activeFolderId ? (
+                    <FolderOpen className="h-3.5 w-3.5 shrink-0 text-amber-300/60" />
+                  ) : (
+                    <Folder className="h-3.5 w-3.5 shrink-0 text-amber-300/45" />
+                  )}
                   <span className="truncate">{folder.title}</span>
                   <span className="ml-auto shrink-0 font-mono text-[10.5px] text-white/25">
                     {projectsInFolder(entries, folder.id).length}
