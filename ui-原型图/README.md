@@ -66,7 +66,7 @@ flowchart TD
 2. 每个页面**逐页**交由使用者核对确认后，才允许在 `desktop/`（Next.js）里新建或改写对应页面；
 3. 严禁跳过核对，直接把原型改动同步进 `desktop/`。
 
-`desktop/` 当前已移植：`prototype/index.html` → `desktop/app/project/page.tsx`（路由 `/project`）、`prototype/folder-view.html` → `desktop/app/folder/[id]/page.tsx`（路由 `/folder/[id]`）。其余页面（project-hub / chapter-studio / export-center / voice-library）尚未移植。
+`desktop/` 当前已移植：`prototype/index.html` → `desktop/app/project/page.tsx`（路由 `/project`）、`prototype/folder-view.html` → `desktop/app/folder/[id]/page.tsx`（路由 `/folder/[id]`）、`prototype/project-hub.html` → `desktop/app/project/[id]/page.tsx`（路由 `/project/[id]`）。其余页面（chapter-studio / export-center / voice-library）尚未移植。
 
 ---
 

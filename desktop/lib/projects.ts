@@ -20,6 +20,7 @@ export type ProjectEntry = {
   /** 所属文件夹，缺省表示根目录 */
   folderId?: string;
   genre: string;
+  author: string;
   status: ProjectStatus;
   chapters: number;
   /** 正在制作的章节序号，用于封面进度条文案 */
@@ -59,6 +60,7 @@ export const initialEntries: LibraryEntry[] = [
     id: "p-lord-of-mysteries",
     title: "诡秘之主：第一部 愚者",
     genre: "克苏鲁 / 西幻",
+    author: "爱潜水的乌贼",
     status: "制作中",
     chapters: 12,
     currentChapter: 1,
@@ -76,6 +78,7 @@ export const initialEntries: LibraryEntry[] = [
     title: "道诡异仙：清旺来",
     folderId: "f-folklore",
     genre: "东方民俗 / 悬疑",
+    author: "狐尾的笔",
     status: "母带就绪",
     chapters: 1,
     progress: 100,
@@ -92,6 +95,7 @@ export const initialEntries: LibraryEntry[] = [
     title: "长夜余火：灰土列车",
     folderId: "f-folklore",
     genre: "废土 / 科幻",
+    author: "会说话的肘子",
     status: "制作中",
     chapters: 8,
     pendingRoles: 3,
@@ -152,4 +156,439 @@ export function sortEntries<T extends LibraryEntry>(entries: T[], key: SortKey) 
           ? entry.generatedSeconds
           : 0;
   return [...entries].sort((a, b) => value(b) - value(a));
+}
+
+/* ==================== 剧目看板：章节流水线与角色阵容 ==================== */
+
+/** 看板通用色系：序号块、说话人标签、状态胶囊、角色头像共用 */
+export type HubTone = "neutral" | "muted" | "accent" | "emerald" | "amber" | "violet";
+
+export type ChapterState = "待拆解" | "待合成" | "合成中" | "已就绪";
+export type PipelineFilter = "全部" | ChapterState;
+
+export const pipelineFilters: { state: PipelineFilter; label: string }[] = [
+  { state: "全部", label: "全部" },
+  { state: "待拆解", label: "待拆解" },
+  { state: "待合成", label: "待合成" },
+  { state: "合成中", label: "合成中" },
+  { state: "已就绪", label: "母带就绪" },
+];
+
+export type HubSpeaker = { name: string; tone: HubTone };
+
+export type ChapterStatusIcon = "master" | "script" | "queue" | "scan" | "cast";
+export type ChapterStatus = { label: string; tone: HubTone; icon: ChapterStatusIcon };
+
+/** 行尾主动作，决定按钮形态与是否可勾选 */
+export type ChapterAction =
+  | { kind: "studio" }
+  | { kind: "progress" }
+  | { kind: "synthesize"; primary: boolean }
+  | { kind: "split" }
+  | { kind: "cast" };
+
+export type HubChapter = {
+  id: string;
+  /** 序号块文案，如 "01" */
+  no: string;
+  title: string;
+  /** 正文摘句；待选角一类的行放提示文案 */
+  excerpt: string;
+  words: number;
+  /** 母带时长（秒），仅已渲染章节 */
+  masterSeconds?: number;
+  /** 预估时长（秒），未拆解时缺省 */
+  etaSeconds?: number;
+  /** 序号块配色，accent / amber 同时给整行铺底色 */
+  tone: HubTone;
+  state: ChapterState;
+  /** 状态胶囊；合成中的行改画进度条，故缺省 */
+  status?: ChapterStatus;
+  percent?: number;
+  /** 待拆解的章节还没有说话人，展示“待解析” */
+  speakers: HubSpeaker[] | null;
+  action: ChapterAction;
+  /** 是否已可进入制作工作台，决定标题是链接还是纯文本 */
+  openable: boolean;
+  /** 折叠在“展开全部”之后 */
+  collapsed?: boolean;
+};
+
+export type CastFact = {
+  label: string;
+  value: string;
+  /** 数字类参数用等宽字体呈现 */
+  mono?: boolean;
+  emphasis?: "dim" | "tone";
+};
+
+export type CastLink = {
+  label: string;
+  /** 指向尚未移植的路由时给 href，纯反馈动作给 toast */
+  href?: string;
+  toast?: string;
+};
+
+export type CastMember = {
+  id: string;
+  name: string;
+  /** 角色定位标签，如 男主角 */
+  role: string;
+  /** 声线气质描述 */
+  trait: string;
+  /** 头像文字：姓名首字 */
+  initial: string;
+  tone: HubTone;
+  /** 试听音高（Hz），程序化发声区分不同声线 */
+  hz: number;
+  facts: CastFact[];
+  /** 已就绪 / 待确认音色，同时供状态筛选 */
+  state: "已就绪" | "待合成";
+  /** 底部技术标注，如 Zero-Shot · Seed 8421；缺省时展示状态圆点 */
+  footerNote?: string;
+  links: CastLink[];
+};
+
+export type ProjectHub = {
+  chapters: HubChapter[];
+  cast: CastMember[];
+};
+
+const narrator = { name: "旁白", tone: "neutral" } as HubSpeaker;
+const klein = { name: "克莱恩", tone: "accent" } as HubSpeaker;
+
+const lordOfMysteriesHub: ProjectHub = {
+  chapters: [
+    {
+      id: "c-001",
+      no: "01",
+      title: "第001章 绯红之月",
+      excerpt: "痛！好痛！头好痛！狂暴的剧痛如同一柄烧红的钢铁长矛……",
+      words: 3428,
+      masterSeconds: 858,
+      tone: "emerald",
+      state: "已就绪",
+      status: { label: "全章母带就绪", tone: "emerald", icon: "master" },
+      speakers: [narrator, klein, { name: "梅丽莎", tone: "violet" }],
+      action: { kind: "studio" },
+      openable: true,
+    },
+    {
+      id: "c-002",
+      no: "02",
+      title: "第002章 宿命之枪",
+      excerpt: "左轮手枪与桌上的自杀日记，黄铜握柄还残留着体温。",
+      words: 3810,
+      etaSeconds: 930,
+      tone: "accent",
+      state: "合成中",
+      percent: 62,
+      speakers: [narrator, klein],
+      action: { kind: "progress" },
+      openable: true,
+    },
+    {
+      id: "c-003",
+      no: "03",
+      title: "第003章 罗塞尔日记",
+      excerpt: "穿越者前辈的隐秘手稿，字符在月光下缓慢重组。",
+      words: 4120,
+      etaSeconds: 1004,
+      tone: "neutral",
+      state: "待合成",
+      status: { label: "剧本化完成 · 待合成", tone: "amber", icon: "script" },
+      speakers: [narrator, klein, { name: "罗塞尔", tone: "amber" }],
+      action: { kind: "synthesize", primary: true },
+      openable: true,
+    },
+    {
+      id: "c-004",
+      no: "04",
+      title: "第004章 灰雾之上的盛宴",
+      excerpt: "长桌、烛火与不属于这个世界的低语者。",
+      words: 3966,
+      tone: "neutral",
+      state: "待拆解",
+      status: { label: "待拆解", tone: "neutral", icon: "scan" },
+      speakers: null,
+      action: { kind: "split" },
+      openable: false,
+    },
+    {
+      id: "c-005",
+      no: "05",
+      title: "第005章 占卜师的世界",
+      excerpt: "黄铜镜片、灵性与一整套谨慎的自我介绍。",
+      words: 3512,
+      etaSeconds: 860,
+      tone: "neutral",
+      state: "待合成",
+      status: { label: "排队中", tone: "neutral", icon: "queue" },
+      speakers: [narrator, klein, { name: "邓恩", tone: "muted" }],
+      action: { kind: "synthesize", primary: false },
+      openable: false,
+    },
+    {
+      id: "c-006",
+      no: "06",
+      title: "第006章 尊严就是相位",
+      excerpt: "2 段对白未能匹配声线，合成前需完成选角。",
+      words: 3704,
+      etaSeconds: 908,
+      tone: "amber",
+      state: "待合成",
+      status: { label: "待选角", tone: "amber", icon: "cast" },
+      speakers: [narrator, { name: "未选角 2", tone: "amber" }],
+      action: { kind: "cast" },
+      openable: true,
+    },
+    ...([
+      ["第007章 塔罗会与愚者", "长桌两端，八张面孔与一张空位。", 3288, 806],
+      ["第008章 第一单生意", "灵性、黄铜镜片与讨价还价的仪式。", 3610, 888],
+      ["第009章 廷根大学的清晨", "面试通知书、煤炉与一家三口的早餐。", 2940, 724],
+      ["第010章 深夜的低语", "窗外的绯红月光又一次亮了。", 3455, 850],
+      ["第011章 序列九·占卜家", "服魔配方与不可逆的第一步。", 4028, 982],
+      ["第012章 灰雾之下的凝视", "祂始终没有离开那张长桌。", 3772, 930],
+    ] as [string, string, number, number][]).map<HubChapter>(([title, excerpt, words, eta], i) => {
+      const no = String(i + 7).padStart(2, "0");
+      return {
+        id: `c-${no}`,
+        no,
+        title,
+        excerpt,
+        words,
+        etaSeconds: eta,
+        tone: "neutral",
+        state: "待拆解",
+        status: { label: "待拆解", tone: "neutral", icon: "scan" },
+        speakers: null,
+        action: { kind: "split" },
+        openable: false,
+        collapsed: true,
+      };
+    }),
+  ],
+  cast: [
+    {
+      id: "cast-narrator",
+      name: "旁白 (全知视角)",
+      role: "主叙事",
+      trait: "沉稳稳健、历史沧桑厚重感",
+      initial: "白",
+      tone: "neutral",
+      hz: 220,
+      facts: [
+        { label: "绑定声线", value: "沧桑男中音 (CosyVoice-Pre)" },
+        { label: "语速控制", value: "1.05x", mono: true },
+        { label: "台词覆盖", value: "268 段 (64% 占比)", mono: true },
+      ],
+      state: "已就绪",
+      links: [
+        { label: "更换音色", href: "/voice-library" },
+        { label: "调优", toast: "已打开声线微调面板" },
+      ],
+    },
+    {
+      id: "cast-klein",
+      name: "克莱恩·莫雷蒂",
+      role: "男主角",
+      trait: "深思冷静、情绪激荡时带喘息颤音",
+      initial: "克",
+      tone: "accent",
+      hz: 330,
+      facts: [
+        { label: "绑定声线", value: "英伦青年音 (零样本克隆)" },
+        { label: "情绪基线", value: "惊恐 85% · 克制 60%", mono: true },
+        { label: "台词覆盖", value: "96 段 (24% 占比)", mono: true, emphasis: "tone" },
+      ],
+      state: "已就绪",
+      footerNote: "Zero-Shot · Seed 8421",
+      links: [
+        { label: "逐句精修", href: "/project/p-lord-of-mysteries/chapter/c-001" },
+        { label: "调优", toast: "已打开声线微调面板" },
+      ],
+    },
+    {
+      id: "cast-melissa",
+      name: "梅丽莎·莫雷蒂",
+      role: "妹妹",
+      trait: "清澈纯真、略带担忧的少女音",
+      initial: "梅",
+      tone: "violet",
+      hz: 440,
+      facts: [
+        { label: "绑定声线", value: "清澈少女音 (Fish-Studio)" },
+        { label: "语速 / 音调", value: "0.98x / +0.5st", mono: true },
+        { label: "台词覆盖", value: "34 段 (8% 占比)", mono: true, emphasis: "tone" },
+      ],
+      state: "已就绪",
+      links: [
+        { label: "更换音色", href: "/voice-library" },
+        { label: "调优", toast: "已打开声线微调面板" },
+      ],
+    },
+    {
+      id: "cast-benson",
+      name: "班森·莫雷蒂",
+      role: "兄长",
+      trait: "温和持家、说话节奏偏慢",
+      initial: "班",
+      tone: "neutral",
+      hz: 180,
+      facts: [
+        { label: "候选声线", value: "温厚长兄音 · 未确认" },
+        { label: "出现章节", value: "第 1、2、7 章", mono: true },
+        { label: "台词覆盖", value: "18 段 (4% 占比)", mono: true, emphasis: "dim" },
+      ],
+      state: "待合成",
+      links: [
+        { label: "挑声线", href: "/voice-library" },
+        { label: "绑定", toast: "已把「班森·莫雷蒂」绑定到温厚长兄音" },
+      ],
+    },
+    {
+      id: "cast-roselle",
+      name: "罗塞尔·古斯塔夫",
+      role: "配角",
+      trait: "张扬自负的冒险家腔调，尾音上扬",
+      initial: "罗",
+      tone: "amber",
+      hz: 260,
+      facts: [
+        { label: "绑定声线", value: "低沉阅历音 (CosyVoice-Pre)" },
+        { label: "语速控制", value: "1.00x", mono: true },
+        { label: "台词覆盖", value: "22 段 (5% 占比)", mono: true, emphasis: "tone" },
+      ],
+      state: "已就绪",
+      links: [
+        { label: "更换音色", href: "/voice-library" },
+        { label: "调优", toast: "已打开声线微调面板" },
+      ],
+    },
+  ],
+};
+
+/** 已核对过的剧目看板数据，其余剧目进入时按剧目进度生成台账 */
+export const projectHubs: Record<string, ProjectHub> = {
+  "p-lord-of-mysteries": lordOfMysteriesHub,
+};
+
+/** 未单独核对过看板的剧目：按剧目进度生成流水线，剩余章节留在待拆解 */
+function pendingHub(project: ProjectEntry): ProjectHub {
+  const readyCount = Math.floor((project.chapters * project.progress) / 100);
+  const narrated = readyCount === project.chapters;
+
+  return {
+    chapters: Array.from({ length: project.chapters }, (_, index): HubChapter => {
+      const words = 3200 + ((project.seed * 977 + index * 613) % 900);
+      const ready = index < readyCount;
+      return {
+        id: `c-${String(index + 1).padStart(3, "0")}`,
+        no: String(index + 1).padStart(2, "0"),
+        title: `第${String(index + 1).padStart(3, "0")}章`,
+        excerpt: ready
+          ? "全章已渲染，可进入制作工作台试听母带。"
+          : "原文已入库，等待拆本引擎识别对白、旁白与情绪。",
+        words,
+        masterSeconds: ready ? Math.round(words / 4) : undefined,
+        tone: ready ? "emerald" : "neutral",
+        state: ready ? "已就绪" : "待拆解",
+        status: ready
+          ? { label: "全章母带就绪", tone: "emerald", icon: "master" }
+          : { label: "待拆解", tone: "neutral", icon: "scan" },
+        speakers: ready ? [narrator] : null,
+        action: ready ? { kind: "studio" } : { kind: "split" },
+        openable: ready,
+        collapsed: index >= 6,
+      };
+    }),
+    cast: [
+      {
+        id: "cast-narrator",
+        name: "旁白",
+        role: "主叙事",
+        trait: narrated ? "沉稳稳健的默认叙事声线" : "拆解完成后按上下文推荐叙事声线",
+        initial: "白",
+        tone: "neutral",
+        hz: 220,
+        facts: [
+          {
+            label: narrated ? "绑定声线" : "候选声线",
+            value: narrated ? "默认叙事音 (CosyVoice-Pre)" : "尚未绑定",
+          },
+          { label: "出现章节", value: `全书 ${project.chapters} 章`, mono: true },
+          { label: "台词覆盖", value: "待统计", mono: true, emphasis: "dim" },
+        ],
+        state: narrated ? "已就绪" : "待合成",
+        links: narrated
+          ? [
+              { label: "更换音色", href: "/voice-library" },
+              { label: "调优", toast: "已打开声线微调面板" },
+            ]
+          : [
+              { label: "挑声线", href: "/voice-library" },
+              { label: "绑定", toast: "已把「旁白」绑定到默认叙事音" },
+            ],
+      },
+    ],
+  };
+}
+
+export function hubFor(project: ProjectEntry): ProjectHub {
+  return projectHubs[project.id] ?? pendingHub(project);
+}
+
+/** 已就绪与合成中的行不进入批量选择 */
+export function chapterIsSelectable(chapter: HubChapter) {
+  return chapter.action.kind !== "studio" && chapter.action.kind !== "progress";
+}
+
+export function chapterAfterSplit(chapter: HubChapter): HubChapter {
+  return {
+    ...chapter,
+    state: "待合成",
+    tone: "neutral",
+    etaSeconds: chapter.etaSeconds ?? Math.round(chapter.words / 4),
+    status: { label: "剧本化完成 · 待合成", tone: "amber", icon: "script" },
+    speakers: [narrator, klein],
+    action: { kind: "synthesize", primary: true },
+    openable: true,
+  };
+}
+
+export function chapterAfterRender(chapter: HubChapter): HubChapter {
+  return {
+    ...chapter,
+    state: "已就绪",
+    tone: "emerald",
+    masterSeconds: chapter.etaSeconds,
+    etaSeconds: undefined,
+    percent: undefined,
+    status: { label: "全章母带就绪", tone: "emerald", icon: "master" },
+    action: { kind: "studio" },
+    openable: true,
+  };
+}
+
+export function chapterRuntimeSeconds(chapter: HubChapter) {
+  return chapter.masterSeconds ?? chapter.etaSeconds ?? Math.round(chapter.words / 4);
+}
+
+export function formatClock(seconds: number) {
+  return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`;
+}
+
+export function formatWords(words: number) {
+  return words.toLocaleString("en-US");
+}
+
+/** header 副标题：作者 · 全书字数 · 预估全剧时长 */
+export function hubSubtitle(project: ProjectEntry, chapters: HubChapter[]) {
+  const words = chapters.reduce((sum, chapter) => sum + chapter.words, 0);
+  const runtime = chapters.reduce((sum, chapter) => sum + chapterRuntimeSeconds(chapter), 0);
+  return [
+    `${project.author} 著`,
+    `${(words / 10000).toFixed(1)} 万字`,
+    `预估全剧 ${(runtime / 3600).toFixed(1)} 小时`,
+  ].join(" · ");
 }
