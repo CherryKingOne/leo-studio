@@ -69,9 +69,9 @@
         <div class="min-w-0">
           <div class="flex items-center gap-2">
             <h1 id="projTitle" contenteditable="false" spellcheck="false" class="truncate text-[15px] font-semibold leading-none tracking-tight text-white">诡秘之主：第一部 愚者</h1>
-            <span class="shrink-0 rounded-full border hairline bg-ink-800 px-2 py-0.5 font-mono text-[10.5px] text-white/50">12 章节</span>
+            <span id="metaChapters" class="shrink-0 rounded-full border hairline bg-ink-800 px-2 py-0.5 font-mono text-[10.5px] text-white/50">12 章节</span>
           </div>
-          <div class="mt-1 truncate text-[11.5px] text-white/35">爱潜水的乌贼 著 · 4.8 万字 · 预估全剧 2.8 小时</div>
+          <div class="mt-1 truncate text-[11.5px] text-white/35">爱潜水的乌贼 著 · <span id="metaWords">4.8 万字</span> · <span id="metaEta">预估全剧 2.8 小时</span></div>
         </div>
       </div>
     </div>
@@ -102,7 +102,7 @@
       <div class="flex items-center gap-1">
         <button onclick="switchTab('pipeline')" id="tabBtnPipeline" class="tab flex items-center gap-2 rounded-lg px-2.5 py-1.5 text-[15px] font-semibold text-white">
           <i data-lucide="list-ordered" class="h-4 w-4"></i>
-          <span>章节生产流水线 (12)</span>
+          <span id="tabChCount">章节生产流水线 (12)</span>
         </button>
         <button onclick="switchTab('cast')" id="tabBtnCast" class="tab flex items-center gap-2 rounded-lg px-2.5 py-1.5 text-[15px] text-white/40 transition-colors hover:text-white/70">
           <i data-lucide="users" class="h-4 w-4"></i>
@@ -140,6 +140,9 @@
           </button>
           <button onclick="showToast('已把 8 章加入拆本队列，预计 6 分钟完成', 'info')" class="flex items-center gap-1.5 rounded-full border hairline bg-ink-800 px-3.5 py-2 text-[12.5px] text-white/70 transition-colors hover:border-white/20 hover:text-white">
             <i data-lucide="wand-sparkles" class="h-3.5 w-3.5"></i>一键拆解全书
+          </button>
+          <button onclick="openImportModal()" class="flex items-center gap-1.5 rounded-full bg-accent px-3.5 py-2 text-[12.5px] font-medium text-white transition-colors hover:bg-accent-600">
+            <i data-lucide="file-plus-2" class="h-3.5 w-3.5"></i>追更上传章节
           </button>
         </div>
       </div>
@@ -374,7 +377,7 @@
       </div>
 
       <button id="moreBtn" class="mt-3 flex w-full items-center justify-center gap-1.5 rounded-xl border border-dashed border-white/10 bg-ink-850 py-2.5 text-[12.5px] text-white/45 transition-colors hover:border-white/20 hover:text-white">
-        <i data-lucide="chevron-down" class="h-3.5 w-3.5"></i>展开全部 12 章（其余 6 章待拆解）
+        <i data-lucide="chevron-down" class="h-3.5 w-3.5"></i><span id="moreLabel">展开全部 12 章（其余 6 章待拆解）</span>
       </button>
     </div>
 
@@ -573,6 +576,73 @@
     </div>
   </div>
 
+  <!-- ==================== MODAL: 追更上传章节文件 ==================== -->
+  <div id="importModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/75 p-4 backdrop-blur-sm">
+    <div class="flex max-h-[88vh] w-full max-w-[620px] flex-col overflow-hidden rounded-2xl border hairline bg-ink-800 shadow-2xl shadow-black/70">
+      <div class="flex shrink-0 items-start justify-between gap-3 border-b hairline px-6 py-4">
+        <div>
+          <h3 class="text-[15px] font-semibold text-white">追更上传章节文件</h3>
+          <p class="mt-0.5 text-[11.5px] text-white/40">连载中的书可随更新分批导入，新章节自动接在现有最后一章之后 · 支持 .txt / .md / .epub / .docx</p>
+        </div>
+        <button onclick="closeImportModal()" class="shrink-0 rounded-md p-1.5 text-white/40 hover:bg-white/5 hover:text-white"><i data-lucide="x" class="h-4 w-4"></i></button>
+      </div>
+
+      <div class="flex-1 space-y-5 overflow-y-auto px-6 py-5">
+        <div>
+          <label class="mb-1.5 block text-[12.5px] font-medium text-white/75">章节文件（可多选）</label>
+          <div id="importDrop" class="cursor-pointer rounded-xl border border-dashed border-white/[0.12] bg-ink-900/60 px-6 py-8 text-center transition-colors hover:border-accent/50">
+            <i data-lucide="file-plus-2" class="mx-auto mb-2.5 h-6 w-6 text-white/30"></i>
+            <div class="text-[13px] text-white/75">点击选择，或把章节文件拖拽到这里</div>
+            <div class="mt-1 text-[11px] text-white/35">单文件最大 20 MB · 建议 UTF-8 纯文本，章节名以「第X章」开头最易自动识别</div>
+          </div>
+          <input id="importFile" type="file" multiple accept=".txt,.md,.epub,.docx,.doc" class="hidden">
+          <div id="importFiles" class="mt-3 hidden space-y-2"></div>
+        </div>
+
+        <div id="importPreview" class="hidden">
+          <div class="mb-2 flex items-center justify-between gap-3">
+            <label class="text-[12.5px] font-medium text-white/75">将要导入的章节</label>
+            <span id="importPreviewCount" class="font-mono text-[10.5px] text-white/35"></span>
+          </div>
+          <div id="importPreviewList" class="max-h-44 overflow-y-auto rounded-xl border hairline bg-ink-850/70"></div>
+        </div>
+
+        <div class="grid gap-4 sm:grid-cols-2">
+          <div>
+            <label class="mb-1.5 block text-[12.5px] font-medium text-white/75">分章方式</label>
+            <select id="optMode" class="w-full rounded-lg border hairline bg-ink-900 px-3 py-2.5 text-[12.5px] text-white focus:border-accent/60 focus:outline-none">
+              <option value="auto">自动识别「第X章」标题</option>
+              <option value="file">每个文件作为一章</option>
+            </select>
+          </div>
+          <div>
+            <label class="mb-1.5 block text-[12.5px] font-medium text-white/75">与已有章节同名时</label>
+            <select id="optDup" class="w-full rounded-lg border hairline bg-ink-900 px-3 py-2.5 text-[12.5px] text-white focus:border-accent/60 focus:outline-none">
+              <option value="skip">跳过，不重复导入</option>
+              <option value="overwrite">覆盖旧版本并重置为待拆解</option>
+              <option value="keep">仍作为新章节导入</option>
+            </select>
+          </div>
+        </div>
+
+        <label class="flex cursor-pointer items-start gap-2.5 rounded-xl border hairline bg-ink-850/70 px-3.5 py-3">
+          <input id="optSplit" type="checkbox" class="check mt-0.5" checked>
+          <span class="text-[12px] leading-relaxed text-white/60">导入后立即进入拆本队列，自动识别对白与说话人<br><span class="text-white/35">关闭则仅入库文本，稍后可手动逐章拆解</span></span>
+        </label>
+      </div>
+
+      <div class="flex shrink-0 items-center justify-between gap-3 border-t hairline px-6 py-4">
+        <span id="importSeqHint" class="font-mono text-[11px] text-white/35">当前 12 章 · 新章节从第 013 章续编</span>
+        <div class="flex items-center gap-2">
+          <button onclick="closeImportModal()" class="rounded-lg border hairline px-4 py-2 text-[13px] text-white/65 hover:bg-white/5 hover:text-white">取消</button>
+          <button id="importOk" onclick="runImport()" disabled class="flex items-center gap-1.5 rounded-lg bg-accent px-4 py-2 text-[13px] font-medium text-white transition-opacity hover:bg-accent-600 disabled:cursor-not-allowed disabled:opacity-40">
+            <i data-lucide="upload" class="h-3.5 w-3.5"></i><span>导入章节</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <div id="toastContainer" class="pointer-events-none fixed bottom-6 right-6 z-50 flex flex-col gap-2"></div>
 
   <script>
@@ -684,29 +754,33 @@
     /* ---------- 行操作 ---------- */
     const pill = (label, tone) => `<span class="rounded border px-1.5 py-0.5 text-[10px] ${tone}">${label}</span>`;
 
+    function startSplit(row, btn) {
+      showToast(`正在用 Qwen2.5 拆解《${row.dataset.title}》的对白与情绪…`, 'info');
+      btn.disabled = true;
+      btn.innerHTML = '<i data-lucide="loader" class="h-3.5 w-3.5 animate-spin"></i>拆解中';
+      lucide.createIcons();
+      setTimeout(() => {
+        row.dataset.state = '待合成';
+        row.dataset.say = '旁白 克莱恩';
+        row.querySelector('[data-cell="speakers"]').className = 'flex flex-wrap items-center gap-1.5';
+        row.querySelector('[data-cell="speakers"]').innerHTML =
+          pill('旁白', 'border-white/10 bg-white/5 text-white/60') + pill('克莱恩', 'border-accent/25 bg-accent/10 text-accent-400');
+        row.querySelector('[data-cell="status"]').outerHTML =
+          '<span data-cell="status" class="inline-flex items-center gap-1.5 rounded-full border border-amber-400/20 bg-amber-400/10 px-2.5 py-1 text-[11px] font-medium text-amber-300"><i data-lucide="file-check-2" class="h-3.5 w-3.5"></i><span>剧本化完成 · 待合成</span></span>';
+        btn.outerHTML = '<button data-act="synth" class="rounded-lg bg-accent px-3.5 py-1.5 text-[12.5px] font-medium text-white transition-colors hover:bg-accent-600">合成本章</button>';
+        lucide.createIcons();
+        applyFilter();
+        showToast('拆解完成：识别出 2 位说话人、86 段对白', 'success');
+      }, 1600);
+    }
+
     rows.addEventListener('click', (e) => {
       const btn = e.target.closest('[data-act]');
       if (!btn) return;
       const row = btn.closest('[data-row]');
 
       if (btn.dataset.act === 'split') {
-        showToast(`正在用 Qwen2.5 拆解《${row.dataset.title}》的对白与情绪…`, 'info');
-        btn.disabled = true;
-        btn.innerHTML = '<i data-lucide="loader" class="h-3.5 w-3.5 animate-spin"></i>拆解中';
-        lucide.createIcons();
-        setTimeout(() => {
-          row.dataset.state = '待合成';
-          row.dataset.say = '旁白 克莱恩';
-          row.querySelector('[data-cell="speakers"]').className = 'flex flex-wrap items-center gap-1.5';
-          row.querySelector('[data-cell="speakers"]').innerHTML =
-            pill('旁白', 'border-white/10 bg-white/5 text-white/60') + pill('克莱恩', 'border-accent/25 bg-accent/10 text-accent-400');
-          row.querySelector('[data-cell="status"]').outerHTML =
-            '<span data-cell="status" class="inline-flex items-center gap-1.5 rounded-full border border-amber-400/20 bg-amber-400/10 px-2.5 py-1 text-[11px] font-medium text-amber-300"><i data-lucide="file-check-2" class="h-3.5 w-3.5"></i><span>剧本化完成 · 待合成</span></span>';
-          btn.outerHTML = '<button data-act="synth" class="rounded-lg bg-accent px-3.5 py-1.5 text-[12.5px] font-medium text-white transition-colors hover:bg-accent-600">合成本章</button>';
-          lucide.createIcons();
-          applyFilter();
-          showToast('拆解完成：识别出 2 位说话人、86 段对白', 'success');
-        }, 1600);
+        startSplit(row, btn);
         return;
       }
 
@@ -770,7 +844,251 @@
       cloneModal.classList.remove('flex');
     }
     cloneModal.addEventListener('click', (e) => { if (e.target === cloneModal) closeCloneModal(); });
-    document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeCloneModal(); });
+    document.addEventListener('keydown', (e) => { if (e.key === 'Escape') { closeCloneModal(); closeImportModal(); } });
+
+    /* ---------- 追更上传章节 ---------- */
+    const importModal = document.getElementById('importModal');
+    const importDrop = document.getElementById('importDrop');
+    const importInput = document.getElementById('importFile');
+    const importFilesEl = document.getElementById('importFiles');
+    const importPreview = document.getElementById('importPreview');
+    const importPreviewList = document.getElementById('importPreviewList');
+    const importPreviewCount = document.getElementById('importPreviewCount');
+    const importOk = document.getElementById('importOk');
+    const optMode = document.getElementById('optMode');
+    const optDup = document.getElementById('optDup');
+    const optSplit = document.getElementById('optSplit');
+
+    let pending = [];      // [{ name, size, parts: [{ title, words, excerpt }] }]
+    let nextSeq = 13;      // 看板已有 12 章，追更从第 13 章续编
+    let importedWords = 0;
+
+    const stem = (name) => name.replace(/\.[^.]+$/, '');
+    const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+    const fmtNum = (n) => n.toLocaleString('en-US');
+    const fmtWan = (n) => (n / 10000).toFixed(1);
+    const fmtSize = (bytes) => bytes < 1024 ? `${bytes} B` : bytes < 1024 * 1024 ? `${(bytes / 1024).toFixed(1)} KB` : `${(bytes / 1024 / 1024).toFixed(1)} MB`;
+    const fmtEta = (chars) => {
+      const sec = Math.round(chars / 4);
+      return `${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, '0')}`;
+    };
+
+    function openImportModal() {
+      importModal.classList.remove('hidden');
+      importModal.classList.add('flex');
+      renderImport();
+    }
+    function closeImportModal() {
+      importModal.classList.add('hidden');
+      importModal.classList.remove('flex');
+    }
+    importModal.addEventListener('click', (e) => { if (e.target === importModal) closeImportModal(); });
+
+    importDrop.addEventListener('click', () => importInput.click());
+    importInput.addEventListener('change', () => { addImportFiles(importInput.files); importInput.value = ''; });
+    ['dragover', 'dragenter'].forEach((type) => importDrop.addEventListener(type, (e) => {
+      e.preventDefault();
+      importDrop.classList.add('border-accent/60', 'bg-accent/[0.06]');
+    }));
+    importDrop.addEventListener('dragleave', () => importDrop.classList.remove('border-accent/60', 'bg-accent/[0.06]'));
+    importDrop.addEventListener('drop', (e) => {
+      e.preventDefault();
+      importDrop.classList.remove('border-accent/60', 'bg-accent/[0.06]');
+      addImportFiles(e.dataTransfer.files);
+    });
+    optMode.addEventListener('change', renderImport);
+    optDup.addEventListener('change', renderImport);
+    importFilesEl.addEventListener('click', (e) => {
+      const btn = e.target.closest('[data-remove]');
+      if (!btn) return;
+      pending.splice(Number(btn.dataset.remove), 1);
+      renderImport();
+    });
+
+    const CHAPTER_RE = /^第\s*[0-9零一二三四五六七八九十百千万两〇]{1,12}\s*[章节回]/;
+    // 「第二章节奏很快」这类正文首句会被 CHAPTER_RE 误判，故标题行必须短且不带句读
+    const chapterTitle = (line) => {
+      const t = line.trim();
+      return CHAPTER_RE.test(t) && t.length <= 30 && !/[。！？!?；;，,]/.test(t) ? t : null;
+    };
+
+    function splitChapters(name, raw) {
+      const found = [];
+      let cur = null;
+      for (const line of raw.replace(/\r\n?/g, '\n').split('\n')) {
+        const title = chapterTitle(line);
+        if (title) {
+          cur = { title, body: [] };
+          found.push(cur);
+        } else if (cur) cur.body.push(line);
+      }
+      const chapters = found.map((c) => {
+        const body = c.body.join('\n').trim();
+        const first = body.split('\n').map((l) => l.trim()).find((l) => l.length > 6) || '';
+        return { title: c.title, words: body.replace(/\s+/g, '').length, excerpt: first.slice(0, 40) };
+      }).filter((c) => c.words > 20);
+      return chapters.length ? chapters : [{ title: stem(name), words: null, excerpt: '整文件作为一章，拆解时自动分章' }];
+    }
+
+    async function addImportFiles(fileList) {
+      const all = Array.from(fileList);
+      const files = all.filter((f) => /\.(txt|md|epub|docx?)$/i.test(f.name));
+      if (all.length > files.length) showToast(`${all.length - files.length} 个文件类型不支持，已忽略`, 'info');
+      for (const f of files) {
+        if (f.size > 20 * 1024 * 1024) { showToast(`${f.name} 超过 20 MB，已跳过`, 'info'); continue; }
+        let parts = [];
+        if (/\.(txt|md)$/i.test(f.name)) {
+          try { parts = splitChapters(f.name, await f.text()); } catch { parts = []; }
+        }
+        pending.push({ name: f.name, size: f.size, parts });
+      }
+      renderImport();
+    }
+
+    function importPlan() {
+      const existing = new Map(Array.from(rows.querySelectorAll('[data-row]')).map((r) => [r.dataset.title, r]));
+      const collapsed = new Set(rest.map(([, title]) => title));
+      const whole = optMode.value === 'file';
+      const seen = new Set();
+      const plan = [];
+      let skipped = 0;
+      pending.forEach((f) => {
+        const list = whole
+          ? [{ title: stem(f.name), words: null, excerpt: '整文件作为一章，拆解时自动分章' }]
+          : f.parts;
+        list.forEach((c) => {
+          if (seen.has(c.title)) return;
+          seen.add(c.title);
+          const dup = existing.get(c.title) || (collapsed.has(c.title) ? true : null);
+          if (dup) {
+            if (optDup.value === 'keep') plan.push({ ...c, dup: null });
+            else if (optDup.value === 'overwrite' && dup !== true) plan.push({ ...c, dup });
+            else skipped++;
+            return;
+          }
+          plan.push({ ...c, dup: null });
+        });
+      });
+      return { plan, skipped };
+    }
+
+    function renderImport() {
+      importFilesEl.classList.toggle('hidden', !pending.length);
+      importFilesEl.innerHTML = pending.map((f, i) => `
+        <div class="flex items-center justify-between gap-3 rounded-xl border hairline bg-ink-850/70 px-3.5 py-2.5">
+          <div class="flex min-w-0 items-center gap-2.5">
+            <i data-lucide="file-text" class="h-4 w-4 shrink-0 text-white/35"></i>
+            <div class="min-w-0">
+              <div class="truncate text-[12.5px] text-white/80">${esc(f.name)}</div>
+              <div class="mt-0.5 font-mono text-[10.5px] text-white/30">${fmtSize(f.size)} · 识别到 ${f.parts.length} 章</div>
+            </div>
+          </div>
+          <button data-remove="${i}" title="移除该文件" class="shrink-0 rounded-md p-1.5 text-white/35 hover:bg-white/5 hover:text-white"><i data-lucide="x" class="h-3.5 w-3.5"></i></button>
+        </div>`).join('');
+
+      const { plan, skipped } = importPlan();
+      importPreview.classList.toggle('hidden', !plan.length && !skipped);
+      const words = plan.reduce((sum, c) => sum + (c.words || 0), 0);
+      importPreviewCount.textContent = `${plan.length} 章${words ? ` · 约 ${fmtNum(words)} 字` : ''}${skipped ? ` · 跳过 ${skipped} 章同名` : ''}`;
+      let nextShown = nextSeq;
+      importPreviewList.innerHTML = plan.map((c) => `
+        <div class="flex items-center justify-between gap-3 border-b hairline px-3.5 py-2 last:border-0">
+          <div class="flex min-w-0 items-center gap-2.5">
+            <span class="shrink-0 font-mono text-[10.5px] text-white/30">${c.dup ? '已有' : String(nextShown++).padStart(3, '0')}</span>
+            <span class="truncate text-[12px] text-white/75">${esc(c.title)}</span>
+          </div>
+          <span class="shrink-0 font-mono text-[10.5px] ${c.dup ? 'text-amber-300' : 'text-white/35'}">${c.dup ? '覆盖旧版' : c.words ? fmtNum(c.words) + ' 字' : '待统计'}</span>
+        </div>`).join('')
+        + (skipped ? `<div class="px-3.5 py-2 text-[11px] text-white/35">另有 ${skipped} 章与看板已有章节同名，按当前策略未导入。</div>` : '');
+
+      importOk.disabled = !plan.length;
+      const fresh = plan.filter((c) => !c.dup).length;
+      importOk.querySelector('span').textContent = !plan.length ? '导入章节'
+        : fresh ? `导入 ${fresh} 个新章节${plan.length - fresh ? ` · 覆盖 ${plan.length - fresh} 章` : ''}`
+        : `覆盖 ${plan.length} 个章节`;
+      document.getElementById('importSeqHint').textContent = `当前 ${nextSeq - 1} 章 · 新章节从第 ${String(nextSeq).padStart(3, '0')} 章续编`;
+      lucide.createIcons();
+    }
+
+    function chapterRowHtml(seq, c) {
+      return `
+        <tr data-row data-state="待拆解" data-title="${esc(c.title)}" data-say="待解析" class="group bg-accent/[0.04] transition-colors hover:bg-white/[0.03]">
+          <td class="py-4 pl-4 pr-1"><span class="flex items-center"><input type="checkbox" class="check row-check"></span></td>
+          <td class="px-4 py-4">
+            <div class="flex items-center gap-3">
+              <div class="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border hairline bg-ink-850 font-mono text-[11px] font-bold text-white/35">${String(seq).padStart(2, '0')}</div>
+              <div class="min-w-0">
+                <div class="flex min-w-0 items-center gap-2">
+                  <span class="truncate text-[13.5px] font-medium text-white/60">${esc(c.title)}</span>
+                  <span class="shrink-0 rounded border border-accent/25 bg-accent/10 px-1.5 py-0.5 text-[10px] text-accent-400">追更新增</span>
+                </div>
+                <div class="mt-0.5 truncate text-[11px] text-white/25">${esc(c.excerpt)}</div>
+              </div>
+            </div>
+          </td>
+          <td class="px-4 py-4 font-mono">
+            <div class="text-white/50">${c.words ? fmtNum(c.words) + ' 字' : '待统计'}</div>
+            <div class="mt-0.5 text-[11px] text-white/25">${c.words ? '预估 ' + fmtEta(c.words) : '拆解后估算'}</div>
+          </td>
+          <td class="px-4 py-4"><div data-cell="speakers" class="text-[11px] text-white/30">待解析</div></td>
+          <td class="px-4 py-4">
+            <span data-cell="status" class="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-[11px] font-medium text-white/45"><i data-lucide="scan-search" class="h-3.5 w-3.5"></i><span>待拆解</span></span>
+          </td>
+          <td class="px-6 py-4 text-right">
+            <button data-act="split" class="inline-flex items-center gap-1.5 rounded-lg border hairline bg-ink-850 px-3.5 py-1.5 text-[12.5px] text-white/50 transition-colors hover:bg-ink-750 hover:text-white/80"><i data-lucide="wand-sparkles" class="h-3.5 w-3.5"></i>一键拆解</button>
+          </td>
+        </tr>`;
+    }
+
+    function overwriteExisting(c) {
+      const row = c.dup;
+      row.dataset.state = '待拆解';
+      row.dataset.say = '待解析';
+      row.children[2].innerHTML = `<div class="text-white/50">${c.words ? fmtNum(c.words) + ' 字' : '待统计'}</div><div class="mt-0.5 text-[11px] text-white/25">${c.words ? '预估 ' + fmtEta(c.words) : '拆解后估算'}</div>`;
+      row.querySelector('[data-cell="speakers"]').outerHTML = '<div data-cell="speakers" class="text-[11px] text-white/30">待解析</div>';
+      row.querySelector('[data-cell="status"]').outerHTML = '<span data-cell="status" class="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-[11px] font-medium text-white/45"><i data-lucide="scan-search" class="h-3.5 w-3.5"></i><span>待拆解</span></span>';
+      row.lastElementChild.innerHTML = '<button data-act="split" class="inline-flex items-center gap-1.5 rounded-lg border hairline bg-ink-850 px-3.5 py-1.5 text-[12.5px] text-white/50 transition-colors hover:bg-ink-750 hover:text-white/80"><i data-lucide="wand-sparkles" class="h-3.5 w-3.5"></i>重新拆解</button>';
+    }
+
+    function runImport() {
+      const { plan } = importPlan();
+      if (!plan.length) return;
+      const added = [];
+      let overwritten = 0;
+      plan.forEach((c) => {
+        if (c.dup) { overwriteExisting(c); overwritten++; return; }
+        emptyRow.insertAdjacentHTML('beforebegin', chapterRowHtml(nextSeq + added.length, c));
+        added.push(emptyRow.previousElementSibling);
+        importedWords += c.words || 0;
+      });
+      nextSeq += added.length;
+      syncTotals();
+
+      pending = [];
+      renderImport();
+      closeImportModal();
+
+      if (readyOnly) { readyOnly = false; readyBtn.classList.remove('bg-accent/15', 'text-accent-400', 'border-accent/30'); }
+      setChip('全部');
+      applyFilter();
+      syncSelection();
+      showToast(`已导入 ${added.length} 个新章节${overwritten ? `、覆盖 ${overwritten} 章旧版本` : ''}，接在第 ${String(nextSeq - 1).padStart(3, '0')} 章之后`, 'success');
+
+      if (optSplit.checked) added.forEach((row, i) => setTimeout(() => {
+        const btn = row.querySelector('[data-act="split"]');
+        if (btn) startSplit(row, btn);
+      }, i * 450));
+    }
+
+    function syncTotals() {
+      const total = nextSeq - 1;
+      document.getElementById('metaChapters').textContent = `${total} 章节`;
+      document.getElementById('tabChCount').textContent = `章节生产流水线 (${total})`;
+      document.getElementById('metaWords').textContent = `${fmtWan(48000 + importedWords)} 万字`;
+      document.getElementById('metaEta').textContent = `预估全剧 ${(2.8 + importedWords / 240 / 60).toFixed(1)} 小时`;
+      const moreLabel = document.getElementById('moreLabel');
+      if (moreLabel) moreLabel.textContent = `展开全部 ${total} 章（其余 6 章待拆解）`;
+    }
 
     /* ---------- 声线试听 ---------- */
     let audioCtx = null;
