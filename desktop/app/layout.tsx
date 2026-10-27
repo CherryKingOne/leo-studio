@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { inkScrollbar } from "@/lib/scrollbar";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -8,7 +9,7 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    <html lang="zh-CN" className="dark">
+    <html lang="zh-CN" className={`dark ${inkScrollbar}`}>
       <body className="min-h-screen bg-ink-900 font-sans text-white/70 antialiased selection:bg-accent/30 selection:text-white">
         {children}
       </body>

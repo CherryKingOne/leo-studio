@@ -20,7 +20,7 @@ pnpm lint  # ESLint
 | `/` | 占位 | 仅 `redirect("/project")`，见 `app/page.tsx`；真正的首屏后续补，改写该文件即可，**不要**把剧目库搬回根路径 |
 | `/project/[id]` | 已实现 | 剧目看板，源码 `app/project/[id]/page.tsx` + `components/project-hub.tsx`（原型 `project-hub.html`）；`generateStaticParams` 预渲染已知剧目，未知 id 走 `notFound()` |
 | `/folder/[id]` | 已实现 | 剧目文件夹视图，源码 `app/folder/[id]/page.tsx`（原型 `folder-view.html`）；`generateStaticParams` 预渲染已知文件夹，未知 id 走 `notFound()` |
-| `/project/[id]/chapter/[chapterId]` | 未实现 | 章节制作工作台（原型 `chapter-studio.html`） |
+| `/project/[id]/chapter/[chapterId]` | 已实现 | 章节制作工作台，源码 `app/project/[id]/chapter/[chapterId]/page.tsx` + `components/chapter-studio.tsx`（原型 `chapter-studio.html`）；`generateStaticParams` 预渲染看板中 `openable` 的章节，未知 id 走 `notFound()`；未逐句核对过的章节由 `studioFor()` 铺占位剧本 |
 | `/project/[id]/export` | 未实现 | 整书母带导出中心（原型 `export-center.html`） |
 | `/voice-library` | 未实现 | 全局声线资产库（原型 `voice-library.html`） |
 
@@ -35,6 +35,7 @@ app/
   page.tsx              根路径占位跳转
   project/page.tsx      剧目库列表页
   project/[id]/page.tsx 剧目看板页
+  project/[id]/chapter/[chapterId]/page.tsx 章节制作工作台页
   folder/[id]/page.tsx  剧目文件夹页
 components/
   modal.tsx             弹窗外壳（遮罩、Esc/点击关闭、标题栏）与表单样式 token
@@ -53,15 +54,24 @@ components/
   project-hub.tsx       看板 tab 容器：章节流水线 / 角色阵容，持有搜索与只看已就绪
   chapter-pipeline.tsx  章节生产流水线表格：状态筛选、批量勾选、拆解与合成推进
   cast-matrix.tsx       全书角色台账卡片：声线绑定与试听（Web Audio 发特征音）
+  chapter-studio.tsx    工作台状态容器：段落顺序与撤销重做、当前段落、大纲/正文 pane、搜索词、配音面板
+  studio-header.tsx     工作台顶栏：合并胶囊（返回 + 剧目切换 + ⌘K 搜索）与批量合成状态机
+  paragraph-outline.tsx 左侧栏：段落大纲与原著正文双 pane，点击与剧本流互相定位
+  script-feed.tsx       剧本流：段落卡片、拖拽与上下移排序、序号与时间轴重算、音效提示与筛选空态
+  tuning-dock.tsx       右缘悬浮工具栏与展开的配音设置面板（说话人 / 模型 / 情绪 / 语速 / 混响 / Seed）
 lib/
   projects.ts           数据模型、mock 数据与格式化函数
+  audio.ts              试听特征音（Web Audio），工作台与台账共用
+  scrollbar.ts          `inkScrollbar` 工具类串：暗色细胶囊滚动条，等价原型的 ::-webkit-scrollbar 处理
 ```
 
 ## 约定
 
 - 样式只用 Tailwind utility 与 `@theme` token（`ink-*`、`accent`、`hairline`、`bg-card-cover`），不手写原生 CSS 规则。
+- 滚动条统一用 `lib/scrollbar.ts` 的 `inkScrollbar`：`app/layout.tsx` 挂在 `html` 上管文档滚动条，页面内每个 `overflow-y-auto` 容器各自再挂一次（该样式不继承）。
 - 弹窗独立成组件文件，由 Provider 持有开关、触发方通过 hook 调用，不在页面里复制弹窗 DOM。
 - 图标统一用 `lucide-react`。
 - 数据目前来自 `lib/projects.ts` 的 mock，接后端时替换该文件即可，组件层不直接依赖来源。
 - 原型页与 desktop 路由一一对应，每个原型页核对通过后再单独移植成一个独立页面/组件文件；不要把新页面写进已有页面的文件里。
-- 全局层页面（`/project`、`/folder/[id]`）用 `Sidebar` + `TopBar`；单书上下文层的剧目看板按原型自带的项目顶栏（`hub-header.tsx`）呈现，不再叠全局外壳。
+- 全局层页面（`/project`、`/folder/[id]`）用 `Sidebar` + `TopBar`；单书上下文层的剧目看板与章节工作台按原型自带的项目顶栏（`hub-header.tsx` / `studio-header.tsx`）呈现，不再叠全局外壳。
+- 章节工作台是 `h-screen` 满屏布局：页面自身不滚动，大纲、正文与剧本流各自内部滚动。

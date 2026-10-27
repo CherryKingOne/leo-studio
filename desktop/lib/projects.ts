@@ -592,3 +592,278 @@ export function hubSubtitle(project: ProjectEntry, chapters: HubChapter[]) {
     `预估全剧 ${(runtime / 3600).toFixed(1)} 小时`,
   ].join(" · ");
 }
+
+/* ==================== 章节制作工作台 ==================== */
+
+/** 说话人改绑下拉：option 为选项文案，label 为改绑后卡片头部显示名 */
+export type CastOption = { option: string; label: string };
+
+export type StudioLink = {
+  label: string;
+  toast?: string;
+  /** accent 强调链接，缺省为白面子链接 */
+  emphasis?: boolean;
+  /** 提示条语气，缺省 info */
+  tone?: "info" | "success";
+};
+
+/** 右侧配音设置面板的默认参数 */
+export type StudioTuning = {
+  speaker: string;
+  model: string;
+  /** 情绪强度 0-100 */
+  emotion: number;
+  /** 语速倍率 */
+  speed: number;
+  reverb: string;
+  seed: string;
+};
+
+export type StudioParagraph = {
+  id: string;
+  /** 大纲与检索用的说话人短名，如 克莱恩 */
+  speaker: string;
+  /** 卡片头部完整显示名，如 克莱恩·莫雷蒂 */
+  displayName: string;
+  /** 圆点、姓名、试听按钮与卡片描边共用 */
+  tone: HubTone;
+  /** 情绪胶囊文案 */
+  mood: string;
+  /** 情绪胶囊配色，缺省沿用 tone */
+  moodTone?: HubTone;
+  text: string;
+  /** 多音字校对标注：phrase 首字加虚线描边并注读音 */
+  polyphone?: { phrase: string; reading: string };
+  /** 精修中的段落允许直接改正文 */
+  editable?: boolean;
+  /** 段时长（秒），用于累计时间轴与大纲时长标注 */
+  seconds: number;
+  /** 试听特征音频率（Hz） */
+  hz: number;
+  /** 底部音色说明 */
+  voice: string;
+  /** 音色说明尾部的参数值 */
+  voiceValue?: string;
+  voiceValueMono?: boolean;
+  links: StudioLink[];
+  /** 有值则渲染说话人改绑下拉 */
+  castOptions?: CastOption[];
+  /** 附加技术标注，如 门外传音 · 隔音混响 */
+  aside?: string;
+  /** 紧随本段之后的场景音效提示 */
+  cue?: { text: string; hz: number; seconds: number };
+  tuning: StudioTuning;
+};
+
+/** 原著正文块，点击跳转到对应剧本卡片 */
+export type StudioSourceBlock = { text: string; paragraphId: string };
+
+export type ChapterStudio = {
+  paragraphs: StudioParagraph[];
+  source: StudioSourceBlock[];
+  speakerOptions: string[];
+  modelOptions: string[];
+  reverbOptions: string[];
+};
+
+const kleinCastOptions: CastOption[] = [
+  { option: "克莱恩（男主）", label: "克莱恩·莫雷蒂" },
+  { option: "旁白", label: "旁白" },
+  { option: "邓恩·史密斯", label: "邓恩·史密斯" },
+  { option: "梅丽莎·莫雷蒂", label: "梅丽莎·莫雷蒂" },
+];
+
+const studioModelOptions = ["零样本克隆 Zero-Shot", "CosyVoice-Pre", "GPT-SoVITS 微调"];
+const studioReverbOptions = ["无", "小房间", "门阻隔混响 15%", "大厅"];
+
+const lordChapterOneStudio: ChapterStudio = {
+  paragraphs: [
+    {
+      id: "p-001",
+      speaker: "旁白",
+      displayName: "旁白",
+      tone: "neutral",
+      mood: "沉重肃穆",
+      text: "痛！好痛！头好痛！狂暴的剧痛如同一柄烧红的钢铁长矛，狠狠刺入了脑海深处。重叠而虚幻的低语声在耳畔疯狂回荡，窗外绯红的月光正如同粘稠的血液般，静静淌在粗糙的木制书桌上。",
+      polyphone: { phrase: "重叠", reading: "chóng" },
+      seconds: 8.2,
+      hz: 220,
+      voice: "音色 沧桑男中音 · CosyVoice-Pre · 语速",
+      voiceValue: "1.05x",
+      voiceValueMono: true,
+      links: [
+        { label: "校对多音字", toast: "多音字注音已校准", tone: "success" },
+        { label: "单句重新生成", toast: "已换 Seed 重新生成该句", emphasis: true },
+      ],
+      cue: {
+        text: "场景音效 · 粗重急促的喘息 + 书页在风中剧烈翻动 1.2s",
+        hz: 160,
+        seconds: 1.2,
+      },
+      tuning: {
+        speaker: "旁白",
+        model: "CosyVoice-Pre",
+        emotion: 60,
+        speed: 1.05,
+        reverb: "无",
+        seed: "3107",
+      },
+    },
+    {
+      id: "p-002",
+      speaker: "克莱恩",
+      displayName: "克莱恩·莫雷蒂",
+      tone: "accent",
+      mood: "惊恐迷茫 85%",
+      moodTone: "amber",
+      text: "“这是哪里……我不是在家里睡觉吗？为什么桌上会有一柄黄铜左轮手枪？！”",
+      editable: true,
+      seconds: 6.8,
+      hz: 330,
+      voice: "音色 英伦青年音 · 零样本克隆 · 语气",
+      voiceValue: "颤抖气音",
+      links: [
+        { label: "调节情绪", toast: "已把情绪强度设为 90%", tone: "success" },
+        { label: "局部重绘", toast: "正在局部重新推理，Seed 8421", emphasis: true },
+      ],
+      castOptions: kleinCastOptions,
+      tuning: {
+        speaker: "克莱恩（男主）",
+        model: "零样本克隆 Zero-Shot",
+        emotion: 85,
+        speed: 1,
+        reverb: "无",
+        seed: "8421",
+      },
+    },
+    {
+      id: "p-003",
+      speaker: "旁白",
+      displayName: "旁白",
+      tone: "neutral",
+      mood: "客观平缓",
+      text: "他下意识抬手抚摸自己的太阳穴，指尖传来了湿润而冰冷的黏腻感。借着绯红月光，他赫然看清了自己的双手——那上面沾满了暗红发黑的血污！",
+      seconds: 11,
+      hz: 220,
+      voice: "音色 沧桑男中音",
+      links: [{ label: "重新生成", toast: "已重新加入生成队列", emphasis: true }],
+      tuning: {
+        speaker: "旁白",
+        model: "CosyVoice-Pre",
+        emotion: 45,
+        speed: 1.05,
+        reverb: "无",
+        seed: "5533",
+      },
+    },
+    {
+      id: "p-004",
+      speaker: "梅丽莎",
+      displayName: "梅丽莎·莫雷蒂",
+      tone: "violet",
+      mood: "轻柔担忧 60%",
+      text: "“克莱恩？你还没睡吗？我听见你房间有响动，明天是廷根大学面试，可千万别睡过头了。”",
+      seconds: 7.1,
+      hz: 440,
+      voice: "音色 清澈少女音 · 挂载门阻隔混响",
+      voiceValue: "15%",
+      voiceValueMono: true,
+      links: [{ label: "重新生成", toast: "已重新生成该台词", emphasis: true }],
+      aside: "门外传音 · 隔音混响",
+      tuning: {
+        speaker: "梅丽莎·莫雷蒂",
+        model: "零样本克隆 Zero-Shot",
+        emotion: 60,
+        speed: 0.98,
+        reverb: "门阻隔混响 15%",
+        seed: "2264",
+      },
+    },
+  ],
+  source: [
+    {
+      text: "夜色深沉，克莱恩·莫雷蒂从一场怪异的梦境中惊醒。",
+      paragraphId: "p-001",
+    },
+    {
+      text: "痛！好痛！头好痛！狂暴的剧痛如同一柄烧红的钢铁长矛，狠狠刺入了脑海深处。",
+      paragraphId: "p-001",
+    },
+    {
+      text: "他下意识抬手抚摸自己的太阳穴，指尖传来了湿润而冰冷的黏腻感。借着绯红月光，他赫然看清了自己的双手——那上面沾满了暗红发黑的血污！",
+      paragraphId: "p-003",
+    },
+    {
+      text: "“这是哪里……我不是在家里睡觉吗？为什么桌上会有一柄黄铜左轮手枪？！”",
+      paragraphId: "p-002",
+    },
+    {
+      text: "门外传来梅丽莎轻柔的声音：“克莱恩？你还没睡吗？我听见你房间有响动，明天是廷根大学面试，可千万别睡过头了。”",
+      paragraphId: "p-004",
+    },
+  ],
+  speakerOptions: ["旁白", "克莱恩（男主）", "梅丽莎·莫雷蒂", "邓恩·史密斯"],
+  modelOptions: studioModelOptions,
+  reverbOptions: studioReverbOptions,
+};
+
+export const chapterStudios: Record<string, ChapterStudio> = {
+  "p-lord-of-mysteries/c-001": lordChapterOneStudio,
+};
+
+/** 未逐句核对过的章节：按已识别说话人铺占位剧本，保证工作台不空转 */
+function pendingStudio(project: ProjectEntry, chapter: HubChapter): ChapterStudio {
+  const cast = chapter.speakers ?? [narrator];
+  const paragraphs = cast.map<StudioParagraph>((tag, index) => ({
+    id: `${chapter.id}-p${String(index + 1).padStart(3, "0")}`,
+    speaker: tag.name,
+    displayName: tag.name,
+    tone: tag.tone,
+    mood: tag.name === "旁白" ? "客观平缓" : "待标定",
+    text:
+      index === 0
+        ? chapter.excerpt
+        : "本章已完成剧本化拆解，逐句文案与情绪标定等待精修队列补全。",
+    seconds: Math.round((7 + ((project.seed + index * 13) % 8) + 0.5) * 10) / 10,
+    hz: 200 + index * 40,
+    voice: "音色 待绑定声线 · CosyVoice-Pre",
+    links: [{ label: "重新生成", toast: "已重新加入生成队列", emphasis: true }],
+    tuning: {
+      speaker: tag.name,
+      model: "CosyVoice-Pre",
+      emotion: 50,
+      speed: 1,
+      reverb: "无",
+      seed: String(1000 + ((project.seed * 31 + index * 173) % 9000)),
+    },
+  }));
+
+  return {
+    paragraphs,
+    source: [
+      { text: chapter.excerpt, paragraphId: paragraphs[0].id },
+      {
+        text: "该章节尚未做逐句对照，拆解完成后此处会补全原著正文。",
+        paragraphId: paragraphs[0].id,
+      },
+    ],
+    speakerOptions: [...new Set(["旁白", ...cast.map((tag) => tag.name)])],
+    modelOptions: studioModelOptions,
+    reverbOptions: studioReverbOptions,
+  };
+}
+
+export function studioFor(project: ProjectEntry, chapter: HubChapter): ChapterStudio {
+  return chapterStudios[`${project.id}/${chapter.id}`] ?? pendingStudio(project, chapter);
+}
+
+/** 卡片时间轴与大纲时长标注用 MM:SS */
+export function studioClock(seconds: number) {
+  const whole = Math.floor(seconds);
+  return `${String(Math.floor(whole / 60)).padStart(2, "0")}:${String(whole % 60).padStart(2, "0")}`;
+}
+
+/** 大纲条目的正文摘句 */
+export function studioPreview(text: string) {
+  return `${text.replace(/^["“]/, "").slice(0, 6)}……`;
+}
