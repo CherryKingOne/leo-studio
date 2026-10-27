@@ -94,3 +94,69 @@ class ChapterContentResponse(BaseModel):
     sentences: list[ChapterSentenceItem] = Field(
         default_factory=list, description="章节行级切句列表"
     )
+
+
+class ChapterConflictItem(BaseModel):
+    """章节内容冲突差异项。"""
+
+    chapter_id: str = Field(description="冲突章节 ID (UUID)")
+    chapter_index: int = Field(description="章节序号")
+    chapter_title: str = Field(description="章节标题")
+    existing_word_count: int = Field(description="现有章节字数")
+    incoming_word_count: int = Field(description="新上传章节字数")
+    word_diff: int = Field(description="字数差异（新 - 旧）")
+
+
+class ProjectChapterAppendResponse(BaseModel):
+    """项目追加章节响应。"""
+
+    project_id: str = Field(description="项目唯一标识 (UUID)")
+    file_id: str = Field(description="关联文本文件 ID (UUID)")
+    version_id: str = Field(default="", description="生成的版本快照唯一标识 (UUID)")
+    version_number: int = Field(default=1, description="当前版本号")
+    added_chapters: int = Field(description="本次新增章节数量")
+    skipped_chapters: int = Field(description="本次跳过（或保留）的已存在章节数量")
+    total_chapters: int = Field(description="项目最新总章节数")
+    total_words: int = Field(description="项目最新总字数")
+    has_conflicts: bool = Field(default=False, description="是否存在内容差异冲突")
+    conflicts: list[ChapterConflictItem] = Field(
+        default_factory=list, description="冲突章节差异列表"
+    )
+    updated_at: datetime = Field(description="最后更新时间")
+
+
+class ProjectVersionItem(BaseModel):
+    """项目历史版本快照项。"""
+
+    version_id: str = Field(description="版本唯一标识 (UUID)")
+    project_id: str = Field(description="项目唯一标识 (UUID)")
+    file_id: str = Field(description="关联物理文件 ID (UUID)")
+    version_number: int = Field(description="版本编号 (1, 2, 3...)")
+    filename: str = Field(description="原始文件名")
+    chapter_count: int = Field(description="当时章节数")
+    total_words: int = Field(description="当时总字数")
+    created_at: datetime = Field(description="快照创建时间")
+    remark: str = Field(description="版本操作备注")
+
+
+class ProjectVersionListResponse(BaseModel):
+    """项目历史版本列表响应。"""
+
+    project_id: str = Field(description="项目唯一标识 (UUID)")
+    total: int = Field(description="历史版本总数")
+    items: list[ProjectVersionItem] = Field(
+        default_factory=list, description="历史版本列表"
+    )
+
+
+class ProjectRollbackResponse(BaseModel):
+    """项目版本回滚响应。"""
+
+    project_id: str = Field(description="项目唯一标识 (UUID)")
+    restored_version_id: str = Field(description="回滚目标版本快照 ID (UUID)")
+    restored_version_number: int = Field(description="回滚目标版本编号")
+    chapter_count: int = Field(description="恢复后的总章节数")
+    total_words: int = Field(description="恢复后的总字数")
+    updated_at: datetime = Field(description="回滚执行时间")
+
+

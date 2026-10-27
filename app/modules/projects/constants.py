@@ -25,3 +25,23 @@ PROJECTS_COLUMNS: Final[list[str]] = [
     "created_at",
     "updated_at",
 ]
+
+#: 项目历史快照版本 CSV 持久化文件名
+PROJECT_VERSIONS_CSV_FILENAME: Final[str] = "project_versions.csv"
+
+#: 项目版本表表头字段
+PROJECT_VERSIONS_COLUMNS: Final[list[str]] = [
+    "version_id",
+    "project_id",
+    "file_id",
+    "version_number",
+    "filename",
+    "chapter_count",
+    "total_words",
+    "created_at",
+    "remark",
+]
+
+#: 单个项目最大保留的历史快照版本数量（滑动窗口淘汰上限）
+MAX_PROJECT_VERSIONS: Final[int] = 3
+

@@ -14,19 +14,28 @@ from fastapi import APIRouter, Depends, File, Form, Path, Query, UploadFile
 
 from app.modules.projects.constants import MODULE_TAG, ROUTE_PREFIX
 from app.modules.projects.models import (
+    ChapterConflictInfo,
     ChapterContentInfo,
     ChapterOutlineInfo,
+    ProjectChapterAppendInfo,
     ProjectInfo,
+    ProjectRollbackInfo,
+    ProjectVersionInfo,
 )
 from app.modules.projects.schemas import (
+    ChapterConflictItem,
     ChapterContentResponse,
     ChapterOutlineItem,
     ChapterOutlineListResponse,
     ChapterSentenceItem,
+    ProjectChapterAppendResponse,
     ProjectDeleteResponse,
     ProjectListItem,
     ProjectListResponse,
     ProjectResponse,
+    ProjectRollbackResponse,
+    ProjectVersionItem,
+    ProjectVersionListResponse,
 )
 from app.modules.projects.service import ProjectService
 from app.modules.text_files.dependencies import get_storage_service
@@ -45,6 +54,12 @@ ChapterIdPath = Annotated[
     str,
     Path(description="章节唯一标识，UUID (UUID4)"),
 ]
+
+VersionIdPath = Annotated[
+    str,
+    Path(description="版本快照唯一标识，UUID (UUID4)"),
+]
+
 
 
 def resolve_project_service(
@@ -114,6 +129,68 @@ def to_chapter_content_response(info: ChapterContentInfo) -> ChapterContentRespo
             for s in info.sentences
         ],
     )
+
+
+def to_chapter_conflict_item(info: ChapterConflictInfo) -> ChapterConflictItem:
+    """将领域模型转换为章节冲突项 Schema。"""
+    return ChapterConflictItem(
+        chapter_id=info.chapter_id,
+        chapter_index=info.chapter_index,
+        chapter_title=info.chapter_title,
+        existing_word_count=info.existing_word_count,
+        incoming_word_count=info.incoming_word_count,
+        word_diff=info.word_diff,
+    )
+
+
+def to_chapter_append_response(
+    info: ProjectChapterAppendInfo,
+) -> ProjectChapterAppendResponse:
+    """将领域模型转换为追加章节响应 Schema。"""
+    return ProjectChapterAppendResponse(
+        project_id=info.project_id,
+        file_id=info.file_id,
+        version_id=info.version_id,
+        version_number=info.version_number,
+        added_chapters=info.added_chapters,
+        skipped_chapters=info.skipped_chapters,
+        total_chapters=info.total_chapters,
+        total_words=info.total_words,
+        has_conflicts=info.has_conflicts,
+        conflicts=[to_chapter_conflict_item(c) for c in info.conflicts],
+        updated_at=info.updated_at,
+    )
+
+
+def to_project_version_item(info: ProjectVersionInfo) -> ProjectVersionItem:
+    """将领域模型转换为历史版本项 Schema。"""
+    return ProjectVersionItem(
+        version_id=info.version_id,
+        project_id=info.project_id,
+        file_id=info.file_id,
+        version_number=info.version_number,
+        filename=info.filename,
+        chapter_count=info.chapter_count,
+        total_words=info.total_words,
+        created_at=info.created_at,
+        remark=info.remark,
+    )
+
+
+def to_project_rollback_response(
+    info: ProjectRollbackInfo,
+) -> ProjectRollbackResponse:
+    """将领域模型转换为回滚响应 Schema。"""
+    return ProjectRollbackResponse(
+        project_id=info.project_id,
+        restored_version_id=info.restored_version_id,
+        restored_version_number=info.restored_version_number,
+        chapter_count=info.chapter_count,
+        total_words=info.total_words,
+        updated_at=info.updated_at,
+    )
+
+
 
 
 @router.post(
@@ -257,3 +334,101 @@ async def get_project_chapter_content(
     """查询指定章节的详细内容与切句数据。"""
     info = service.get_project_chapter_content(project_id, chapter_id)
     return ApiResponse(data=to_chapter_content_response(info))
+
+
+@router.post(
+    "/{project_id}/chapters/upload",
+    response_model=ApiResponse[ProjectChapterAppendResponse],
+    summary="向项目追加上传章节文件",
+    description=(
+        "为已有项目增量上传小说文件，自动解析并追加新章节。\n\n"
+        "- 请求路径：`project_id`\n"
+        "- 表单参数：`file` 与可选的 `overwrite_existing`（默认 `false`）\n"
+        "- 默认保护机制：非破坏性追加，自动跳过已有章节，防止劣质数据污染"
+    ),
+
+)
+@router.post(
+    "/{project_id}/chapters",
+    response_model=ApiResponse[ProjectChapterAppendResponse],
+    summary="向项目追加上传章节文件（别名路径）",
+    include_in_schema=False,
+)
+async def append_project_chapters(
+    project_id: ProjectIdPath,
+    file: Annotated[UploadFile, File(description="增量上传的小说文件")],
+    overwrite_existing: Annotated[
+        bool, Form(description="是否覆盖已有章节（默认 false，仅增量追加）")
+    ] = False,
+    dry_run: Annotated[
+        bool, Form(description="是否仅做差异预检，不修改实际数据（默认 false）")
+    ] = False,
+    service: ProjectService = Depends(resolve_project_service),
+) -> ApiResponse[ProjectChapterAppendResponse]:
+    """向项目增量追加章节文件。"""
+    if file.filename is None or not file.filename.strip():
+        raise InvalidParameterError("上传文件不能为空")
+
+    info = service.append_chapters(
+        project_id=project_id,
+        filename=file.filename,
+        content=file.file,
+        content_type=file.content_type or "text/plain",
+        overwrite_existing=overwrite_existing,
+        dry_run=dry_run,
+    )
+
+    if dry_run:
+        msg = (
+            f"预检完成：预计新增 {info.added_chapters} 章，"
+            f"跳过 {info.skipped_chapters} 章，冲突 {len(info.conflicts)} 处"
+        )
+    else:
+        msg = f"章节追加成功，新增 {info.added_chapters} 章，跳过 {info.skipped_chapters} 章"
+
+    return ApiResponse(
+        data=to_chapter_append_response(info),
+        message=msg,
+    )
+
+
+@router.get(
+    "/{project_id}/versions",
+    response_model=ApiResponse[ProjectVersionListResponse],
+    summary="查询项目历史版本快照列表",
+    description="获取指定项目的所有历史版本快照列表，按版本号倒序排列。",
+)
+async def list_project_versions(
+    project_id: ProjectIdPath,
+    service: ProjectService = Depends(resolve_project_service),
+) -> ApiResponse[ProjectVersionListResponse]:
+    """查询项目历史版本快照列表。"""
+    items = service.list_project_versions(project_id)
+    return ApiResponse(
+        data=ProjectVersionListResponse(
+            project_id=project_id,
+            total=len(items),
+            items=[to_project_version_item(item) for item in items],
+        )
+    )
+
+
+@router.post(
+    "/{project_id}/versions/{version_id}/rollback",
+    response_model=ApiResponse[ProjectRollbackResponse],
+    summary="回退项目至指定历史版本快照",
+    description="一键将项目章节及内容回滚至指定历史版本快照（后悔药机制）。",
+)
+async def rollback_project_version(
+    project_id: ProjectIdPath,
+    version_id: VersionIdPath,
+    service: ProjectService = Depends(resolve_project_service),
+) -> ApiResponse[ProjectRollbackResponse]:
+    """一键回滚项目至指定历史版本快照。"""
+    info = service.rollback_project_version(project_id, version_id)
+    return ApiResponse(
+        data=to_project_rollback_response(info),
+        message=f"项目已成功回滚至版本 V{info.restored_version_number}",
+    )
+
+
