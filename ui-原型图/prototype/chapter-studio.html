@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>VoiceNovel AI - 章节制作工作台</title>
+  <title>VoiceNovel AI - 第001章 制作工作台</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://unpkg.com/lucide@latest"></script>
   <script>
@@ -12,474 +12,833 @@
       theme: {
         extend: {
           colors: {
-            brand: {
-              500: '#6366f1',
-              600: '#4f46e5',
-              700: '#4338ca',
+            ink: {
+              900: '#0A0A0B',
+              850: '#0E0E11',
+              800: '#141417',
+              750: '#17171B',
+              700: '#1C1C21',
+              600: '#26262C',
             },
-            surface: {
-              base: '#090A0F',
-              card: '#12141F',
-              hover: '#191D2D',
-              border: '#202638'
-            }
-          }
-        }
-      }
-    }
+            accent: {
+              DEFAULT: '#F0297C',
+              400: '#FF5C9D',
+              600: '#CE1264',
+            },
+          },
+          fontFamily: {
+            sans: ['-apple-system', 'BlinkMacSystemFont', 'PingFang SC', 'HarmonyOS Sans SC', 'Microsoft YaHei', 'Helvetica Neue', 'sans-serif'],
+          },
+        },
+      },
+    };
   </script>
+  <style>
+    :root { color-scheme: dark; }
+    body { background: #0a0a0b; }
+    ::-webkit-scrollbar { width: 10px; height: 10px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: #26262c; border-radius: 99px; border: 3px solid #0a0a0b; }
+    ::-webkit-scrollbar-thumb:hover { background: #3a3a42; }
+    .hairline { border-color: rgba(255, 255, 255, 0.07); }
+    .field { width: 100%; border-radius: 8px; background: #0a0a0b; border: 1px solid rgba(255,255,255,.07); padding: 8px 10px; font-size: 12.5px; color: #fff; }
+    .field.sm { width: auto; padding: 3px 8px; font-size: 11px; }
+    .field:focus { outline: none; border-color: rgba(240,41,124,.6); }
+    .seg { transition: opacity .16s ease; }
+    #sidePanel { width: 280px; }
+    #sidePanel.side-wide { width: 440px; }
+    @media (min-width: 1024px) { #feedCol.docked { margin-right: 304px; } }
+    .dock-btn { display: flex; height: 32px; width: 32px; align-items: center; justify-content: center; border-radius: 9999px; color: rgba(255, 255, 255, .5); transition: background-color .14s ease, color .14s ease; }
+    .dock-btn:hover { background: rgba(255, 255, 255, .07); color: #fff; }
+    .drop-before::before, .drop-after::after { content: ''; position: absolute; left: 0; right: 0; height: 2px; border-radius: 99px; background: #F0297C; box-shadow: 0 0 12px rgba(240, 41, 124, .55); }
+    .drop-before::before { top: -9px; }
+    .drop-after::after { bottom: -9px; }
+    [contenteditable]:focus { outline: none; color: #fff; text-decoration: underline dotted rgba(255,255,255,.35); text-underline-offset: 3px; }
+  </style>
 </head>
-<body class="bg-surface-base text-slate-200 min-h-screen flex flex-col font-sans antialiased overflow-hidden selection:bg-brand-500/30">
+<body class="flex h-screen min-h-0 flex-col overflow-hidden font-sans text-white/70 antialiased selection:bg-accent/30 selection:text-white">
 
   <!-- ==================== 1. CHAPTER WORKBENCH HEADER ==================== -->
-  <header class="h-16 border-b border-surface-border bg-surface-card/90 backdrop-blur-md px-6 flex items-center justify-between shrink-0 z-30">
-    <div class="flex items-center space-x-6">
-      <!-- Back to Book Hub -->
-      <a href="project-hub.html" class="flex items-center space-x-1.5 text-slate-400 hover:text-white px-2.5 py-1.5 rounded-lg hover:bg-surface-hover text-xs font-medium transition-colors">
-        <i data-lucide="chevron-left" class="w-4 h-4"></i>
-        <span>返回《诡秘之主》看板</span>
+  <header class="sticky top-0 z-30 flex h-16 shrink-0 items-center gap-3 bg-ink-900/85 px-4 backdrop-blur-md sm:px-6">
+
+    <!-- Left: merged toolbar pill (back + project switcher + command input) -->
+    <div class="flex min-w-0 max-w-[560px] flex-1 items-center gap-1 rounded-full border hairline bg-ink-800 p-1.5">
+      <a href="project-hub.html" title="返回剧目看板" class="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-white/45 transition-colors hover:bg-white/[0.07] hover:text-white">
+        <i data-lucide="chevron-left" class="h-4 w-4"></i>
       </a>
 
-      <div class="h-4 w-[1px] bg-surface-border"></div>
+      <a href="project-hub.html" title="切换剧目" class="flex h-7 shrink-0 items-center gap-1.5 rounded-full bg-white/[0.07] pl-1 pr-2 transition-colors hover:bg-white/[0.12]">
+        <span class="flex h-5 w-5 items-center justify-center rounded-full bg-accent/15 text-[10px] font-bold text-accent-400">诡</span>
+        <span class="max-w-[92px] truncate text-[12.5px] text-white/85">诡秘之主</span>
+        <i data-lucide="chevron-down" class="h-3.5 w-3.5 text-white/30"></i>
+      </a>
 
-      <!-- Current Chapter Breadcrumb -->
-      <div class="flex items-center space-x-2 text-xs">
-        <span class="text-slate-400">《诡秘之主：第一部》</span>
-        <i data-lucide="chevron-right" class="w-3.5 h-3.5 text-slate-600"></i>
-        <span class="text-white font-bold">第001章 绯红之月</span>
-        <span class="text-[10px] bg-emerald-500/10 text-emerald-400 px-2 py-0.5 rounded border border-emerald-500/20 font-mono">14:18 (已渲染)</span>
+      <div class="h-4 w-px shrink-0 bg-white/[0.07]"></div>
+
+      <div class="relative min-w-0 flex-1">
+        <i data-lucide="search" class="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-white/25"></i>
+        <input id="cmd" type="text" placeholder="搜索段落、角色或输入指令…" class="w-full rounded-full bg-transparent py-1 pl-8 pr-12 text-[12.5px] text-white placeholder:text-white/30 focus:outline-none">
+        <kbd class="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 rounded border border-white/10 bg-white/[0.06] px-1.5 py-0.5 font-mono text-[10px] text-white/40">⌘K</kbd>
+      </div>
+
+      <button onclick="shareChapter()" title="复制章节链接" class="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-white/45 transition-colors hover:bg-white/[0.07] hover:text-white">
+        <i data-lucide="share" class="h-4 w-4"></i>
+      </button>
+
+      <div class="relative shrink-0">
+        <button onclick="toggleMoreMenu(event)" title="更多操作" class="flex h-7 w-7 items-center justify-center rounded-full text-white/45 transition-colors hover:bg-white/[0.07] hover:text-white">
+          <i data-lucide="more-horizontal" class="h-4 w-4"></i>
+        </button>
+        <div id="moreMenu" class="absolute right-0 top-9 hidden w-44 overflow-hidden rounded-xl border hairline bg-ink-750 py-1 shadow-2xl shadow-black/60">
+          <button onclick="reparseScript(); closeMoreMenu()" class="flex w-full items-center gap-2.5 px-3 py-2 text-left text-[12.5px] text-white/70 hover:bg-white/5 hover:text-white">
+            <i data-lucide="refresh-cw" class="h-3.5 w-3.5 opacity-60"></i>重新解析剧本
+          </button>
+          <button onclick="showToast('已把本章加入批量产量队列', 'success'); closeMoreMenu()" class="flex w-full items-center gap-2.5 px-3 py-2 text-left text-[12.5px] text-white/70 hover:bg-white/5 hover:text-white">
+            <i data-lucide="layers" class="h-3.5 w-3.5 opacity-60"></i>加入批量队列
+          </button>
+          <button onclick="showToast('已打开章节设置', 'info'); closeMoreMenu()" class="flex w-full items-center gap-2.5 px-3 py-2 text-left text-[12.5px] text-white/70 hover:bg-white/5 hover:text-white">
+            <i data-lucide="settings" class="h-3.5 w-3.5 opacity-60"></i>章节设置
+          </button>
+        </div>
       </div>
     </div>
 
-    <!-- Right Chapter Workbench Actions -->
-    <div class="flex items-center space-x-3 text-xs">
-      <button onclick="showToast('正在重新调用 Qwen2.5 提取对话与情绪...', 'info')" class="flex items-center space-x-1.5 bg-surface-hover hover:bg-slate-800 border border-surface-border text-slate-300 px-3 py-1.5 rounded-lg font-medium transition-colors">
-        <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i>
-        <span>重新解析剧本</span>
-      </button>
-
-      <button onclick="simulateBatchSynth()" id="batchSynthBtn" class="flex items-center space-x-1.5 bg-brand-600 hover:bg-brand-500 text-white px-4 py-1.5 rounded-lg font-medium shadow-md shadow-brand-500/20 transition-all">
-        <i data-lucide="play-circle" class="w-4 h-4"></i>
-        <span>批量合成当前章</span>
-      </button>
-
-      <a href="export-center.html" class="flex items-center space-x-1.5 bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-300 border border-emerald-500/30 px-3.5 py-1.5 rounded-lg font-medium transition-all">
-        <i data-lucide="download" class="w-3.5 h-3.5"></i>
-        <span>去导出</span>
+    <!-- Right: chapter actions -->
+    <div class="ml-auto flex shrink-0 items-center gap-2">
+      <a href="export-center.html" class="flex items-center gap-2 rounded-full border hairline bg-ink-800 px-3 py-2 text-[12.5px] font-medium text-white/75 transition-colors hover:border-emerald-400/30 hover:bg-emerald-400/10 hover:text-emerald-300">
+        <i data-lucide="download" class="h-4 w-4 text-emerald-400/80"></i>
+        <span class="hidden md:inline">导出本章</span>
       </a>
+
+      <button onclick="simulateBatchSynth()" id="batchSynthBtn" class="flex items-center gap-2 rounded-full bg-accent px-3.5 py-2 text-[12.5px] font-medium text-white transition-colors hover:bg-accent-600">
+        <i data-lucide="play" class="h-4 w-4"></i>
+        <span class="hidden sm:inline">批量合成当前章</span>
+      </button>
+
+      <button title="剩余额度" class="hidden items-center gap-1.5 rounded-full border hairline bg-ink-800 px-3 py-2 text-[12.5px] text-white/80 transition-colors hover:border-white/20 xl:flex">
+        <i data-lucide="coins" class="h-3.5 w-3.5 text-white/40"></i>
+        <span class="font-mono">6,240</span>
+        <span class="rounded bg-white/10 px-1.5 py-0.5 text-[10px] font-semibold text-white/60">PRO</span>
+      </button>
+
+      <button class="hidden h-8 w-8 shrink-0 rounded-full bg-ink-700 text-[12px] font-bold text-white/70 ring-1 ring-white/10 transition-colors hover:ring-white/25 sm:block">L</button>
     </div>
   </header>
 
-  <!-- ==================== 2. WORKSPACE SPLIT (OUTLINE + SCRIPT FEED) ==================== -->
-  <div class="flex-1 flex overflow-hidden">
+  <!-- ==================== 2. WORKSPACE SPLIT (OUTLINE + NOVEL + FEED + TUNING) ==================== -->
+  <div class="relative flex min-h-0 flex-1">
 
-    <!-- Slim Chapter & Scene Navigator -->
-    <aside class="w-60 border-r border-surface-border bg-surface-card flex flex-col shrink-0">
-      <div class="p-3.5 border-b border-surface-border flex items-center justify-between text-xs">
-        <span class="font-bold text-slate-300">章节段落大纲</span>
-        <span class="text-[10px] text-slate-500 font-mono">共 4 幕</span>
-      </div>
-
-      <div class="flex-1 overflow-y-auto p-2 space-y-1 text-xs">
-        <a href="#p-001" class="p-2.5 rounded-lg bg-surface-hover text-white flex items-center justify-between border border-brand-500/30">
-          <div class="flex items-center space-x-2 truncate">
-            <span class="w-2 h-2 rounded-full bg-blue-500 shrink-0"></span>
-            <span class="truncate">#01 旁白: 痛！好痛……</span>
+    <!-- Sidebar: 段落大纲 / 原著正文 -->
+    <aside id="sidePanel" class="hidden shrink-0 p-3 transition-[width] duration-200 ease-out md:block">
+      <div class="flex h-full flex-col overflow-hidden rounded-2xl border hairline bg-ink-800">
+        <div class="flex h-11 shrink-0 items-center gap-2 border-b hairline px-2.5">
+          <div class="flex items-center gap-0.5 rounded-lg bg-ink-900 p-0.5">
+            <button data-pane="outline" class="rounded-md bg-white/[0.09] px-2.5 py-1 text-[12px] text-white transition-colors hover:text-white/80">大纲</button>
+            <button data-pane="source" class="rounded-md px-2.5 py-1 text-[12px] text-white/45 transition-colors hover:text-white/80">正文</button>
           </div>
-          <span class="text-[10px] text-slate-400 font-mono">8.2s</span>
-        </a>
+          <span id="sideMeta" class="ml-auto shrink-0 font-mono text-[10.5px] text-white/30">共 4 段</span>
+        </div>
 
-        <a href="#p-002" class="p-2.5 rounded-lg hover:bg-surface-hover text-slate-400 hover:text-slate-200 flex items-center justify-between transition-colors">
-          <div class="flex items-center space-x-2 truncate">
-            <span class="w-2 h-2 rounded-full bg-brand-500 shrink-0"></span>
-            <span class="truncate">#02 克莱恩: 这是哪里……</span>
-          </div>
-          <span class="text-[10px] text-slate-500 font-mono">6.8s</span>
-        </a>
+          <nav id="paneOutline" class="flex-1 space-y-0.5 overflow-y-auto p-2.5">
+          <a href="#p-001" data-for="p-001" class="flex items-center gap-2.5 rounded-lg bg-white/[0.06] py-2 pl-2.5 pr-2 text-[12.5px] text-white ring-1 ring-accent/25">
+            <span class="h-1.5 w-1.5 shrink-0 rounded-full bg-white/45"></span>
+            <span class="min-w-0 flex-1 truncate"><span data-cell="seq" class="font-mono text-white/35">#01</span> 旁白 · 痛！好痛……</span>
+            <span class="shrink-0 font-mono text-[10.5px] text-white/40">8.2s</span>
+          </a>
+          <a href="#p-002" data-for="p-002" class="flex items-center gap-2.5 rounded-lg py-2 pl-2.5 pr-2 text-[12.5px] text-white/50 transition-colors hover:bg-white/[0.05] hover:text-white">
+            <span class="h-1.5 w-1.5 shrink-0 rounded-full bg-accent"></span>
+            <span class="min-w-0 flex-1 truncate"><span data-cell="seq" class="font-mono text-white/35">#02</span> 克莱恩 · 这是哪里……</span>
+            <span class="shrink-0 font-mono text-[10.5px] text-white/30">6.8s</span>
+          </a>
+          <a href="#p-003" data-for="p-003" class="flex items-center gap-2.5 rounded-lg py-2 pl-2.5 pr-2 text-[12.5px] text-white/50 transition-colors hover:bg-white/[0.05] hover:text-white">
+            <span class="h-1.5 w-1.5 shrink-0 rounded-full bg-white/45"></span>
+            <span class="min-w-0 flex-1 truncate"><span data-cell="seq" class="font-mono text-white/35">#03</span> 旁白 · 他下意识抚摸……</span>
+            <span class="shrink-0 font-mono text-[10.5px] text-white/30">11.0s</span>
+          </a>
+          <a href="#p-004" data-for="p-004" class="flex items-center gap-2.5 rounded-lg py-2 pl-2.5 pr-2 text-[12.5px] text-white/50 transition-colors hover:bg-white/[0.05] hover:text-white">
+            <span class="h-1.5 w-1.5 shrink-0 rounded-full bg-violet-400"></span>
+            <span class="min-w-0 flex-1 truncate"><span data-cell="seq" class="font-mono text-white/35">#04</span> 梅丽莎 · 克莱恩？……</span>
+            <span class="shrink-0 font-mono text-[10.5px] text-white/30">7.1s</span>
+          </a>
+          </nav>
 
-        <a href="#p-003" class="p-2.5 rounded-lg hover:bg-surface-hover text-slate-400 hover:text-slate-200 flex items-center justify-between transition-colors">
-          <div class="flex items-center space-x-2 truncate">
-            <span class="w-2 h-2 rounded-full bg-blue-500 shrink-0"></span>
-            <span class="truncate">#03 旁白: 他下意识抚摸……</span>
-          </div>
-          <span class="text-[10px] text-slate-500 font-mono">11.0s</span>
-        </a>
-
-        <a href="#p-004" class="p-2.5 rounded-lg hover:bg-surface-hover text-slate-400 hover:text-slate-200 flex items-center justify-between transition-colors">
-          <div class="flex items-center space-x-2 truncate">
-            <span class="w-2 h-2 rounded-full bg-pink-500 shrink-0"></span>
-            <span class="truncate">#04 梅丽莎: 克莱恩？……</span>
-          </div>
-          <span class="text-[10px] text-slate-500 font-mono">7.1s</span>
-        </a>
-      </div>
-
-      <!-- Quick Switch Chapter -->
-      <div class="p-3 border-t border-surface-border text-xs">
-        <label class="text-[10px] text-slate-500 block mb-1">切换章节</label>
-        <select onchange="showToast('已加载所选章节', 'info')" class="w-full bg-surface-base border border-surface-border rounded-lg px-2.5 py-1.5 text-slate-300 text-xs focus:outline-none">
-          <option selected>第001章 绯红之月 (当前)</option>
-          <option>第002章 宿命之枪</option>
-          <option>第003章 罗塞尔日记</option>
-        </select>
+        <div id="paneSource" class="hidden flex-1 space-y-4 overflow-y-auto p-4 text-[13px] leading-relaxed text-white/60">
+          <p data-goto="p-001" class="cursor-pointer rounded-lg px-2.5 py-1.5 transition-colors hover:bg-white/[0.04] hover:text-white/85">夜色深沉，克莱恩·莫雷蒂从一场怪异的梦境中惊醒。</p>
+          <p data-goto="p-001" class="cursor-pointer rounded-lg px-2.5 py-1.5 transition-colors hover:bg-white/[0.04] hover:text-white/85">痛！好痛！头好痛！狂暴的剧痛如同一柄烧红的钢铁长矛，狠狠刺入了脑海深处。</p>
+          <p data-goto="p-003" class="cursor-pointer rounded-lg px-2.5 py-1.5 transition-colors hover:bg-white/[0.04] hover:text-white/85">他下意识抬手抚摸自己的太阳穴，指尖传来了湿润而冰冷的黏腻感。借着绯红月光，他赫然看清了自己的双手——那上面沾满了暗红发黑的血污！</p>
+          <p data-goto="p-002" class="cursor-pointer rounded-lg px-2.5 py-1.5 transition-colors hover:bg-white/[0.04] hover:text-white/85">“这是哪里……我不是在家里睡觉吗？为什么桌上会有一柄黄铜左轮手枪？！”</p>
+          <p data-goto="p-004" class="cursor-pointer rounded-lg px-2.5 py-1.5 transition-colors hover:bg-white/[0.04] hover:text-white/85">门外传来梅丽莎轻柔的声音：“克莱恩？你还没睡吗？我听见你房间有响动，明天是廷根大学面试，可千万别睡过头了。”</p>
+          <p class="border-t hairline pt-3 text-[11px] leading-relaxed text-white/30">点击正文段落可跳转到对应的剧本段落卡片；原文仅作对照，不可直接编辑。</p>
+        </div>
       </div>
     </aside>
 
-    <!-- Main Workbench: Novel Content | Script Feed | Voice Settings -->
-    <main class="flex-1 flex bg-surface-base overflow-hidden">
+    <!-- Script feed -->
+    <main class="flex min-w-0 flex-1 overflow-hidden">
 
-      <!-- Column 2: Novel Chapter Content -->
-      <div class="w-1/3 overflow-y-auto p-4 shrink-0">
-        <div class="bg-surface-card border border-r-0 border-surface-border rounded-2xl p-5 space-y-4">
-          <div class="text-sm leading-relaxed text-slate-300 space-y-4">
-            <p>夜色深沉，克莱恩·莫雷蒂从一场怪异的梦境中惊醒。</p>
-            <p>他下意识抬手抚摸自己的太阳穴，指尖传来了湿润而冰冷的黏腻感。借着绯红月光，他赫然看清了自己的双手——那上面沾满了暗红发黑的血污！</p>
-            <p>“这是哪里……我不是在家里睡觉吗？为什么桌上会有一柄黄铜左轮手枪？！”</p>
-            <p>门外传来梅丽莎轻柔的声音：“克莱恩？你还没睡吗？我听见你房间有响动，明天是廷根大学面试，可千万别睡过头了。”</p>
+      <!-- Column: 剧本流 -->
+      <div id="feedCol" class="min-w-0 flex-1 p-3 transition-[margin] duration-200 ease-out">
+        <div class="flex h-full flex-col overflow-hidden rounded-2xl border hairline bg-ink-850">
+          <!-- Ordering toolbar -->
+          <div class="flex h-11 shrink-0 items-center border-b hairline px-4">
+            <div class="mx-auto flex w-full max-w-3xl flex-wrap items-center justify-between gap-2">
+              <div class="flex items-center gap-2 text-[11.5px]">
+                <span class="text-white/35">段落顺序</span>
+                <span id="orderState" class="font-mono text-white/55">原始顺序</span>
+              </div>
+              <div class="flex items-center gap-1.5">
+                <button id="undoBtn" onclick="undoOrder()" class="flex items-center gap-1.5 rounded-full border hairline bg-ink-800 px-2.5 py-1.5 text-[12px] text-white/65 transition-colors hover:border-white/20 hover:text-white disabled:cursor-not-allowed disabled:opacity-35 disabled:hover:border-white/[0.07]">
+                  <i data-lucide="undo-2" class="h-3.5 w-3.5"></i>撤销
+                </button>
+                <button id="redoBtn" onclick="redoOrder()" class="flex items-center gap-1.5 rounded-full border hairline bg-ink-800 px-2.5 py-1.5 text-[12px] text-white/65 transition-colors hover:border-white/20 hover:text-white disabled:cursor-not-allowed disabled:opacity-35 disabled:hover:border-white/[0.07]">
+                  <i data-lucide="redo-2" class="h-3.5 w-3.5"></i>重做
+                </button>
+                <button id="resetBtn" onclick="resetOrder()" class="flex items-center gap-1.5 rounded-full border hairline bg-ink-800 px-2.5 py-1.5 text-[12px] text-white/65 transition-colors hover:border-white/20 hover:text-white disabled:cursor-not-allowed disabled:opacity-35 disabled:hover:border-white/[0.07]">
+                  <i data-lucide="rotate-ccw" class="h-3.5 w-3.5"></i>重置顺序
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div class="min-h-0 flex-1 overflow-y-auto px-4 py-4">
+            <div id="feed" class="mx-auto max-w-3xl space-y-4">
+
+            <!-- Paragraph 1: 旁白 -->
+            <section id="p-001" data-para draggable="true" data-speaker="旁白" data-dur="8.2" class="relative cursor-grab rounded-2xl border hairline bg-ink-800 p-5 transition-colors hover:border-white/[0.16] active:cursor-grabbing">
+              <div class="flex items-center justify-between gap-3">
+                <div class="flex min-w-0 items-center gap-2.5">
+                  <span title="拖拽整段可移动位置" class="-ml-1 flex h-6 w-4 shrink-0 items-center justify-center text-white/20">
+                    <i data-lucide="grip-vertical" class="h-3.5 w-3.5"></i>
+                  </span>
+                  <span class="h-1.5 w-1.5 shrink-0 rounded-full bg-white/45"></span>
+                  <span class="shrink-0 text-[12.5px] font-semibold text-white/85">旁白</span>
+                  <span class="shrink-0 rounded border border-white/10 bg-white/5 px-1.5 py-0.5 text-[10px] text-white/55">沉重肃穆</span>
+                  <span data-cell="seq" class="shrink-0 font-mono text-[10.5px] text-white/25">#001</span>
+                </div>
+                <div class="flex shrink-0 items-center gap-2">
+                  <span data-cell="time" class="font-mono text-[11px] text-white/40">00:00 – 00:08</span>
+                  <div class="flex items-center gap-0.5">
+                    <button data-move="up" onclick="movePara('p-001', -1)" title="上移一段" class="rounded-md p-1.5 text-white/40 transition-colors hover:bg-white/5 hover:text-white disabled:cursor-not-allowed disabled:opacity-30"><i data-lucide="chevron-up" class="h-3.5 w-3.5"></i></button>
+                    <button data-move="down" onclick="movePara('p-001', 1)" title="下移一段" class="rounded-md p-1.5 text-white/40 transition-colors hover:bg-white/5 hover:text-white disabled:cursor-not-allowed disabled:opacity-30"><i data-lucide="chevron-down" class="h-3.5 w-3.5"></i></button>
+                  </div>
+                  <button onclick="auditionTone(220, 8.2)" title="试听本段" class="rounded-lg border hairline bg-ink-850 p-2 text-white/55 transition-colors hover:border-white/25 hover:bg-white/5 hover:text-white">
+                    <i data-lucide="play" class="h-3.5 w-3.5"></i>
+                  </button>
+                </div>
+              </div>
+
+              <div class="mt-3 text-[13px] leading-relaxed text-white/75">
+                痛！好痛！头好痛！狂暴的剧痛如同一柄烧红的钢铁长矛，狠狠刺入了脑海深处。<span title="多音字校对为：chóng" class="border-b border-dotted border-amber-400/70 text-amber-200">重<span class="align-super text-[9.5px] font-mono text-amber-400/90">(chóng)</span>叠</span>而虚幻的低语声在耳畔疯狂回荡，窗外绯红的月光正如同粘稠的血液般，静静淌在粗糙的木制书桌上。
+              </div>
+
+              <div class="mt-3.5 flex flex-wrap items-center justify-between gap-2 border-t hairline pt-3 text-[11.5px]">
+                <span class="text-white/35">音色 沧桑男中音 · CosyVoice-Pre · 语速 <span class="font-mono text-white/50">1.05x</span></span>
+                <div class="flex items-center gap-3">
+                  <button onclick="showToast('多音字注音已校准', 'success')" class="text-white/45 transition-colors hover:text-white">校对多音字</button>
+                  <button onclick="showToast('已换 Seed 重新生成该句', 'info')" class="text-accent-400 hover:underline">单句重新生成</button>
+                </div>
+              </div>
+            </section>
+
+            <!-- SFX cue -->
+            <div data-cue data-owner="p-001" class="flex justify-center">
+              <div class="inline-flex items-center gap-2 rounded-full border border-dashed border-amber-400/25 bg-amber-400/[0.07] py-1.5 pl-3 pr-1.5 text-[11.5px] text-amber-200/90">
+                <i data-lucide="zap" class="h-3.5 w-3.5 text-amber-400"></i>
+                <span class="truncate">场景音效 · 粗重急促的喘息 + 书页在风中剧烈翻动 1.2s</span>
+                <button onclick="auditionTone(160, 1.2)" class="shrink-0 rounded-full bg-amber-400/10 px-2 py-0.5 text-[10.5px] font-medium text-amber-200 transition-colors hover:bg-amber-400/20">试听拟音</button>
+              </div>
+            </div>
+
+            <!-- Paragraph 2: 克莱恩（当前编辑段落） -->
+            <section id="p-002" data-para draggable="true" data-speaker="克莱恩" data-dur="6.8" class="relative cursor-grab rounded-2xl border border-accent/25 bg-ink-800 p-5 active:cursor-grabbing">
+              <div class="flex items-center justify-between gap-3">
+                <div class="flex min-w-0 flex-wrap items-center gap-2.5">
+                  <span title="拖拽整段可移动位置" class="-ml-1 flex h-6 w-4 shrink-0 items-center justify-center text-white/20">
+                    <i data-lucide="grip-vertical" class="h-3.5 w-3.5"></i>
+                  </span>
+                  <span class="h-1.5 w-1.5 shrink-0 rounded-full bg-accent"></span>
+                  <span data-speaker-label class="shrink-0 text-[12.5px] font-semibold text-accent-400">克莱恩·莫雷蒂</span>
+                  <span class="shrink-0 rounded border border-amber-400/20 bg-amber-400/10 px-1.5 py-0.5 font-medium text-[10px] text-amber-300">惊恐迷茫 85%</span>
+                  <span data-cell="seq" class="shrink-0 font-mono text-[10.5px] text-white/25">#002</span>
+                  <select onchange="reassignSpeaker(this)" class="field sm">
+                    <option data-label="克莱恩·莫雷蒂" selected>克莱恩（男主）</option>
+                    <option data-label="旁白">旁白</option>
+                    <option data-label="邓恩·史密斯">邓恩·史密斯</option>
+                    <option data-label="梅丽莎·莫雷蒂">梅丽莎·莫雷蒂</option>
+                  </select>
+                </div>
+                <div class="flex shrink-0 items-center gap-2">
+                  <span data-cell="time" class="font-mono text-[11px] text-white/40">00:08 – 00:15</span>
+                  <div class="flex items-center gap-0.5">
+                    <button data-move="up" onclick="movePara('p-002', -1)" title="上移一段" class="rounded-md p-1.5 text-white/40 transition-colors hover:bg-white/5 hover:text-white disabled:cursor-not-allowed disabled:opacity-30"><i data-lucide="chevron-up" class="h-3.5 w-3.5"></i></button>
+                    <button data-move="down" onclick="movePara('p-002', 1)" title="下移一段" class="rounded-md p-1.5 text-white/40 transition-colors hover:bg-white/5 hover:text-white disabled:cursor-not-allowed disabled:opacity-30"><i data-lucide="chevron-down" class="h-3.5 w-3.5"></i></button>
+                  </div>
+                  <button onclick="auditionTone(330, 6.8)" title="试听本段" class="rounded-lg bg-accent p-2 text-white transition-colors hover:bg-accent-600">
+                    <i data-lucide="play" class="h-3.5 w-3.5"></i>
+                  </button>
+                </div>
+              </div>
+
+              <div contenteditable="true" spellcheck="false" class="mt-3 cursor-text rounded-xl border hairline bg-ink-900 px-3.5 py-2.5 text-[13px] leading-relaxed text-white">
+                “这是哪里……我不是在家里睡觉吗？为什么桌上会有一柄黄铜左轮手枪？！”
+              </div>
+
+              <div class="mt-3.5 flex flex-wrap items-center justify-between gap-2 border-t hairline pt-3 text-[11.5px]">
+                <span class="text-white/35">音色 英伦青年音 · 零样本克隆 · 语气 <span class="text-white/55">颤抖气音</span></span>
+                <div class="flex items-center gap-3">
+                  <button onclick="showToast('已把情绪强度设为 90%', 'success')" class="text-white/45 transition-colors hover:text-white">调节情绪</button>
+                  <button onclick="showToast('正在局部重新推理，Seed 8421', 'info')" class="text-accent-400 hover:underline">局部重绘</button>
+                </div>
+              </div>
+            </section>
+
+            <!-- Paragraph 3: 旁白 -->
+            <section id="p-003" data-para draggable="true" data-speaker="旁白" data-dur="11" class="relative cursor-grab rounded-2xl border hairline bg-ink-800 p-5 transition-colors hover:border-white/[0.16] active:cursor-grabbing">
+              <div class="flex items-center justify-between gap-3">
+                <div class="flex min-w-0 items-center gap-2.5">
+                  <span title="拖拽整段可移动位置" class="-ml-1 flex h-6 w-4 shrink-0 items-center justify-center text-white/20">
+                    <i data-lucide="grip-vertical" class="h-3.5 w-3.5"></i>
+                  </span>
+                  <span class="h-1.5 w-1.5 shrink-0 rounded-full bg-white/45"></span>
+                  <span class="shrink-0 text-[12.5px] font-semibold text-white/85">旁白</span>
+                  <span class="shrink-0 rounded border border-white/10 bg-white/5 px-1.5 py-0.5 text-[10px] text-white/55">客观平缓</span>
+                  <span data-cell="seq" class="shrink-0 font-mono text-[10.5px] text-white/25">#003</span>
+                </div>
+                <div class="flex shrink-0 items-center gap-2">
+                  <span data-cell="time" class="font-mono text-[11px] text-white/40">00:15 – 00:26</span>
+                  <div class="flex items-center gap-0.5">
+                    <button data-move="up" onclick="movePara('p-003', -1)" title="上移一段" class="rounded-md p-1.5 text-white/40 transition-colors hover:bg-white/5 hover:text-white disabled:cursor-not-allowed disabled:opacity-30"><i data-lucide="chevron-up" class="h-3.5 w-3.5"></i></button>
+                    <button data-move="down" onclick="movePara('p-003', 1)" title="下移一段" class="rounded-md p-1.5 text-white/40 transition-colors hover:bg-white/5 hover:text-white disabled:cursor-not-allowed disabled:opacity-30"><i data-lucide="chevron-down" class="h-3.5 w-3.5"></i></button>
+                  </div>
+                  <button onclick="auditionTone(220, 11)" title="试听本段" class="rounded-lg border hairline bg-ink-850 p-2 text-white/55 transition-colors hover:border-white/25 hover:bg-white/5 hover:text-white">
+                    <i data-lucide="play" class="h-3.5 w-3.5"></i>
+                  </button>
+                </div>
+              </div>
+
+              <div class="mt-3 text-[13px] leading-relaxed text-white/75">
+                他下意识抬手抚摸自己的太阳穴，指尖传来了湿润而冰冷的黏腻感。借着绯红月光，他赫然看清了自己的双手——那上面沾满了暗红发黑的血污！
+              </div>
+
+              <div class="mt-3.5 flex flex-wrap items-center justify-between gap-2 border-t hairline pt-3 text-[11.5px]">
+                <span class="text-white/35">音色 沧桑男中音</span>
+                <button onclick="showToast('已重新加入生成队列', 'info')" class="text-accent-400 hover:underline">重新生成</button>
+              </div>
+            </section>
+
+            <!-- Paragraph 4: 梅丽莎 -->
+            <section id="p-004" data-para draggable="true" data-speaker="梅丽莎" data-dur="7.1" class="relative cursor-grab rounded-2xl border hairline bg-ink-800 p-5 transition-colors hover:border-violet-400/30 active:cursor-grabbing">
+              <div class="flex items-center justify-between gap-3">
+                <div class="flex min-w-0 items-center gap-2.5">
+                  <span title="拖拽整段可移动位置" class="-ml-1 flex h-6 w-4 shrink-0 items-center justify-center text-white/20">
+                    <i data-lucide="grip-vertical" class="h-3.5 w-3.5"></i>
+                  </span>
+                  <span class="h-1.5 w-1.5 shrink-0 rounded-full bg-violet-400"></span>
+                  <span class="shrink-0 text-[12.5px] font-semibold text-violet-300">梅丽莎·莫雷蒂</span>
+                  <span class="shrink-0 rounded border border-violet-400/20 bg-violet-400/10 px-1.5 py-0.5 font-medium text-[10px] text-violet-300">轻柔担忧 60%</span>
+                  <span data-cell="seq" class="shrink-0 font-mono text-[10.5px] text-white/25">#004</span>
+                  <span class="shrink-0 font-mono text-[10.5px] text-white/25">门外传音 · 隔音混响</span>
+                </div>
+                <div class="flex shrink-0 items-center gap-2">
+                  <span data-cell="time" class="font-mono text-[11px] text-white/40">00:26 – 00:33</span>
+                  <div class="flex items-center gap-0.5">
+                    <button data-move="up" onclick="movePara('p-004', -1)" title="上移一段" class="rounded-md p-1.5 text-white/40 transition-colors hover:bg-white/5 hover:text-white disabled:cursor-not-allowed disabled:opacity-30"><i data-lucide="chevron-up" class="h-3.5 w-3.5"></i></button>
+                    <button data-move="down" onclick="movePara('p-004', 1)" title="下移一段" class="rounded-md p-1.5 text-white/40 transition-colors hover:bg-white/5 hover:text-white disabled:cursor-not-allowed disabled:opacity-30"><i data-lucide="chevron-down" class="h-3.5 w-3.5"></i></button>
+                  </div>
+                  <button onclick="auditionTone(440, 7.1)" title="试听本段" class="rounded-lg border border-violet-400/25 bg-violet-400/10 p-2 text-violet-300 transition-colors hover:bg-violet-400/20">
+                    <i data-lucide="play" class="h-3.5 w-3.5"></i>
+                  </button>
+                </div>
+              </div>
+
+              <div class="mt-3 text-[13px] leading-relaxed text-white/75">
+                “克莱恩？你还没睡吗？我听见你房间有响动，明天是廷根大学面试，可千万别睡过头了。”
+              </div>
+
+              <div class="mt-3.5 flex flex-wrap items-center justify-between gap-2 border-t hairline pt-3 text-[11.5px]">
+                <span class="text-white/35">音色 清澈少女音 · 挂载门阻隔混响 <span class="font-mono text-white/50">15%</span></span>
+                <button onclick="showToast('已重新生成该台词', 'info')" class="text-accent-400 hover:underline">重新生成</button>
+              </div>
+            </section>
+
+            <div id="cmdEmpty" class="hidden rounded-2xl border border-dashed border-white/10 bg-ink-800 px-6 py-12 text-center">
+              <i data-lucide="inbox" class="mx-auto h-6 w-6 text-white/20"></i>
+              <p id="cmdEmptyText" class="mt-2.5 text-[12.5px] text-white/40">没有匹配的段落</p>
+            </div>
+
+            </div>
           </div>
         </div>
       </div>
 
-      <!-- Column 3: Script Canvas Feed -->
-      <div class="flex-1 overflow-y-auto p-6 space-y-5">
+    </main>
 
-        <!-- Paragraph 1: 旁白 -->
-        <div id="p-001" class="p-5 rounded-2xl bg-surface-card border border-surface-border hover:border-slate-700 transition-all space-y-3 shadow-lg">
-          <div class="flex items-center justify-between text-xs">
-            <div class="flex items-center space-x-2.5">
-              <span class="w-2.5 h-2.5 rounded-full bg-blue-500"></span>
-              <span class="font-bold text-blue-400">【旁白】</span>
-              <span class="text-[10px] bg-surface-hover px-2 py-0.5 rounded text-slate-400 border border-surface-border">沉重肃穆</span>
-              <span class="text-[10px] text-slate-500 font-mono">#001</span>
-            </div>
-            <div class="flex items-center space-x-3">
-              <span class="text-[11px] font-mono text-slate-400">00:00 - 00:08 (8.2s)</span>
-              <!-- Audition Button -->
-              <button onclick="playParagraphAudio(220, 8.2)" class="w-7 h-7 rounded-full bg-surface-hover hover:bg-blue-600 text-slate-300 hover:text-white flex items-center justify-center transition-colors shadow">
-                <i data-lucide="play" class="w-3.5 h-3.5 ml-0.5 fill-current"></i>
-              </button>
-            </div>
-          </div>
+    <!-- ==================== 3. FLOATING TUNING DOCK ==================== -->
+    <div class="pointer-events-none absolute inset-y-0 right-0 z-30 hidden md:block">
 
-          <!-- Paragraph Text with Pinyin Fix -->
-          <div class="text-slate-200 leading-relaxed text-sm">
-            痛！好痛！头好痛！狂暴的剧痛如同一柄烧红的钢铁长矛，狠狠刺入了脑海深处。<span class="border-b border-dotted border-amber-400 text-amber-200" title="多音字校对为: chóng">重<span class="text-[10px] text-amber-400 font-mono">(chóng)</span>叠</span>而虚幻的低语声在耳畔疯狂回荡，窗外绯红的月光正如同粘稠的血液般，静静淌在粗糙的木制书桌上。
-          </div>
+      <!-- 收起态：悬浮工具栏 -->
+      <div id="tuningDock" class="pointer-events-auto absolute right-4 top-1/2 flex -translate-y-1/2 flex-col items-center gap-1 rounded-full border hairline bg-ink-800/95 p-1.5 shadow-2xl shadow-black/60 backdrop-blur-md">
+        <button onclick="setTuning(true)" title="展开配音设置" class="flex h-9 w-9 items-center justify-center rounded-full bg-accent text-white transition-colors hover:bg-accent-600">
+          <i data-lucide="sliders-horizontal" class="h-4 w-4"></i>
+        </button>
 
-          <!-- Micro Controls -->
-          <div class="pt-2 border-t border-surface-border/50 flex items-center justify-between text-[11px] text-slate-500">
-            <span>音色: 沧桑男中音 (CosyVoice-Pre) • 语速: 1.05x</span>
-            <div class="flex items-center space-x-3">
-              <button onclick="showToast('多音字注音已校准', 'success')" class="hover:text-slate-300">校对多音字</button>
-              <span>•</span>
-              <button onclick="showToast('正在局部换 Seed 重新生成该句...', 'info')" class="hover:text-brand-400">单句重新生成</button>
-            </div>
-          </div>
-        </div>
+        <div class="my-1 h-px w-6 bg-white/[0.07]"></div>
 
-        <!-- SFX Cue Callout -->
-        <div class="flex justify-center my-1">
-          <div class="inline-flex items-center space-x-2 bg-amber-500/10 border border-dashed border-amber-500/30 text-amber-300 text-xs px-3.5 py-1.5 rounded-full shadow-sm">
-            <i data-lucide="zap" class="w-3.5 h-3.5 text-amber-400"></i>
-            <span>[场景音效: 粗重急促的喘息声 + 书页在风中剧烈翻动 1.2s]</span>
-            <button onclick="playParagraphAudio(160, 1.2)" class="hover:underline text-[10px] text-amber-200 ml-1">试听拟音</button>
-          </div>
-        </div>
+        <button onclick="auditionTone(330, 6.8)" title="试听当前段" class="dock-btn"><i data-lucide="volume-2" class="h-4 w-4"></i></button>
+        <button onclick="showToast('正在局部重新推理，仅覆盖当前段落', 'info')" title="局部重绘本段" class="dock-btn"><i data-lucide="sparkles" class="h-4 w-4"></i></button>
+        <a href="voice-library.html" title="更换音色" class="dock-btn"><i data-lucide="mic" class="h-4 w-4"></i></a>
+        <button onclick="showToast('已重新加入生成队列', 'info')" title="重新生成" class="dock-btn"><i data-lucide="rotate-cw" class="h-4 w-4"></i></button>
 
-        <!-- Paragraph 2: 克莱恩·莫雷蒂 (对白) -->
-        <div id="p-002" class="p-5 rounded-2xl bg-surface-card border border-brand-500/40 transition-all space-y-3 shadow-xl shadow-brand-500/5">
-          <div class="flex items-center justify-between text-xs">
-            <div class="flex items-center space-x-2.5">
-              <span class="w-2.5 h-2.5 rounded-full bg-brand-500"></span>
-              <span class="font-bold text-brand-300">【克莱恩·莫雷蒂】</span>
-              <!-- Emotion pill -->
-              <span class="text-[10px] bg-amber-500/10 text-amber-300 px-2 py-0.5 rounded border border-amber-500/20 font-medium">惊恐迷茫 (85%)</span>
-              <!-- Change speaker -->
-              <select onchange="showToast('已切换说话人', 'success')" class="bg-surface-base border border-surface-border text-slate-300 text-[10px] rounded px-1.5 py-0.5 focus:outline-none">
-                <option selected>克莱恩 (男主)</option>
-                <option>旁白</option>
-                <option>邓恩·史密斯</option>
-              </select>
-            </div>
-            <div class="flex items-center space-x-3">
-              <span class="text-[11px] font-mono text-slate-400">00:08 - 00:15 (6.8s)</span>
-              <button onclick="playParagraphAudio(330, 6.8)" class="w-7 h-7 rounded-full bg-brand-600 hover:bg-brand-500 text-white flex items-center justify-center transition-colors shadow">
-                <i data-lucide="play" class="w-3.5 h-3.5 ml-0.5 fill-current"></i>
-              </button>
-            </div>
-          </div>
+        <div class="my-1 h-px w-6 bg-white/[0.07]"></div>
 
-          <!-- Dialogue editable text -->
-          <div contenteditable="true" spellcheck="false" class="text-slate-100 leading-relaxed text-sm bg-surface-base/50 p-3 rounded-xl border border-transparent focus:border-brand-500/40 focus:outline-none">
-            “这是哪里……我不是在家里睡觉吗？为什么桌上会有一柄黄铜左轮手枪？！”
-          </div>
-
-          <div class="pt-2 border-t border-surface-border/50 flex items-center justify-between text-[11px] text-slate-500">
-            <span>音色: 英伦青年音·微颤 (Zero-Shot 克隆) • 语气: 颤抖气音</span>
-            <div class="flex items-center space-x-3">
-              <button onclick="showToast('已设置情绪强度 90%', 'success')" class="hover:text-slate-300">调节情绪</button>
-              <span>•</span>
-              <button onclick="showToast('正在局部重新推理...', 'info')" class="hover:text-brand-400">局部重绘 (Seed: 8421)</button>
-            </div>
-          </div>
-        </div>
-
-        <!-- Paragraph 3: 旁白 -->
-        <div id="p-003" class="p-5 rounded-2xl bg-surface-card border border-surface-border hover:border-slate-700 transition-all space-y-3 shadow-lg">
-          <div class="flex items-center justify-between text-xs">
-            <div class="flex items-center space-x-2.5">
-              <span class="w-2.5 h-2.5 rounded-full bg-blue-500"></span>
-              <span class="font-bold text-blue-400">【旁白】</span>
-              <span class="text-[10px] bg-surface-hover px-2 py-0.5 rounded text-slate-400 border border-surface-border">客观平缓</span>
-              <span class="text-[10px] text-slate-500 font-mono">#003</span>
-            </div>
-            <div class="flex items-center space-x-3">
-              <span class="text-[11px] font-mono text-slate-400">00:15 - 00:26 (11.0s)</span>
-              <button onclick="playParagraphAudio(220, 11.0)" class="w-7 h-7 rounded-full bg-surface-hover hover:bg-blue-600 text-slate-300 hover:text-white flex items-center justify-center transition-colors shadow">
-                <i data-lucide="play" class="w-3.5 h-3.5 ml-0.5 fill-current"></i>
-              </button>
-            </div>
-          </div>
-
-          <div class="text-slate-200 leading-relaxed text-sm">
-            他下意识抬手抚摸自己的太阳穴，指尖传来了湿润而冰冷的黏腻感。借着绯红月光，他赫然看清了自己的双手——那上面沾满了暗红发黑的血污！
-          </div>
-
-          <div class="pt-2 border-t border-surface-border/50 flex items-center justify-between text-[11px] text-slate-500">
-            <span>音色: 沧桑男中音</span>
-            <button onclick="showToast('已重新加入生成队列', 'info')" class="hover:text-brand-400">重新生成</button>
-          </div>
-        </div>
-
-        <!-- Paragraph 4: 梅丽莎·莫雷蒂 (对白) -->
-        <div id="p-004" class="p-5 rounded-2xl bg-surface-card border border-pink-500/30 transition-all space-y-3 shadow-lg">
-          <div class="flex items-center justify-between text-xs">
-            <div class="flex items-center space-x-2.5">
-              <span class="w-2.5 h-2.5 rounded-full bg-pink-500"></span>
-              <span class="font-bold text-pink-400">【梅丽莎·莫雷蒂】</span>
-              <span class="text-[10px] bg-pink-500/10 text-pink-400 px-2 py-0.5 rounded border border-pink-500/20 font-medium">轻柔担忧 (60%)</span>
-              <span class="text-[10px] text-slate-500 font-mono">门外传音·隔音混响</span>
-            </div>
-            <div class="flex items-center space-x-3">
-              <span class="text-[11px] font-mono text-slate-400">00:26 - 00:33 (7.1s)</span>
-              <button onclick="playParagraphAudio(440, 7.1)" class="w-7 h-7 rounded-full bg-pink-600 hover:bg-pink-500 text-white flex items-center justify-center transition-colors shadow">
-                <i data-lucide="play" class="w-3.5 h-3.5 ml-0.5 fill-current"></i>
-              </button>
-            </div>
-          </div>
-
-          <div class="text-slate-200 leading-relaxed text-sm">
-            “克莱恩？你还没睡吗？我听见你房间有响动，明天是廷根大学面试，可千万别睡过头了。”
-          </div>
-
-          <div class="pt-2 border-t border-surface-border/50 flex items-center justify-between text-[11px] text-slate-500">
-            <span>音色: 清澈少女音 • 挂载门阻隔混响 (Reverb Room 15%)</span>
-            <button onclick="showToast('已重新生成该台词', 'info')" class="hover:text-brand-400">重新生成</button>
-          </div>
-        </div>
-
+        <button onclick="setTuning(true)" title="更多参数" class="dock-btn"><i data-lucide="more-vertical" class="h-4 w-4"></i></button>
       </div>
 
-      <!-- Column 4: Voice Settings Panel -->
-      <aside class="w-72 flex flex-col overflow-y-auto shrink-0">
-        <div class="mt-4 mr-4 ml-0 mb-4 bg-surface-card border border-l-0 border-surface-border rounded-2xl p-5 flex flex-col">
-          <div class="pb-3 border-b border-surface-border">
-            <span class="text-xs font-bold text-slate-300">配音设置</span>
+      <!-- 展开态：配音设置面板 -->
+      <div id="tuningPanel" class="pointer-events-auto absolute inset-y-4 right-4 hidden w-72 overflow-y-auto">
+        <div class="flex min-h-full flex-col rounded-2xl border hairline bg-ink-800 p-5 shadow-2xl shadow-black/70">
+          <div class="flex items-start justify-between gap-2 border-b hairline pb-3">
+            <div class="min-w-0">
+              <span class="block text-[12.5px] font-semibold text-white">配音设置</span>
+              <span class="mt-1 block font-mono text-[10.5px] text-white/30">#002 克莱恩</span>
+            </div>
+            <button onclick="setTuning(false)" title="收起为悬浮工具栏" class="shrink-0 rounded-lg border hairline bg-ink-850 p-1.5 text-white/50 transition-colors hover:border-white/20 hover:text-white">
+              <i data-lucide="panel-right-close" class="h-4 w-4"></i>
+            </button>
           </div>
 
-          <div class="pt-4 space-y-4 text-xs flex-1">
-            <!-- Speaker -->
+          <div class="flex-1 space-y-5 pt-4">
             <div>
-              <label class="text-[10px] text-slate-500 block mb-1.5">说话人</label>
-              <select class="w-full bg-surface-base border border-surface-border rounded-lg px-2.5 py-1.5 text-slate-300 focus:outline-none">
+              <label class="mb-1.5 block text-[11.5px] font-medium text-white/60">说话人</label>
+              <select class="field">
                 <option>旁白</option>
-                <option selected>克莱恩 (男主)</option>
+                <option selected>克莱恩（男主）</option>
                 <option>梅丽莎·莫雷蒂</option>
                 <option>邓恩·史密斯</option>
               </select>
             </div>
 
-            <!-- Voice -->
             <div>
-              <label class="text-[10px] text-slate-500 block mb-1.5">音色模型</label>
-              <select class="w-full bg-surface-base border border-surface-border rounded-lg px-2.5 py-1.5 text-slate-300 focus:outline-none">
-                <option>Zero-Shot 克隆</option>
+              <label class="mb-1.5 block text-[11.5px] font-medium text-white/60">音色模型</label>
+              <select class="field">
+                <option>零样本克隆 Zero-Shot</option>
                 <option selected>CosyVoice-Pre</option>
                 <option>GPT-SoVITS 微调</option>
               </select>
+              <a href="voice-library.html" class="mt-1.5 block text-[11px] text-white/35 transition-colors hover:text-accent-400">前往全局声线资产库</a>
             </div>
 
-            <!-- Emotion -->
             <div>
-              <label class="text-[10px] text-slate-500 block mb-1.5">情绪强度</label>
-              <input type="range" min="0" max="100" value="85" class="w-full accent-brand-500">
-              <div class="flex justify-between text-[10px] text-slate-500 mt-1">
-                <span>平缓</span><span class="text-amber-400">惊恐迷茫 (85%)</span><span>激烈</span>
+              <div class="mb-2 flex items-center justify-between">
+                <label class="text-[11.5px] font-medium text-white/60">情绪强度</label>
+                <span id="emotionVal" class="font-mono text-[11px] text-amber-300">85%</span>
+              </div>
+              <input type="range" min="0" max="100" value="85" oninput="bindRange('emotionVal', this.value, '%')" class="w-full accent-accent">
+              <div class="mt-1 flex justify-between text-[10.5px] text-white/30">
+                <span>平缓</span><span>激烈</span>
               </div>
             </div>
 
-            <!-- Speed -->
             <div>
-              <label class="text-[10px] text-slate-500 block mb-1.5">语速</label>
-              <input type="range" min="0.5" max="2" step="0.05" value="1.05" class="w-full accent-brand-500">
-              <div class="text-[10px] text-slate-400 mt-1 font-mono">1.05x</div>
+              <div class="mb-2 flex items-center justify-between">
+                <label class="text-[11.5px] font-medium text-white/60">语速</label>
+                <span id="speedVal" class="font-mono text-[11px] text-white/60">1.05x</span>
+              </div>
+              <input type="range" min="0.5" max="2" step="0.05" value="1.05" oninput="bindRange('speedVal', this.value, 'x')" class="w-full accent-accent">
             </div>
 
-            <!-- Reverb -->
             <div>
-              <label class="text-[10px] text-slate-500 block mb-1.5">空间混响</label>
-              <select class="w-full bg-surface-base border border-surface-border rounded-lg px-2.5 py-1.5 text-slate-300 focus:outline-none">
+              <label class="mb-1.5 block text-[11.5px] font-medium text-white/60">空间混响</label>
+              <select class="field">
                 <option>无</option>
                 <option>小房间</option>
-                <option selected>门阻隔混响 (15%)</option>
+                <option selected>门阻隔混响 15%</option>
                 <option>大厅</option>
               </select>
             </div>
 
-            <!-- Seed -->
             <div>
-              <label class="text-[10px] text-slate-500 block mb-1.5">推理 Seed</label>
-              <input type="text" value="8421" class="w-full bg-surface-base border border-surface-border rounded-lg px-2.5 py-1.5 text-slate-300 font-mono focus:outline-none">
+              <label class="mb-1.5 block text-[11.5px] font-medium text-white/60">推理 Seed</label>
+              <div class="flex items-center gap-2">
+                <input id="seedInput" type="text" value="8421" class="field font-mono">
+                <button onclick="rollSeed()" class="shrink-0 rounded-lg border hairline bg-ink-850 p-2 text-white/50 transition-colors hover:border-white/20 hover:bg-ink-750 hover:text-white" title="换随机 Seed">
+                  <i data-lucide="dices" class="h-4 w-4"></i>
+                </button>
+              </div>
             </div>
           </div>
 
-          <div class="pt-3 border-t border-surface-border space-y-2">
-            <button onclick="showToast('正在局部重新推理...', 'info')" class="w-full bg-brand-600 hover:bg-brand-500 text-white text-xs font-medium py-2 rounded-lg transition-colors">
-              局部重绘
+          <div class="mt-5 shrink-0 space-y-2 border-t hairline pt-4">
+            <button onclick="showToast('正在局部重新推理，仅覆盖当前段落', 'info')" class="flex w-full items-center justify-center gap-2 rounded-lg bg-accent py-2 text-[12.5px] font-medium text-white transition-colors hover:bg-accent-600">
+              <i data-lucide="sparkles" class="h-4 w-4"></i>局部重绘本段
             </button>
-            <button onclick="showToast('已重新加入生成队列', 'info')" class="w-full bg-surface-hover hover:bg-slate-800 border border-surface-border text-slate-300 text-xs font-medium py-2 rounded-lg transition-colors">
-              重新生成
+            <button onclick="showToast('已重新加入生成队列', 'info')" class="flex w-full items-center justify-center gap-2 rounded-lg border hairline bg-ink-850 py-2 text-[12.5px] text-white/70 transition-colors hover:border-white/20 hover:bg-ink-750 hover:text-white">
+              <i data-lucide="rotate-cw" class="h-4 w-4"></i>重新生成
             </button>
           </div>
         </div>
-      </aside>
-
-    </main>
+      </div>
+    </div>
   </div>
 
-  <!-- ==================== 3. DOCKED MASTER AUDIO TRANSPORT ==================== -->
-  <footer class="h-20 border-t border-surface-border bg-surface-card px-6 flex items-center justify-between z-20 shrink-0">
-    <!-- Left Track Preview Status -->
-    <div class="flex items-center space-x-4 w-72">
-      <!-- Play/Pause Master -->
-      <button onclick="toggleMasterPlay()" id="masterPlayBtn" class="w-10 h-10 rounded-full bg-brand-600 hover:bg-brand-500 text-white flex items-center justify-center shadow-lg shadow-brand-500/30 transition-all">
-        <i id="masterPlayIcon" data-lucide="play" class="w-5 h-5 ml-0.5 fill-current"></i>
-      </button>
-
-      <div>
-        <div class="text-xs font-bold text-white">第001章 绯红之月 (全章混音)</div>
-        <div class="text-[11px] text-slate-400">BGM: 维多利亚悬疑雨夜 (自动闪避 Ducking)</div>
-      </div>
-    </div>
-
-    <!-- Center Playback Timeline Scrubber -->
-    <div class="flex-1 max-w-xl px-4 flex flex-col items-center space-y-1.5">
-      <!-- Multi-Track Strip Overview -->
-      <div class="w-full h-3 bg-surface-base rounded-full overflow-hidden flex items-center relative">
-        <div class="h-full bg-blue-500 w-[20%]" title="旁白"></div>
-        <div class="h-full bg-brand-500 w-[15%]" title="克莱恩"></div>
-        <div class="h-full bg-blue-500 w-[25%]" title="旁白"></div>
-        <div class="h-full bg-pink-500 w-[15%]" title="梅丽莎"></div>
-        <div class="h-full bg-slate-800 w-[25%]" title="间奏"></div>
-        <!-- Progress playhead -->
-        <div id="playhead" class="absolute top-0 bottom-0 left-[8%] w-1 bg-white shadow"></div>
-      </div>
-
-      <div class="w-full flex justify-between text-[11px] font-mono text-slate-400">
-        <span id="currentTime">00:08</span>
-        <span class="text-emerald-400 text-[10px]">人声闪避 (-14dB) 运行中</span>
-        <span>14:18</span>
-      </div>
-    </div>
-
-    <!-- Right Controls -->
-    <div class="flex items-center space-x-3 w-72 justify-end text-xs">
-      <div class="bg-surface-base px-2.5 py-1 rounded-lg border border-surface-border text-emerald-400 font-mono text-[11px]">
-        -14.2 LUFS
-      </div>
-      <div class="flex items-center space-x-1.5 text-slate-400">
-        <i data-lucide="volume-2" class="w-4 h-4"></i>
-        <input type="range" min="0" max="1" step="0.1" value="0.8" class="w-16 accent-brand-500 h-1 bg-surface-base rounded">
-      </div>
-    </div>
-  </footer>
-
-  <div id="toastContainer" class="fixed bottom-24 right-6 z-50 flex flex-col space-y-2 pointer-events-none"></div>
+  <div id="toastContainer" class="pointer-events-none fixed bottom-6 right-6 z-50 flex flex-col gap-2"></div>
 
   <script>
     lucide.createIcons();
 
-    let isPlaying = false;
+    /* ---------- audition (WebAudio tone placeholder) ---------- */
     let audioCtx = null;
-
-    function playParagraphAudio(freq, duration) {
+    function ensureCtx() {
       if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
       if (audioCtx.state === 'suspended') audioCtx.resume();
-
-      const osc = audioCtx.createOscillator();
-      const gain = audioCtx.createGain();
-      osc.type = 'sine';
-      osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
-      gain.gain.setValueAtTime(0.2, audioCtx.currentTime);
-      gain.gain.linearRampToValueAtTime(0.01, audioCtx.currentTime + 1.2);
-      osc.connect(gain);
-      gain.connect(audioCtx.destination);
-      osc.start();
-      osc.stop(audioCtx.currentTime + 1.2);
-
-      showToast(`正在播放段落试听音频 (${freq}Hz)`, 'info');
+      return audioCtx;
     }
 
-    function toggleMasterPlay() {
-      const btn = document.getElementById('masterPlayBtn');
-      const icon = document.getElementById('masterPlayIcon');
+    function auditionTone(freq, duration) {
+      const ctx = ensureCtx();
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(freq, ctx.currentTime);
+      gain.gain.setValueAtTime(0.18, ctx.currentTime);
+      gain.gain.linearRampToValueAtTime(0.01, ctx.currentTime + 1.2);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start();
+      osc.stop(ctx.currentTime + 1.2);
+      showToast(`正在试听本段音频 ${freq}Hz · ${duration}s`, 'info');
+    }
 
-      if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-      if (audioCtx.state === 'suspended') audioCtx.resume();
-
-      if (!isPlaying) {
-        isPlaying = true;
-        btn.classList.replace('bg-brand-600', 'bg-amber-500');
-        icon.setAttribute('data-lucide', 'pause');
-        lucide.createIcons();
-
-        const osc = audioCtx.createOscillator();
-        const gain = audioCtx.createGain();
-        osc.frequency.setValueAtTime(140, audioCtx.currentTime);
-        gain.gain.setValueAtTime(0.15, audioCtx.currentTime);
-        osc.connect(gain);
-        gain.connect(audioCtx.destination);
-        osc.start();
-        osc.stop(audioCtx.currentTime + 4);
-
-        showToast('全章母带播放已启动', 'success');
-      } else {
-        isPlaying = false;
-        btn.classList.replace('bg-amber-500', 'bg-brand-600');
-        icon.setAttribute('data-lucide', 'play');
-        lucide.createIcons();
-        showToast('播放已暂停', 'info');
-      }
+    /* ---------- chapter actions ---------- */
+    function reparseScript() {
+      showToast('正在用 Qwen2.5 重新提取对白与情绪…', 'info');
+      setTimeout(() => showToast('解析完成：4 段对白 · 1 处场景音效', 'success'), 1400);
     }
 
     function simulateBatchSynth() {
       const btn = document.getElementById('batchSynthBtn');
-      btn.innerHTML = `<i data-lucide="loader-2" class="w-4 h-4 animate-spin"></i><span>GPU 推理中...</span>`;
+      if (btn.dataset.busy) return;
+      btn.dataset.busy = '1';
+      btn.innerHTML = '<i data-lucide="loader-2" class="h-4 w-4 animate-spin"></i><span>GPU 推理中…</span>';
       lucide.createIcons();
 
       setTimeout(() => {
-        btn.innerHTML = `<i data-lucide="check" class="w-4 h-4 text-emerald-300"></i><span>批量合成完成</span>`;
+        btn.innerHTML = '<i data-lucide="badge-check" class="h-4 w-4"></i><span>本章合成完成</span>';
         lucide.createIcons();
-        showToast('当前章所有段落已通过 CosyVoice 2 推理完毕！', 'success');
-      }, 1500);
+        showToast('当前章 4 个段落已通过 CosyVoice 2 推理完毕', 'success');
+      }, 1600);
+
+      setTimeout(() => {
+        delete btn.dataset.busy;
+        btn.innerHTML = '<i data-lucide="play" class="h-4 w-4"></i><span class="hidden sm:inline">批量合成当前章</span>';
+        lucide.createIcons();
+      }, 5200);
     }
 
+    function reassignSpeaker(sel) {
+      const label = sel.selectedOptions[0].dataset.label;
+      sel.closest('[data-para]').querySelector('[data-speaker-label]').textContent = label;
+      showToast(`本段说话人已改绑为「${label}」，仅影响后续合成`, 'success');
+    }
+
+    function bindRange(id, value, unit) {
+      document.getElementById(id).textContent = value + unit;
+    }
+
+    function rollSeed() {
+      const input = document.getElementById('seedInput');
+      input.value = Math.floor(1000 + Math.random() * 8999);
+      showToast(`已换 Seed ${input.value}，可局部重绘本段`, 'info');
+    }
+
+    /* ---------- sidebar panes: 大纲 / 正文 ---------- */
+    const SIDEPANES = {
+      outline: { pane: 'paneOutline', meta: '共 4 段' },
+      source: { pane: 'paneSource', meta: '3,428 字' },
+    };
+
+    function setPane(name) {
+      Object.entries(SIDEPANES).forEach(([key, cfg]) => {
+        document.getElementById(cfg.pane).classList.toggle('hidden', key !== name);
+      });
+      document.querySelectorAll('[data-pane]').forEach((btn) => {
+        const on = btn.dataset.pane === name;
+        btn.classList.toggle('bg-white/[0.09]', on);
+        btn.classList.toggle('text-white', on);
+        btn.classList.toggle('text-white/45', !on);
+      });
+      document.getElementById('sidePanel').classList.toggle('side-wide', name === 'source');
+      document.getElementById('sideMeta').textContent = SIDEPANES[name].meta;
+    }
+
+    document.querySelectorAll('[data-pane]').forEach((btn) => {
+      btn.addEventListener('click', () => setPane(btn.dataset.pane));
+    });
+
+    /* ---------- paragraph activation: outline / source / feed stay in sync ---------- */
+    function setActivePara(id) {
+      document.querySelectorAll('[data-para]').forEach((p) => {
+        const on = p.id === id;
+        p.classList.toggle('ring-1', on);
+        p.classList.toggle('ring-accent/40', on);
+      });
+
+      document.querySelectorAll('#paneOutline a[href^="#p-"]').forEach((a) => {
+        const on = a.getAttribute('href') === '#' + id;
+        a.classList.toggle('bg-white/[0.06]', on);
+        a.classList.toggle('ring-1', on);
+        a.classList.toggle('ring-accent/25', on);
+        a.classList.toggle('text-white', on);
+        a.classList.toggle('text-white/50', !on);
+      });
+
+      document.querySelectorAll('[data-goto]').forEach((p) => {
+        const on = p.dataset.goto === id;
+        p.classList.toggle('bg-accent/[0.08]', on);
+        p.classList.toggle('text-white/90', on);
+      });
+    }
+
+    // scroll=feed 把剧本流滚到对应卡片；scroll=source 把原文滚到对应段落
+    function focusPara(id, scroll) {
+      const card = document.getElementById(id);
+      if (!card) return;
+      setActivePara(id);
+
+      if (scroll === 'feed') {
+        card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      } else if (scroll === 'source') {
+        setPane('source');
+        const first = document.querySelector(`[data-goto="${id}"]`);
+        if (first) first.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      }
+    }
+
+    document.getElementById('paneOutline').addEventListener('click', (e) => {
+      const link = e.target.closest('a[href^="#p-"]');
+      if (!link) return;
+      e.preventDefault();
+      focusPara(link.getAttribute('href').slice(1), 'feed');
+    });
+
+    document.querySelectorAll('[data-goto]').forEach((p) => {
+      p.addEventListener('click', () => focusPara(p.dataset.goto, 'feed'));
+    });
+
+    document.querySelectorAll('[data-para]').forEach((card) => {
+      card.addEventListener('click', (e) => {
+        if (e.target.closest('button, select')) return;
+        focusPara(card.id, 'source');
+      });
+    });
+
+    setActivePara('p-001');
+
+    /* ---------- floating tuning dock: collapse / expand ---------- */
+    function setTuning(open) {
+      document.getElementById('tuningDock').classList.toggle('hidden', open);
+      document.getElementById('tuningPanel').classList.toggle('hidden', !open);
+      document.getElementById('feedCol').classList.toggle('docked', open);
+    }
+
+    /* ---------- paragraph ordering: drag / move / undo / redo / reset ---------- */
+    const feed = document.getElementById('feed');
+    const BASE_ORDER = ['p-001', 'p-002', 'p-003', 'p-004'];
+    let order = BASE_ORDER.slice();
+    const undoStack = [];
+    const redoStack = [];
+
+    const tc = (sec) => `${String(Math.floor(sec / 60)).padStart(2, '0')}:${String(Math.floor(sec % 60)).padStart(2, '0')}`;
+
+    // 搜索语料排除 select 候选项文本，避免改绑下拉里的角色名造成误命中
+    function buildHay() {
+      document.querySelectorAll('[data-para]').forEach((p) => {
+        const clone = p.cloneNode(true);
+        clone.querySelectorAll('select').forEach((s) => s.remove());
+        p.dataset.hay = `${p.dataset.speaker} ${clone.textContent}`.toLowerCase();
+      });
+    }
+
+    // 重排后卡片序号、时间轴与左侧大纲都要跟着重算
+    function renderOrder() {
+      let t = 0;
+      order.forEach((id, i) => {
+        const card = document.getElementById(id);
+        feed.appendChild(card);
+        const cue = feed.querySelector(`[data-owner="${id}"]`);
+        if (cue) feed.appendChild(cue);
+
+        const dur = Number(card.dataset.dur);
+        card.querySelector('[data-cell="seq"]').textContent = `#${String(i + 1).padStart(3, '0')}`;
+        card.querySelector('[data-cell="time"]').textContent = `${tc(t)} – ${tc(t + dur)}`;
+        t += dur;
+
+        card.querySelector('[data-move="up"]').disabled = i === 0;
+        card.querySelector('[data-move="down"]').disabled = i === order.length - 1;
+
+        const link = document.querySelector(`#paneOutline [data-for="${id}"]`);
+        document.getElementById('paneOutline').appendChild(link);
+        link.querySelector('[data-cell="seq"]').textContent = `#${String(i + 1).padStart(2, '0')}`;
+      });
+      feed.appendChild(document.getElementById('cmdEmpty'));
+      buildHay();
+
+      const dirty = order.join() !== BASE_ORDER.join();
+      document.getElementById('orderState').textContent = dirty ? `自定义顺序 · 可撤销 ${undoStack.length} 步` : '原始顺序';
+      document.getElementById('undoBtn').disabled = !undoStack.length;
+      document.getElementById('redoBtn').disabled = !redoStack.length;
+      document.getElementById('resetBtn').disabled = !dirty;
+    }
+
+    function commit(next) {
+      if (next.join() === order.join()) return;
+      undoStack.push(order);
+      redoStack.length = 0;
+      order = next;
+      renderOrder();
+    }
+
+    function movePara(id, delta) {
+      const i = order.indexOf(id);
+      const j = i + delta;
+      if (j < 0 || j >= order.length) return;
+      const next = order.filter((x) => x !== id);
+      next.splice(j, 0, id);
+      commit(next);
+      showToast(`该段已${delta < 0 ? '前移' : '后移'}至第 ${j + 1} 位`, 'success');
+    }
+
+    function moveTo(id, targetId, before) {
+      const next = order.filter((x) => x !== id);
+      next.splice(targetId ? next.indexOf(targetId) + (before ? 0 : 1) : next.length, 0, id);
+      commit(next);
+    }
+
+    function undoOrder() {
+      if (!undoStack.length) return;
+      redoStack.push(order);
+      order = undoStack.pop();
+      renderOrder();
+      showToast('已撤销上一步顺序调整', 'info');
+    }
+
+    function redoOrder() {
+      if (!redoStack.length) return;
+      undoStack.push(order);
+      order = redoStack.pop();
+      renderOrder();
+      showToast('已重做顺序调整', 'info');
+    }
+
+    function resetOrder() {
+      commit(BASE_ORDER.slice());
+      showToast('已恢复段落原始顺序', 'success');
+    }
+
+    let draggedId = null;
+    function clearDropMarks() {
+      feed.querySelectorAll('.drop-before, .drop-after').forEach((el) => el.classList.remove('drop-before', 'drop-after'));
+    }
+    function endDrag() {
+      clearDropMarks();
+      if (draggedId) document.getElementById(draggedId).classList.remove('opacity-40');
+      draggedId = null;
+    }
+
+    // 整卡可拖；按下处若是按钮/下拉/可编辑正文，则临时关闭拖拽以保留其原生交互
+    feed.addEventListener('mousedown', (e) => {
+      const card = e.target.closest('[data-para]');
+      if (card) card.draggable = !e.target.closest('button, select, input, a, [contenteditable="true"]');
+    });
+
+    feed.addEventListener('dragstart', (e) => {
+      const card = e.target.closest('[data-para]');
+      if (!card || !card.draggable) return;
+      draggedId = card.id;
+      e.dataTransfer.effectAllowed = 'move';
+      e.dataTransfer.setData('text/plain', draggedId);
+      card.classList.add('opacity-40');
+    });
+
+    feed.addEventListener('dragover', (e) => {
+      if (!draggedId) return;
+      e.preventDefault();
+      const over = e.target.closest('[data-para]');
+      clearDropMarks();
+      if (!over || over.id === draggedId) return;
+      over.classList.add(e.clientY < over.getBoundingClientRect().top + over.offsetHeight / 2 ? 'drop-before' : 'drop-after');
+    });
+
+    feed.addEventListener('drop', (e) => {
+      if (!draggedId) return;
+      e.preventDefault();
+      const mark = feed.querySelector('.drop-before, .drop-after');
+      if (mark) moveTo(draggedId, mark.id, mark.classList.contains('drop-before'));
+      endDrag();
+    });
+
+    feed.addEventListener('dragend', endDrag);
+
+    renderOrder();
+
+    /* ---------- command bar: filter script feed ---------- */
+    const cmd = document.getElementById('cmd');
+    const cmdEmpty = document.getElementById('cmdEmpty');
+    const cmdEmptyText = document.getElementById('cmdEmptyText');
+
+    function runCommand() {
+      const kw = cmd.value.trim().toLowerCase();
+      let hits = 0;
+      document.querySelectorAll('[data-para]').forEach((p) => {
+        const on = !kw || p.dataset.hay.includes(kw);
+        p.classList.toggle('hidden', !on);
+        if (on) hits++;
+      });
+      document.querySelectorAll('[data-cue]').forEach((c) => c.classList.toggle('hidden', !!kw));
+      cmdEmptyText.textContent = `没有匹配「${cmd.value.trim()}」的段落`;
+      cmdEmpty.classList.toggle('hidden', hits > 0);
+    }
+
+    cmd.addEventListener('input', runCommand);
+    cmd.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') { cmd.value = ''; runCommand(); cmd.blur(); }
+    });
+
+    /* ---------- header overflow menu ---------- */
+    const moreMenu = document.getElementById('moreMenu');
+    function toggleMoreMenu(e) {
+      e.stopPropagation();
+      moreMenu.classList.toggle('hidden');
+    }
+    function closeMoreMenu() {
+      moreMenu.classList.add('hidden');
+    }
+
+    function shareChapter() {
+      const url = new URL('chapter-studio.html', location.href).href;
+      if (navigator.clipboard) navigator.clipboard.writeText(url).catch(() => {});
+      showToast('章节链接已复制到剪贴板', 'success');
+    }
+
+    document.addEventListener('keydown', (e) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        cmd.focus();
+        cmd.select();
+      }
+      if (e.key === 'Escape') closeMoreMenu();
+    });
+
+    document.addEventListener('click', (e) => {
+      if (!e.target.closest('#moreMenu')) closeMoreMenu();
+    });
+
+    /* ---------- toast ---------- */
     function showToast(msg, type = 'info') {
       const container = document.getElementById('toastContainer');
       const toast = document.createElement('div');
-      const bg = type === 'success' ? 'bg-emerald-600/90 border-emerald-500/50 text-white' : 'bg-surface-card border-surface-border text-slate-200';
-      toast.className = `${bg} border px-4 py-2.5 rounded-xl text-xs shadow-xl flex items-center space-x-2 pointer-events-auto`;
-      toast.innerHTML = `<i data-lucide="info" class="w-4 h-4 text-brand-400"></i><span>${msg}</span>`;
+      toast.className = 'pointer-events-auto flex items-center gap-2 rounded-xl border hairline bg-ink-750 px-4 py-2.5 text-[12.5px] text-white/80 shadow-2xl shadow-black/60';
+      toast.innerHTML = `<i data-lucide="${type === 'success' ? 'badge-check' : 'info'}" class="h-4 w-4 ${type === 'success' ? 'text-emerald-400' : 'text-accent-400'}"></i><span>${msg}</span>`;
       container.appendChild(toast);
       lucide.createIcons();
       setTimeout(() => toast.remove(), 2500);
