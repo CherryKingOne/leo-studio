@@ -46,5 +46,5 @@ async def root() -> dict:
         "docs": "/docs",
         "health": "/health",
         "api_prefix": "/api/v1",
-        "modules": ["text-files", "system"],
+        "modules": ["text-files", "projects", "system"],
     }
