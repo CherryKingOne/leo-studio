@@ -42,9 +42,12 @@ export function useHubChapters() {
 
 export function HubChaptersProvider({
   initialChapters,
+  studioReady = true,
   children,
 }: {
   initialChapters: HubChapter[];
+  /** 章节是否已有制作工作台数据；后端剧目暂无，拆解完也不给工作台入口 */
+  studioReady?: boolean;
   children: ReactNode;
 }) {
   const { show } = useToast();
@@ -84,8 +87,8 @@ export function HubChaptersProvider({
         prev.map((item) => {
           if (item.id !== chapter.id) return item;
           const ready = chapterAfterSplit(item);
-          // 追更导入的章节还没有工作台数据，不给进入制作工作台的入口
-          return item.imported ? { ...ready, openable: false } : ready;
+          // 追更导入与后端剧目都还没有工作台数据，不给进入制作工作台的入口
+          return item.imported || !studioReady ? { ...ready, openable: false } : ready;
         }),
       );
       setSplittingIds((prev) => prev.filter((id) => id !== chapter.id));

@@ -23,4 +23,16 @@
     #16161a 55%,
     #101013 100%
   );
+
+  /* 骨架屏微光扫过：配合 bg-[length:200%_100%] 的渐变底使用 */
+  --animate-shimmer: shimmer 1.8s ease-in-out infinite;
+
+  @keyframes shimmer {
+    0% {
+      background-position: 200% 0;
+    }
+    100% {
+      background-position: -200% 0;
+    }
+  }
 }

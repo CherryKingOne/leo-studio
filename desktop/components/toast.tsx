@@ -11,11 +11,11 @@ import {
 } from "react";
 
 type ToastTone = "info" | "success";
-type ToastItem = { id: number; message: string; tone: ToastTone };
+type ToastItem = { id: number; message: ReactNode; tone: ToastTone };
 
-const ToastContext = createContext<{ show: (message: string, tone?: ToastTone) => void } | null>(
-  null,
-);
+const ToastContext = createContext<{
+  show: (message: ReactNode, tone?: ToastTone, duration?: number) => void;
+} | null>(null);
 
 export function useToast() {
   const value = useContext(ToastContext);
@@ -29,13 +29,13 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   const [toasts, setToasts] = useState<ToastItem[]>([]);
   const seq = useRef(0);
 
-  const show = useCallback((message: string, tone: ToastTone = "info") => {
+  const show = useCallback((message: ReactNode, tone: ToastTone = "info", duration = 2500) => {
     seq.current += 1;
     const id = seq.current;
     setToasts((prev) => [...prev, { id, message, tone }]);
     setTimeout(() => {
       setToasts((prev) => prev.filter((item) => item.id !== id));
-    }, 2500);
+    }, duration);
   }, []);
 
   return (

@@ -14,14 +14,14 @@ import {
 import Link from "next/link";
 import { useState } from "react";
 import { useImportNovelModal } from "@/components/import-novel-modal";
-import type { ProjectEntry } from "@/lib/projects";
+import type { ProjectSummary } from "@/lib/projects";
 
 const navItem =
   "flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-[13px] text-white/65 transition-colors hover:bg-white/5 hover:text-white";
 const subItem =
   "flex items-center gap-2.5 rounded-lg py-1.5 pl-3 pr-2 text-[12.5px] transition-colors hover:bg-white/5";
 
-export function Sidebar({ projects }: { projects: ProjectEntry[] }) {
+export function Sidebar({ projects }: { projects: ProjectSummary[] }) {
   const { open: openImportModal } = useImportNovelModal();
   const [groupExpanded, setGroupExpanded] = useState(true);
 
@@ -67,6 +67,7 @@ export function Sidebar({ projects }: { projects: ProjectEntry[] }) {
               <Link
                 key={project.id}
                 href={`/project/${project.id}`}
+                prefetch={false}
                 className={`${subItem} text-white/45 hover:text-white`}
               >
                 <FileAudio className="h-3.5 w-3.5 shrink-0 text-white/25" />

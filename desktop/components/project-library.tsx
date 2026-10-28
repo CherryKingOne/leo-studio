@@ -1,19 +1,34 @@
 "use client";
 
-import { Filter, Inbox, Plus, Search } from "lucide-react";
+import { Filter, Inbox, ListChecks, Plus, Search, Trash2, Undo2, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { useImportNovelModal } from "@/components/import-novel-modal";
 import { ProjectCard, type CardAction } from "@/components/project-card";
+import { useToast } from "@/components/toast";
+import { removeProjects } from "@/lib/actions";
 import {
   sortProjects,
   sortOptions,
-  type ProjectEntry,
+  type ProjectSummary,
   type SortKey,
 } from "@/lib/projects";
 
-export function ProjectLibrary({ initialProjects }: { initialProjects: ProjectEntry[] }) {
+const toolbarButton =
+  "flex items-center gap-1.5 rounded-full border border-hairline bg-ink-800 px-3.5 py-2 text-[12.5px] text-white/70 transition-colors hover:border-white/20 hover:text-white disabled:cursor-not-allowed disabled:opacity-40";
+
+const menuItem =
+  "flex w-full items-center gap-2.5 px-3 py-2 text-left text-[12.5px] text-white transition-colors hover:bg-white/5 disabled:cursor-not-allowed disabled:opacity-40";
+
+const menuItemDanger =
+  "flex w-full items-center gap-2.5 px-3 py-2 text-left text-[12.5px] text-red-400 transition-colors hover:bg-white/5 disabled:cursor-not-allowed disabled:opacity-40";
+
+const toastLink =
+  "flex items-center gap-1 font-medium text-accent-400 transition-colors hover:text-accent";
+
+export function ProjectLibrary({ initialProjects }: { initialProjects: ProjectSummary[] }) {
   const router = useRouter();
+  const { show } = useToast();
   const { open: openImportModal } = useImportNovelModal();
   const [projects, setProjects] = useState(initialProjects);
   const [keyword, setKeyword] = useState("");
@@ -21,17 +36,22 @@ export function ProjectLibrary({ initialProjects }: { initialProjects: ProjectEn
   const [sortMenuOpen, setSortMenuOpen] = useState(false);
   const [menuId, setMenuId] = useState<string | null>(null);
   const [renamingId, setRenamingId] = useState<string | null>(null);
+  const [batchMode, setBatchMode] = useState(false);
+  const [batchMenuOpen, setBatchMenuOpen] = useState(false);
+  const [selected, setSelected] = useState<string[]>([]);
 
   useEffect(() => {
     const dismiss = (event: MouseEvent) => {
       if ((event.target as Element).closest("[data-menu]")) return;
       setMenuId(null);
       setSortMenuOpen(false);
+      setBatchMenuOpen(false);
     };
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
         setMenuId(null);
         setSortMenuOpen(false);
+        setBatchMenuOpen(false);
       }
     };
     document.addEventListener("mousedown", dismiss);
@@ -62,8 +82,71 @@ export function ProjectLibrary({ initialProjects }: { initialProjects: ProjectEn
       router.push(`/project/${id}`);
       return;
     }
-    if (action === "rename") setRenamingId(id);
+    if (action === "rename") {
+      setRenamingId(id);
+      return;
+    }
+    if (action === "delete") {
+      const project = projects.find((item) => item.id === id);
+      if (project) deleteProjects([project]);
+      return;
+    }
+    setBatchMode(true);
+    setSelected([id]);
   }
+
+  function toggleSelect(id: string) {
+    setSelected((prev) =>
+      prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id],
+    );
+  }
+
+  function exitBatch() {
+    setBatchMode(false);
+    setSelected([]);
+  }
+
+  /** 点击即删：先摘掉卡片，后端失败再回滚；撤销与回收站为前端占位，等恢复接口 */
+  function deleteProjects(targets: ProjectSummary[]) {
+    if (!targets.length) return;
+
+    const ids = new Set(targets.map((project) => project.id));
+    const snapshot = projects;
+    setProjects(snapshot.filter((project) => !ids.has(project.id)));
+    setSelected((prev) => prev.filter((id) => !ids.has(id)));
+    setBatchMenuOpen(false);
+
+    void removeProjects([...ids]).then((result) => {
+      if (!result.ok) {
+        setProjects(snapshot);
+        show(result.message, "info");
+      }
+    });
+
+    show(
+      <span className="flex flex-wrap items-center gap-1.5">
+        已删除，
+        <button type="button" onClick={() => setProjects(snapshot)} className={toastLink}>
+          <Undo2 className="h-3.5 w-3.5" />
+          撤销
+        </button>
+        或 在
+        <button
+          type="button"
+          onClick={() => show("回收站待后端恢复接口接入后开启", "info")}
+          className={toastLink}
+        >
+          <Trash2 className="h-3.5 w-3.5" />
+          回收站
+        </button>
+        寻找
+      </span>,
+      "info",
+      6000,
+    );
+  }
+
+  const allSelected = visible.length > 0 && visible.every((project) => selected.includes(project.id));
 
   return (
     <>
@@ -72,9 +155,66 @@ export function ProjectLibrary({ initialProjects }: { initialProjects: ProjectEn
           <span className="rounded-lg px-2.5 py-1.5 text-[15px] font-semibold text-white">
             全部
           </span>
+          {batchMode && selected.length > 0 && (
+            <span className="font-mono text-[11.5px] text-white/40">
+              已选 {selected.length} 项
+            </span>
+          )}
         </div>
 
         <div className="flex items-center gap-2">
+          {batchMode && (
+            <div
+              className="relative"
+              data-menu
+              onMouseEnter={() => setBatchMenuOpen(true)}
+              onMouseLeave={() => setBatchMenuOpen(false)}
+            >
+              <button
+                type="button"
+                onClick={() => setMenuId(null)}
+                className={`${toolbarButton} border-accent/30 bg-accent/15 text-accent-400`}
+              >
+                <ListChecks className="h-3.5 w-3.5" />
+                批量管理
+              </button>
+
+              {batchMenuOpen && (
+                <div className="absolute right-0 top-11 z-20 w-40 overflow-hidden rounded-xl border border-hairline bg-ink-750 py-1 shadow-2xl shadow-black/60">
+                  <button
+                    type="button"
+                    disabled={visible.length === 0}
+                    onClick={() =>
+                      setSelected(allSelected ? [] : visible.map((project) => project.id))
+                    }
+                    className={menuItem}
+                  >
+                    <ListChecks className="h-3.5 w-3.5" />
+                    {allSelected ? "取消全选" : "全选"}
+                  </button>
+                  <button
+                    type="button"
+                    disabled={selected.length === 0}
+                    onClick={() =>
+                      deleteProjects(projects.filter((project) => selected.includes(project.id)))
+                    }
+                    className={menuItemDanger}
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                    删除项目
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+
+          {batchMode && (
+            <button type="button" onClick={exitBatch} className={toolbarButton}>
+              <X className="h-3.5 w-3.5" />
+              取消批量管理
+            </button>
+          )}
+
           <div className="relative" data-menu>
             <button
               type="button"
@@ -119,16 +259,18 @@ export function ProjectLibrary({ initialProjects }: { initialProjects: ProjectEn
       </div>
 
       <div className="mt-6 grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
-        <div className="flex min-h-[236px] items-center justify-center rounded-2xl border border-dashed border-white/10 bg-ink-850">
-          <button
-            type="button"
-            onClick={openImportModal}
-            className="flex items-center gap-2 rounded-full border border-hairline bg-ink-700 px-5 py-2.5 text-[13px] font-medium text-white/80 transition-colors hover:bg-ink-600 hover:text-white"
-          >
-            <Plus className="h-4 w-4" />
-            新建项目
-          </button>
-        </div>
+        {!batchMode && (
+          <div className="flex min-h-[236px] items-center justify-center rounded-2xl border border-dashed border-white/10 bg-ink-850">
+            <button
+              type="button"
+              onClick={openImportModal}
+              className="flex items-center gap-2 rounded-full border border-hairline bg-ink-700 px-5 py-2.5 text-[13px] font-medium text-white/80 transition-colors hover:bg-ink-600 hover:text-white"
+            >
+              <Plus className="h-4 w-4" />
+              新建项目
+            </button>
+          </div>
+        )}
 
         {visible.map((project) => (
           <ProjectCard
@@ -136,12 +278,15 @@ export function ProjectLibrary({ initialProjects }: { initialProjects: ProjectEn
             project={project}
             menuOpen={menuId === project.id}
             renaming={renamingId === project.id}
+            batchMode={batchMode}
+            selected={selected.includes(project.id)}
             onToggleMenu={(id) => setMenuId((current) => (current === id ? null : id))}
             onAction={handleAction}
             onRename={(id, title) => {
               if (title) update(id, { title });
               setRenamingId(null);
             }}
+            onToggleSelect={toggleSelect}
           />
         ))}
 

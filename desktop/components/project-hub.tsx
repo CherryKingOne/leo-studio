@@ -23,7 +23,10 @@ export function ProjectHub({
 
   const tabs: { key: HubTab; label: string; Icon: LucideIcon }[] = [
     { key: "pipeline", label: `章节生产流水线 (${chapters.length})`, Icon: ListOrdered },
-    { key: "cast", label: `全书角色阵容与选角 (${cast.length})`, Icon: Users },
+    // 后端还没有角色台账接口，无数据时不展示选角 tab
+    ...(cast.length
+      ? [{ key: "cast" as HubTab, label: `全书角色阵容与选角 (${cast.length})`, Icon: Users }]
+      : []),
   ];
 
   function switchTab(next: HubTab) {

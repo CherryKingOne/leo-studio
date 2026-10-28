@@ -10,15 +10,30 @@ pnpm build # 生产构建
 pnpm lint  # ESLint
 ```
 
+### 后端地址
+
+页面在服务端直接请求后端，浏览器不直连，因此不受 CORS 限制，也无需 `NEXT_PUBLIC_` 前缀。
+
+```bash
+cp .env.example .env.local   # 首次拉取后执行
+```
+
+改 `.env.local` 里的 `API_BASE_URL` 指向后端（本机 `http://127.0.0.1:8000`，局域网填后端机器 IP），
+dev 会热更新该变量，不必重启。缺省或填错时 `/project` 渲染 `app/project/error.tsx` 的失败页并给出提示。
+
+`lib/api.ts` 的每个取数函数都带 `'use cache'` + `cacheLife("seconds")` + `cacheTag("projects")`：
+列表页的 prefetch 与页面内反复导航不会反复打后端（5 秒内命中缓存），接上写接口后用
+`revalidateTag("projects")` 立即失效。
+
 ## 路由约定
 
 一级路径即功能区，页面不放在根路径下。
 
 | 路径 | 状态 | 说明 |
 | --- | --- | --- |
-| `/project` | 已实现 | 剧目库列表页，源码 `app/project/page.tsx` |
+| `/project` | 已实现 | 剧目库列表页，源码 `app/project/page.tsx`；数据来自 `GET /api/v1/projects`（服务端渲染，读 `.env.local` 的 `API_BASE_URL`，取数期间显示骨架屏），卡片「删除」与批量删除经服务端动作调 `DELETE /api/v1/projects/{id}` |
 | `/` | 占位 | 仅 `redirect("/project")`，见 `app/page.tsx`；真正的首屏后续补，改写该文件即可，**不要**把剧目库搬回根路径 |
-| `/project/[id]` | 已实现 | 剧目看板，源码 `app/project/[id]/page.tsx` + `components/project-hub.tsx`（原型 `project-hub.html`）；`generateStaticParams` 预渲染已知剧目，未知 id 走 `notFound()`；「追更上传章节」在本地解析文稿并续编新章节行 |
+| `/project/[id]` | 已实现 | 剧目看板，源码 `app/project/[id]/page.tsx` + `components/project-hub.tsx`（原型 `project-hub.html`）；真实剧目取 `GET /api/v1/projects/{id}` + `GET /api/v1/projects/{id}/chapters`，章节一律「待拆解」且不给工作台入口，无角色数据时不显示选角 tab；`p-*` 三个原型剧目仍走 mock（含角色台账与工作台剧本）；「追更上传章节」仍是本地解析 mock |
 | `/project/[id]/chapter/[chapterId]` | 已实现 | 章节制作工作台，源码 `app/project/[id]/chapter/[chapterId]/page.tsx` + `components/chapter-studio.tsx`（原型 `chapter-studio.html`）；`generateStaticParams` 预渲染看板中 `openable` 的章节，未知 id 走 `notFound()`；未逐句核对过的章节由 `studioFor()` 铺占位剧本 |
 | `/project/[id]/export` | 未实现 | 整书母带导出中心（原型 `export-center.html`） |
 | `/voice-library` | 未实现 | 全局声线资产库（原型 `voice-library.html`） |
@@ -30,26 +45,27 @@ pnpm lint  # ESLint
 ```
 app/
   layout.tsx            全局外壳：zh-CN、暗色、字体与背景
-  globals.css           Tailwind 入口 + @theme 设计 token
+  globals.css           Tailwind 入口 + @theme 设计 token（含骨架屏用的 `--animate-shimmer`）
   page.tsx              根路径占位跳转
-  project/page.tsx      剧目库列表页
-  project/[id]/page.tsx 剧目看板页
+  project/page.tsx      剧目库列表页（服务端取数 + Suspense 骨架）
+  project/error.tsx     后端不可用时的失败页与重试
+  project/[id]/page.tsx 剧目看板页（原型剧目走 mock，其余取后端项目详情与章节大纲）
   project/[id]/chapter/[chapterId]/page.tsx 章节制作工作台页
 components/
   modal.tsx             弹窗外壳（遮罩、Esc/点击关闭、标题栏）与表单样式 token；size="lg" 给宽弹窗 + 内部滚动 + footer 插槽
-  toast.tsx             轻提示（ToastProvider + useToast，2.5 秒自动消失）
-  sidebar.tsx           左侧导航（「我的剧目」分组下平铺剧目，条目用 FileAudio 图标）
+  toast.tsx             轻提示（ToastProvider + useToast）：文案可为 ReactNode，第三参自定义停留时长，默认 2.5 秒
+  sidebar.tsx           左侧导航（「我的剧目」分组下平铺剧目，条目用 FileAudio 图标；剧目库列表页传入后端数据）
   top-bar.tsx           顶栏
   floating-actions.tsx  右缘悬浮按钮
-  project-library.tsx   列表状态：搜索 / 排序
-  project-card.tsx      剧目卡片，含打开 / 重命名操作菜单
-  waveform.tsx          封面声波，种子伪随机保证 SSR 与水合一致
+  project-library.tsx   列表状态：搜索 / 排序 / 点击即删（带撤销提示条）；批量态工具栏为「批量管理」（hover 下拉：全选、删除项目）+ 独立「取消批量管理」
+  project-card.tsx      剧目卡片：文件名 + 章节数/字数/更新时间，菜单为打开 / 重命名 / 删除（红字） / 批量管理；批量态封面点击改勾选
+  library-skeleton.tsx  剧目库骨架屏：侧栏 + 工具栏 + 卡片网格占位，配 `animate-shimmer` 微光扫过
   import-novel-modal.tsx 导入小说弹窗（Provider + hook + 弹窗本体）
   clone-voice-modal.tsx 克隆新音色弹窗（Provider + hook + 弹窗本体）
   chapter-import-modal.tsx 追更上传章节弹窗：本地解析「第X章」分章、导入预览与同名跳过
-  hub-header.tsx        剧目看板的项目级顶栏：返回书架 + 可改名标题 + 章节与字数统计 + 全书进度 + 导出入口
+  hub-header.tsx        剧目看板的项目级顶栏：返回书架 + 可改名标题 + 章节与副标题 + 导出入口（无进度数据时不画进度条）
   hub-chapters.tsx      看板章节状态（Provider + useHubChapters）：拆解与合成推进、追更导入追加章节
-  project-hub.tsx       看板 tab 容器：章节流水线 / 角色阵容，持有搜索与只看已就绪
+  project-hub.tsx       看板 tab 容器：章节流水线 / 角色阵容，持有搜索与只看已就绪；cast 为空时不渲染选角 tab
   chapter-pipeline.tsx  章节生产流水线表格：状态筛选、批量勾选、拆解与合成推进、追更上传入口
   cast-matrix.tsx       全书角色台账卡片：声线绑定与试听（Web Audio 发特征音）
   chapter-studio.tsx    工作台状态容器：段落顺序与撤销重做、当前段落、大纲/正文 pane、搜索词、配音面板
@@ -58,6 +74,8 @@ components/
   script-feed.tsx       剧本流：段落卡片、拖拽与上下移排序、序号与时间轴重算、音效提示与筛选空态
   tuning-dock.tsx       右缘悬浮工具栏与展开的配音设置面板（说话人 / 模型 / 情绪 / 语速 / 混响 / Seed）
 lib/
+  api.ts               后端接口层：读 `API_BASE_URL`、拆 `{ code, message, data }` 包装、字段映射为视图模型
+  actions.ts            服务端动作（"use server"）：批量删除剧目后 `updateTag("projects")`，列表当场刷新
   projects.ts           数据模型、mock 数据与格式化函数
   audio.ts              试听特征音（Web Audio），工作台与台账共用
   scrollbar.ts          `inkScrollbar` 工具类串：暗色细胶囊滚动条，等价原型的 ::-webkit-scrollbar 处理
@@ -70,7 +88,13 @@ lib/
 - 弹窗独立成组件文件，由 Provider 持有开关、触发方通过 hook 调用，不在页面里复制弹窗 DOM。
 - 剧目看板的章节列表由 `hub-chapters.tsx` 的 Provider 统一持有：顶栏统计、tab 计数与流水线表格读同一份 state，追更导入的新章节因此三处同步变化。
 - 图标统一用 `lucide-react`。
-- 数据目前来自 `lib/projects.ts` 的 mock，接后端时替换该文件即可，组件层不直接依赖来源。
+- 数据来源分两段：剧目库列表与剧目看板（项目信息、章节大纲）读后端，`lib/api.ts` 只在服务端调用、snake_case 映射成视图模型（`ProjectSummary` / `ProjectChapter`）再下发组件；角色台账、生产状态、章节工作台仍是 `lib/projects.ts` 的 mock，后端出对应接口后逐个替换，组件层不直接依赖来源。
+- 后端没有的字段不展示：列表卡片与排序只用 `name` / `filename` / `chapter_count` / `total_words` / `updated_at`（`status` 后端有值但界面不再放胶囊），看板顶栏在没有进度数据时不画进度条，别用假数据补。
+- 浏览器不直连后端：读操作在 Server Component 里调 `lib/api.ts`，写操作放 `lib/actions.ts` 的 `"use server"` 动作里（后端未开 CORS），动作返回 `{ ok, message }` 而不是抛错。
+- 删除是「点击即删」，没有二次确认弹窗：先乐观摘掉卡片、后端失败再回滚，成功后弹 6 秒提示条 `已删除，撤销 或 在 回收站 寻找`。撤销与回收站目前是前端占位（撤销只把卡片放回本次会话的列表），等后端补软删除/恢复接口再接真逻辑。
+- 服务端取数的路由用 `Suspense` + 骨架屏占住版式（`components/library-skeleton.tsx`），不要写「正在加载…」文字；骨架的容器尺寸、栅格列数要和真实卡片一致，数据到位时不跳版。
+- 批量管理的入口在卡片「···」菜单的「批量管理」项：点击后进入批量态并自动勾选该卡片，封面点击改勾选、显示`已选 N 项`。批量态下工具栏为`批量管理`(accent 高亮) + `取消批量管理` 两个按钮，前者鼠标悬停弹出下拉承载`全选/取消全选`与`删除项目`（作用于已勾选项，未选时禁用）；取消批量管理是工具栏上的独立按钮，不放进下拉。批量删除与单条删除走同一条「点击即删 + 撤销提示条」逻辑。
+- 危险项只用红色文字与红色图标（`text-red-400`），底色仍走中性 `hover:bg-white/5`，不要红色背景；红白两色要写成两个完整 class 串（`menuRow` / `menuRowDanger`），拼在一条 `text-white text-red-400` 里会被 Tailwind 的产物顺序覆盖成白色。
 - 原型页与 desktop 路由一一对应，每个原型页核对通过后再单独移植成一个独立页面/组件文件；不要把新页面写进已有页面的文件里。
 - 全局层页面（`/project`）用 `Sidebar` + `TopBar`；单书上下文层的剧目看板与章节工作台按原型自带的项目顶栏（`hub-header.tsx` / `studio-header.tsx`）呈现，不再叠全局外壳。
 - 章节工作台是 `h-screen` 满屏布局：页面自身不滚动，大纲、正文与剧本流各自内部滚动。

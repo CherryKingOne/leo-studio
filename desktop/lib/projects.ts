@@ -1,5 +1,22 @@
 export type ProjectStatus = "制作中" | "母带就绪";
-export type SortKey = "edited" | "progress" | "duration";
+export type SortKey = "edited" | "chapters" | "words";
+
+/** 后端章节大纲映射后的轻量结构 */
+export type ProjectChapter = {
+  id: string;
+  index: number;
+  title: string;
+  words: number;
+};
+
+/** 看板顶栏的剧目标识，mock 剧目与后端剧目共用 */
+export type HubIdentity = {
+  title: string;
+  /** 标题下的副标题行：作者或文件名 · 字数 · 更新时间 */
+  subtitle: string;
+  /** 全书进度百分比，后端暂无该数据时不画进度条 */
+  progress?: number;
+};
 
 export type GenreTone = "accent" | "emerald" | "amber";
 
@@ -21,10 +38,22 @@ export type ProjectEntry = {
   editedHoursAgo: number;
 };
 
+/** 剧目库列表卡片的数据，字段全部来自后端 GET /api/v1/projects */
+export type ProjectSummary = {
+  id: string;
+  title: string;
+  /** 上传时的原始文件名 */
+  filename: string;
+  chapters: number;
+  totalWords: number;
+  /** 距最后更新的小时数，由服务端算好后下发 */
+  editedHoursAgo: number;
+};
+
 export const sortOptions: { key: SortKey; label: string }[] = [
   { key: "edited", label: "最近编辑" },
-  { key: "progress", label: "按进度" },
-  { key: "duration", label: "按已生成时长" },
+  { key: "chapters", label: "按章节数" },
+  { key: "words", label: "按字数" },
 ];
 
 export const initialProjects: ProjectEntry[] = [
@@ -78,33 +107,25 @@ export function relativeTime(hoursAgo: number) {
   return `${Math.round(hoursAgo / 168)} 周前`;
 }
 
-export function durationLabel(seconds: number) {
-  if (!seconds) return "待批量生成";
-  return `已生成 ${Math.floor(seconds / 60)}分${String(seconds % 60).padStart(2, "0")}秒`;
+export function wordsLabel(words: number) {
+  return words >= 10000 ? `${(words / 10000).toFixed(1)} 万字` : `${formatWords(words)} 字`;
 }
 
-export function coverHint(project: ProjectEntry) {
-  if (project.progress === 100) return "全章混音完成";
-  if (project.pendingRoles) return `${project.pendingRoles} 位角色待选角`;
-  return `第 ${String(project.currentChapter ?? 1).padStart(3, "0")} 章 / 共 ${project.chapters} 章`;
-}
-
-export function projectMeta(project: ProjectEntry) {
+export function projectMeta(project: ProjectSummary) {
   return [
     `${project.chapters} 章`,
-    `进度 ${project.progress}%`,
-    durationLabel(project.generatedSeconds),
+    wordsLabel(project.totalWords),
     relativeTime(project.editedHoursAgo),
   ].join(" · ");
 }
 
-export function sortProjects(projects: ProjectEntry[], key: SortKey) {
-  const value = (project: ProjectEntry) =>
+export function sortProjects(projects: ProjectSummary[], key: SortKey) {
+  const value = (project: ProjectSummary) =>
     key === "edited"
       ? -project.editedHoursAgo
-      : key === "progress"
-        ? project.progress
-        : project.generatedSeconds;
+      : key === "chapters"
+        ? project.chapters
+        : project.totalWords;
   return [...projects].sort((a, b) => value(b) - value(a));
 }
 
@@ -519,6 +540,25 @@ export function chapterAfterRender(chapter: HubChapter): HubChapter {
     status: { label: "全章母带就绪", tone: "emerald", icon: "master" },
     action: { kind: "studio" },
     openable: true,
+  };
+}
+
+/** 后端章节大纲 → 流水线行：后端暂无生产状态，一律待拆解且不给工作台入口 */
+export function chapterFromOutline(chapter: ProjectChapter): HubChapter {
+  return {
+    id: chapter.id,
+    no: String(chapter.index + 1).padStart(2, "0"),
+    title: chapter.title,
+    excerpt: "原文已入库，等待拆本引擎识别对白、旁白与情绪。",
+    words: chapter.words,
+    tone: "neutral",
+    state: "待拆解",
+    status: { label: "待拆解", tone: "neutral", icon: "scan" },
+    speakers: null,
+    action: { kind: "split" },
+    openable: false,
+    // 整本书可能有上千章，先只铺前 20 行，其余走「展开全部」
+    collapsed: chapter.index >= 20,
   };
 }
 

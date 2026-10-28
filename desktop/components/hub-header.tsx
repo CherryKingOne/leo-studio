@@ -5,12 +5,18 @@ import Link from "next/link";
 import { useState } from "react";
 import { useHubChapters } from "@/components/hub-chapters";
 import { useToast } from "@/components/toast";
-import { hubSubtitle, type ProjectEntry } from "@/lib/projects";
+import type { HubIdentity } from "@/lib/projects";
 
-export function HubHeader({ project }: { project: ProjectEntry }) {
+export function HubHeader({
+  projectId,
+  identity,
+}: {
+  projectId: string;
+  identity: HubIdentity;
+}) {
   const { show } = useToast();
   const { chapters } = useHubChapters();
-  const [title, setTitle] = useState(project.title);
+  const [title, setTitle] = useState(identity.title);
   const [editing, setEditing] = useState(false);
 
   function commit(value: string) {
@@ -63,27 +69,27 @@ export function HubHeader({ project }: { project: ProjectEntry }) {
                 {chapters.length} 章节
               </span>
             </div>
-            <div className="mt-1 truncate text-[11.5px] text-white/35">
-              {hubSubtitle(project, chapters)}
-            </div>
+            <div className="mt-1 truncate text-[11.5px] text-white/35">{identity.subtitle}</div>
           </div>
         </div>
       </div>
 
       <div className="flex shrink-0 items-center gap-3">
-        <div className="hidden items-center gap-2 text-[12px] text-white/45 lg:flex">
-          <span>全书进度</span>
-          <div className="h-[3px] w-24 overflow-hidden rounded-full bg-white/10">
-            <div
-              className="h-full rounded-full bg-accent"
-              style={{ width: `${project.progress}%` }}
-            />
+        {identity.progress !== undefined && (
+          <div className="hidden items-center gap-2 text-[12px] text-white/45 lg:flex">
+            <span>全书进度</span>
+            <div className="h-[3px] w-24 overflow-hidden rounded-full bg-white/10">
+              <div
+                className="h-full rounded-full bg-accent"
+                style={{ width: `${identity.progress}%` }}
+              />
+            </div>
+            <span className="font-mono text-white/60">{identity.progress}%</span>
           </div>
-          <span className="font-mono text-white/60">{project.progress}%</span>
-        </div>
+        )}
 
         <Link
-          href={`/project/${project.id}/export`}
+          href={`/project/${projectId}/export`}
           className="flex items-center gap-2 rounded-lg border border-hairline bg-ink-800 px-3.5 py-2 text-[12.5px] font-medium text-white/75 transition-colors hover:border-emerald-400/30 hover:bg-emerald-400/10 hover:text-emerald-300"
         >
           <Download className="h-4 w-4 text-emerald-400/80" />
