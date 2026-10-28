@@ -42,8 +42,6 @@
 | --- | --- | --- |
 | `project_id` | `string` | 项目唯一标识 (UUID4) |
 | `file_id` | `string` | 关联小说文本文件 ID (UUID4) |
-| `version_id` | `string` | 生成的历史版本快照唯一标识 (UUID4)，预检模式下为空 |
-| `version_number` | `integer` | 当前版本号（如 `1`, `2`...） |
 | `added_chapters` | `integer` | 本次新增追加的章节数量 |
 | `skipped_chapters` | `integer` | 本次跳过（或保留）的已存在章节数量 |
 | `total_chapters` | `integer` | 项目最新总章节数 |
@@ -51,6 +49,7 @@
 | `has_conflicts` | `boolean` | 是否检测到新旧章节内容或字数差异冲突 |
 | `conflicts` | `ChapterConflictItem[]` | 冲突章节差异列表（包含章节标题、原字数、新字数、差值） |
 | `updated_at` | `string` | 项目最新更新时间（ISO 8601 UTC 格式） |
+
 
 ### `conflicts[]` 冲突元素（`ChapterConflictItem`）
 
@@ -96,8 +95,6 @@ print(response.json())
   "data": {
     "project_id": "9f8c12a4b3e2489c91d8e5f2a1b3c4d5",
     "file_id": "3a8b2c1d0e4f5a6b7c8d9e0f1a2b3c4d",
-    "version_id": "8f7e6d5c4b3a210987654321fedcba98",
-    "version_number": 2,
     "added_chapters": 100,
     "skipped_chapters": 100,
     "total_chapters": 200,
@@ -106,6 +103,7 @@ print(response.json())
     "conflicts": [],
     "updated_at": "2026-10-27T19:30:00.000000Z"
   },
+
   "request_id": "req-9c8b7a6d5e4f3a2b"
 }
 ```

@@ -79,28 +79,11 @@ class ChapterConflictInfo:
 
 
 @dataclass(slots=True)
-class ProjectVersionInfo:
-    """项目历史版本快照模型。"""
-
-    version_id: str
-    project_id: str
-    file_id: str
-    version_number: int
-    filename: str
-    chapter_count: int
-    total_words: int
-    created_at: datetime
-    remark: str
-
-
-@dataclass(slots=True)
 class ProjectChapterAppendInfo:
     """追加章节后的项目统计与结果元数据。"""
 
     project_id: str
     file_id: str
-    version_id: str
-    version_number: int
     added_chapters: int
     skipped_chapters: int
     total_chapters: int
@@ -109,16 +92,5 @@ class ProjectChapterAppendInfo:
     conflicts: list[ChapterConflictInfo]
     updated_at: datetime
 
-
-@dataclass(slots=True)
-class ProjectRollbackInfo:
-    """项目回滚结果模型。"""
-
-    project_id: str
-    restored_version_id: str
-    restored_version_number: int
-    chapter_count: int
-    total_words: int
-    updated_at: datetime
 
 

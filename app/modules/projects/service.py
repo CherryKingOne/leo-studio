@@ -14,9 +14,6 @@ from pathlib import Path
 from typing import BinaryIO
 
 from app.modules.projects.constants import (
-    MAX_PROJECT_VERSIONS,
-    PROJECT_VERSIONS_COLUMNS,
-    PROJECT_VERSIONS_CSV_FILENAME,
     PROJECTS_COLUMNS,
     PROJECTS_CSV_FILENAME,
 )
@@ -27,9 +24,7 @@ from app.modules.projects.models import (
     ChapterSentenceInfo,
     ProjectChapterAppendInfo,
     ProjectInfo,
-    ProjectRollbackInfo,
     ProjectStatus,
-    ProjectVersionInfo,
 )
 from app.modules.text_files.csv_store import CsvTable
 from app.modules.text_files.dependencies import get_storage_service
@@ -135,32 +130,9 @@ class ProjectService:
             self.csv_dir / PROJECTS_CSV_FILENAME,
             columns=PROJECTS_COLUMNS,
         )
-        self.versions_table = CsvTable(
-            self.csv_dir / PROJECT_VERSIONS_CSV_FILENAME,
-            columns=PROJECT_VERSIONS_COLUMNS,
-        )
-
-    def version_record_to_info(self, record: dict[str, str]) -> ProjectVersionInfo:
-        """将 CSV 记录转换为 ProjectVersionInfo 领域模型。"""
-        created_at_raw = record.get("created_at")
-        created_at = (
-            datetime.fromisoformat(created_at_raw)
-            if created_at_raw
-            else datetime.now(UTC)
-        )
-        return ProjectVersionInfo(
-            version_id=record.get("version_id", ""),
-            project_id=record.get("project_id", ""),
-            file_id=record.get("file_id", ""),
-            version_number=int(record.get("version_number", 1) or 1),
-            filename=record.get("filename", ""),
-            chapter_count=int(record.get("chapter_count", 0) or 0),
-            total_words=int(record.get("total_words", 0) or 0),
-            created_at=created_at,
-            remark=record.get("remark", ""),
-        )
 
     def record_to_info(self, record: dict[str, str]) -> ProjectInfo:
+
 
         """将 CSV 记录转换为 ProjectInfo 领域模型。"""
         created_at_raw = record.get("created_at")
@@ -236,18 +208,6 @@ class ProjectService:
         }
 
         self.projects_table.insert(record)
-
-        # 初始化版本快照 V1
-        self.create_project_version(
-            project_id=project_id,
-            file_id=file_info.file_id,
-            filename=file_info.filename,
-            version_number=1,
-            chapter_count=chapter_count,
-            total_words=total_words,
-            remark="初始创建",
-        )
-
         return self.record_to_info(record)
 
     def get_project(self, project_id: str) -> ProjectInfo:
@@ -272,29 +232,18 @@ class ProjectService:
         return items[start : start + page_size], total
 
     def delete_project(self, project_id: str) -> ProjectInfo:
-        """删除项目及其关联的文本文件、章节数据与历史版本快照。"""
+        """删除项目及其关联的文本文件与章节数据。"""
         info = self.get_project(project_id)
 
         # 删除项目记录
         self.projects_table.delete_by("project_id", project_id)
-
-        # 清理版本快照记录与附加物理文件
-        version_rows = self.versions_table.find_all(
-            lambda r: r.get("project_id") == project_id
-        )
-        self.versions_table.delete_by("project_id", project_id)
-        for v in version_rows:
-            f_id = v.get("file_id")
-            if f_id and f_id != info.file_id:
-                for p in self.storage.upload_dir.glob(f"{f_id}.*"):
-                    with contextlib.suppress(OSError):
-                        p.unlink()
 
         # 级联删除关联的文本文件及章节/切句数据
         with contextlib.suppress(FileNotFoundError):
             self.storage.delete_file(info.file_id)
 
         return info
+
 
 
     def get_project_chapters(self, project_id: str) -> list[ChapterOutlineInfo]:
@@ -452,13 +401,6 @@ class ProjectService:
             else:
                 simulated_added += 1
 
-        existing_versions = self.list_project_versions(project.project_id)
-        current_max_ver = (
-            max(v.version_number for v in existing_versions)
-            if existing_versions
-            else 1
-        )
-
         # 若为预检模式（dry_run=True），直接清理临时文件并返回比对结果，不写入任何数据
         if dry_run:
             target.unlink(missing_ok=True)
@@ -473,8 +415,6 @@ class ProjectService:
             return ProjectChapterAppendInfo(
                 project_id=project.project_id,
                 file_id=project.file_id,
-                version_id="",
-                version_number=current_max_ver,
                 added_chapters=simulated_added,
                 skipped_chapters=simulated_skipped,
                 total_chapters=projected_chapters,
@@ -483,6 +423,7 @@ class ProjectService:
                 conflicts=conflicts,
                 updated_at=project.updated_at,
             )
+
 
         added_chapters = 0
         skipped_chapters = 0
@@ -590,29 +531,11 @@ class ProjectService:
             },
         )
 
-        # 生成新的历史版本快照记录并执行滑动窗口淘汰
-        next_ver_num = current_max_ver + 1
-        remark = (
-            f"追加章节(+{added_chapters})"
-            if added_chapters > 0
-            else "更新已有章节"
-        )
-        new_version = self.create_project_version(
-            project_id=project.project_id,
-            file_id=upload_file_id,
-            filename=clean_filename,
-            version_number=next_ver_num,
-            chapter_count=total_chapters,
-            total_words=total_words,
-            remark=remark,
-        )
-        self.prune_project_versions(project.project_id)
+        target.unlink(missing_ok=True)
 
         return ProjectChapterAppendInfo(
             project_id=project.project_id,
             file_id=project.file_id,
-            version_id=new_version.version_id,
-            version_number=new_version.version_number,
             added_chapters=added_chapters,
             skipped_chapters=skipped_chapters,
             total_chapters=total_chapters,
@@ -622,185 +545,5 @@ class ProjectService:
             updated_at=now,
         )
 
-    def create_project_version(
-        self,
-        project_id: str,
-        file_id: str,
-        filename: str,
-        version_number: int,
-        chapter_count: int,
-        total_words: int,
-        remark: str,
-    ) -> ProjectVersionInfo:
-        """创建一条项目版本快照记录。"""
-        version_id = uuid.uuid4().hex
-        now = datetime.now(UTC)
-        record = {
-            "version_id": version_id,
-            "project_id": project_id,
-            "file_id": file_id,
-            "version_number": str(version_number),
-            "filename": filename,
-            "chapter_count": str(chapter_count),
-            "total_words": str(total_words),
-            "created_at": now.isoformat(),
-            "remark": remark,
-        }
-        self.versions_table.insert(record)
-        return self.version_record_to_info(record)
-
-    def list_project_versions(self, project_id: str) -> list[ProjectVersionInfo]:
-        """查询指定项目的全部历史版本快照，按版本编号倒序排列。"""
-        self.get_project(project_id)
-        rows = self.versions_table.find_all(
-            lambda r: r.get("project_id") == project_id
-        )
-        items = [self.version_record_to_info(r) for r in rows]
-        items.sort(key=lambda v: v.version_number, reverse=True)
-        return items
-
-    def prune_project_versions(self, project_id: str) -> None:
-        """根据滑动窗口策略淘汰最旧的版本快照，确保最多保留 MAX_PROJECT_VERSIONS 版。"""
-        versions = self.list_project_versions(project_id)
-        if len(versions) <= MAX_PROJECT_VERSIONS:
-            return
-
-        to_prune = versions[MAX_PROJECT_VERSIONS:]
-        for v in to_prune:
-            self.versions_table.delete_by("version_id", v.version_id)
-            # 若无其它版本或项目使用此 file_id，物理删除
-            still_version_used = self.versions_table.find_by("file_id", v.file_id)
-            still_project_used = self.projects_table.find_by("file_id", v.file_id)
-            if not still_version_used and not still_project_used:
-                for p in self.storage.upload_dir.glob(f"{v.file_id}.*"):
-                    with contextlib.suppress(OSError):
-                        p.unlink()
-
-    def rollback_project_version(
-        self, project_id: str, version_id: str
-    ) -> ProjectRollbackInfo:
-        """一键回退到指定历史版本快照。
-
-        1. 验证目标版本与物理文件存在性；
-        2. 清除当前已有章节正文与切句；
-        3. 从目标版本的物理快照重新解析并写入章节与切句；
-        4. 重新计算总字数、章数，并更新项目主表；
-        5. 生成一条新的回滚操作版本快照记录并执行滑动窗口淘汰。
-        """
-        project = self.get_project(project_id)
-        target_version_row = self.versions_table.find_by("version_id", version_id)
-        if (
-            target_version_row is None
-            or target_version_row.get("project_id") != project_id
-        ):
-            raise FileNotFoundError(f"版本快照不存在：{version_id}")
-
-        target_file_id = target_version_row.get("file_id", "")
-        target_paths = list(self.storage.upload_dir.glob(f"{target_file_id}.*"))
-        if not target_paths or not target_paths[0].exists():
-            raise FileNotFoundError("目标版本的物理快照文件不存在或已淘汰")
-
-        target_path = target_paths[0]
-        content_text = ""
-        try:
-            content_text = target_path.read_text(encoding="utf-8")
-        except UnicodeDecodeError:
-            try:
-                content_text = target_path.read_text(encoding="gb18030")
-            except UnicodeDecodeError:
-                content_text = target_path.read_text(encoding="utf-8", errors="replace")
-
-        cleaned = clean_text(content_text)
-        restored_chapters = parse_chapters(cleaned)
-        if not restored_chapters:
-            restored_chapters = [("全文", cleaned or content_text)]
-
-        # 清除现有章节与切句
-        self.storage.contents_table.delete_by("novel_id", project.file_id)
-        self.storage.sentences_table.delete_by("novel_id", project.file_id)
-
-        # 写入恢复后的章节与切句
-        chapter_records = []
-        sentence_records = []
-        for idx, (ch_title, ch_content) in enumerate(restored_chapters):
-            ch_id = uuid.uuid4().hex
-            w_count = count_words(ch_content)
-            chapter_records.append({
-                "chapter_id": ch_id,
-                "novel_id": project.file_id,
-                "chapter_index": str(idx),
-                "chapter_title": ch_title,
-                "content": ch_content,
-                "word_count": str(w_count),
-            })
-            if ch_content:
-                sentence_records.extend(
-                    self.storage.processor.create_sentence_records(
-                        novel_id=project.file_id,
-                        chapter_id=ch_id,
-                        content=ch_content,
-                    )
-                )
-
-        if chapter_records:
-            self.storage.contents_table.insert_batch(chapter_records)
-        if sentence_records:
-            self.storage.sentences_table.insert_batch(sentence_records)
-
-        new_total_chapters = len(chapter_records)
-        new_total_words = sum(int(r["word_count"]) for r in chapter_records)
-        now = datetime.now(UTC)
-        now_iso = now.isoformat()
-
-        # 更新 novels_table
-        self.storage.novels_table.update_by(
-            "novel_id",
-            project.file_id,
-            {
-                "chapter_count": str(new_total_chapters),
-                "total_words": str(new_total_words),
-            },
-        )
-
-        # 更新 projects_table
-        restored_filename = target_version_row.get("filename", project.filename)
-        self.projects_table.update_by(
-            "project_id",
-            project.project_id,
-            {
-                "filename": restored_filename,
-                "chapter_count": str(new_total_chapters),
-                "total_words": str(new_total_words),
-                "updated_at": now_iso,
-            },
-        )
-
-        # 记录回滚产生的新版本
-        existing_versions = self.list_project_versions(project_id)
-        next_ver_num = (
-            max(v.version_number for v in existing_versions) + 1
-            if existing_versions
-            else 1
-        )
-        target_num = int(target_version_row.get("version_number", 1) or 1)
-        self.create_project_version(
-            project_id=project.project_id,
-            file_id=target_file_id,
-            filename=restored_filename,
-            version_number=next_ver_num,
-            chapter_count=new_total_chapters,
-            total_words=new_total_words,
-            remark=f"回退至版本 V{target_num}",
-        )
-        self.prune_project_versions(project.project_id)
-
-        return ProjectRollbackInfo(
-            project_id=project.project_id,
-            restored_version_id=version_id,
-            restored_version_number=target_num,
-            chapter_count=new_total_chapters,
-            total_words=new_total_words,
-            updated_at=now,
-        )
 
 

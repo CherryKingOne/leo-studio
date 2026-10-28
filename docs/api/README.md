@@ -97,9 +97,8 @@ Leo Studio 后端服务的 HTTP 接口文档。所有接口基于 **FastAPI** �
 | 查询项目章节大纲列表 | `GET` | `/api/v1/projects/{project_id}/chapters` | 获取小说分章大纲列表（目录树），按序号排列 | [chapters.md](./projects/chapters.md) |
 | 查询项目章节详细内容 | `GET` | `/api/v1/projects/{project_id}/chapters/{chapter_id}` | 获取单章清洗后完整正文与切句列表 | [chapter-content.md](./projects/chapter-content.md) |
 | 追加上传项目章节文件 | `POST` | `/api/v1/projects/{project_id}/chapters/upload` | 增量追加小说章节文件，智能匹配防爬虫污染 | [append-chapters.md](./projects/append-chapters.md) |
-| 查询项目历史版本快照 | `GET` | `/api/v1/projects/{project_id}/versions` | 获取项目所有历史版本快照列表 | [versions.md](./projects/versions.md) |
-| 回退项目至历史版本 | `POST` | `/api/v1/projects/{project_id}/versions/{version_id}/rollback` | 一键将章节数据回滚至指定快照（后悔药） | [versions.md](./projects/versions.md) |
 | 删除项目 | `DELETE` | `/api/v1/projects/{project_id}` | 删除项目记录并级联清理关联的小说文件、章节与切句 | [delete.md](./projects/delete.md) |
+
 
 ### 根路径
 

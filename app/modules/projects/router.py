@@ -19,8 +19,6 @@ from app.modules.projects.models import (
     ChapterOutlineInfo,
     ProjectChapterAppendInfo,
     ProjectInfo,
-    ProjectRollbackInfo,
-    ProjectVersionInfo,
 )
 from app.modules.projects.schemas import (
     ChapterConflictItem,
@@ -33,9 +31,6 @@ from app.modules.projects.schemas import (
     ProjectListItem,
     ProjectListResponse,
     ProjectResponse,
-    ProjectRollbackResponse,
-    ProjectVersionItem,
-    ProjectVersionListResponse,
 )
 from app.modules.projects.service import ProjectService
 from app.modules.text_files.dependencies import get_storage_service
@@ -55,14 +50,9 @@ ChapterIdPath = Annotated[
     Path(description="章节唯一标识，UUID (UUID4)"),
 ]
 
-VersionIdPath = Annotated[
-    str,
-    Path(description="版本快照唯一标识，UUID (UUID4)"),
-]
-
-
 
 def resolve_project_service(
+
     storage: TextFileStorageService = Depends(get_storage_service),
 ) -> ProjectService:
     """按依赖注入生成 ProjectService 实例。"""
@@ -150,8 +140,6 @@ def to_chapter_append_response(
     return ProjectChapterAppendResponse(
         project_id=info.project_id,
         file_id=info.file_id,
-        version_id=info.version_id,
-        version_number=info.version_number,
         added_chapters=info.added_chapters,
         skipped_chapters=info.skipped_chapters,
         total_chapters=info.total_chapters,
@@ -161,34 +149,6 @@ def to_chapter_append_response(
         updated_at=info.updated_at,
     )
 
-
-def to_project_version_item(info: ProjectVersionInfo) -> ProjectVersionItem:
-    """将领域模型转换为历史版本项 Schema。"""
-    return ProjectVersionItem(
-        version_id=info.version_id,
-        project_id=info.project_id,
-        file_id=info.file_id,
-        version_number=info.version_number,
-        filename=info.filename,
-        chapter_count=info.chapter_count,
-        total_words=info.total_words,
-        created_at=info.created_at,
-        remark=info.remark,
-    )
-
-
-def to_project_rollback_response(
-    info: ProjectRollbackInfo,
-) -> ProjectRollbackResponse:
-    """将领域模型转换为回滚响应 Schema。"""
-    return ProjectRollbackResponse(
-        project_id=info.project_id,
-        restored_version_id=info.restored_version_id,
-        restored_version_number=info.restored_version_number,
-        chapter_count=info.chapter_count,
-        total_words=info.total_words,
-        updated_at=info.updated_at,
-    )
 
 
 
@@ -391,44 +351,5 @@ async def append_project_chapters(
         message=msg,
     )
 
-
-@router.get(
-    "/{project_id}/versions",
-    response_model=ApiResponse[ProjectVersionListResponse],
-    summary="查询项目历史版本快照列表",
-    description="获取指定项目的所有历史版本快照列表，按版本号倒序排列。",
-)
-async def list_project_versions(
-    project_id: ProjectIdPath,
-    service: ProjectService = Depends(resolve_project_service),
-) -> ApiResponse[ProjectVersionListResponse]:
-    """查询项目历史版本快照列表。"""
-    items = service.list_project_versions(project_id)
-    return ApiResponse(
-        data=ProjectVersionListResponse(
-            project_id=project_id,
-            total=len(items),
-            items=[to_project_version_item(item) for item in items],
-        )
-    )
-
-
-@router.post(
-    "/{project_id}/versions/{version_id}/rollback",
-    response_model=ApiResponse[ProjectRollbackResponse],
-    summary="回退项目至指定历史版本快照",
-    description="一键将项目章节及内容回滚至指定历史版本快照（后悔药机制）。",
-)
-async def rollback_project_version(
-    project_id: ProjectIdPath,
-    version_id: VersionIdPath,
-    service: ProjectService = Depends(resolve_project_service),
-) -> ApiResponse[ProjectRollbackResponse]:
-    """一键回滚项目至指定历史版本快照。"""
-    info = service.rollback_project_version(project_id, version_id)
-    return ApiResponse(
-        data=to_project_rollback_response(info),
-        message=f"项目已成功回滚至版本 V{info.restored_version_number}",
-    )
 
 
