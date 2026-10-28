@@ -25,8 +25,6 @@ export function Sidebar({ projects }: { projects: ProjectEntry[] }) {
   const { open: openImportModal } = useImportNovelModal();
   const [groupExpanded, setGroupExpanded] = useState(true);
 
-  const activeProjects = projects.filter((project) => !project.trashed);
-
   return (
     <aside className="fixed inset-y-0 left-0 z-40 hidden w-[236px] flex-col border-r border-hairline bg-ink-900 lg:flex">
       <div className="flex h-16 items-center px-5">
@@ -65,7 +63,7 @@ export function Sidebar({ projects }: { projects: ProjectEntry[] }) {
 
         {groupExpanded && (
           <div className="mt-0.5 space-y-0.5 pl-3">
-            {activeProjects.map((project) => (
+            {projects.map((project) => (
               <Link
                 key={project.id}
                 href={`/project/${project.id}`}

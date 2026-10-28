@@ -1,11 +1,7 @@
 import {
   ArrowUpRight,
-  FolderX,
   MoreHorizontal,
   Pencil,
-  RotateCcw,
-  Star,
-  Trash2,
   type LucideIcon,
 } from "lucide-react";
 import Link from "next/link";
@@ -17,7 +13,7 @@ import {
   type ProjectEntry,
 } from "@/lib/projects";
 
-export type CardAction = "open" | "rename" | "fav" | "trash" | "restore" | "purge";
+export type CardAction = "open" | "rename";
 
 const toneDot: Record<GenreTone, string> = {
   accent: "bg-accent",
@@ -43,17 +39,10 @@ export function ProjectCard({
   onAction: (id: string, action: CardAction) => void;
   onRename: (id: string, title: string) => void;
 }) {
-  const rows: [CardAction, LucideIcon, string][] = project.trashed
-    ? [
-        ["restore", RotateCcw, "恢复"],
-        ["purge", Trash2, "彻底删除"],
-      ]
-    : [
-        ["open", ArrowUpRight, "打开"],
-        ["rename", Pencil, "重命名"],
-        ["fav", Star, project.fav ? "取消收藏" : "收藏"],
-        ["trash", FolderX, "移入回收站"],
-      ];
+  const rows: [CardAction, LucideIcon, string][] = [
+    ["open", ArrowUpRight, "打开"],
+    ["rename", Pencil, "重命名"],
+  ];
 
   return (
     <article className="relative rounded-2xl border border-hairline bg-ink-800 transition-colors hover:border-white/16">

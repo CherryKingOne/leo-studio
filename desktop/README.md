@@ -41,8 +41,8 @@ components/
   sidebar.tsx           左侧导航（「我的剧目」分组下平铺剧目，条目用 FileAudio 图标）
   top-bar.tsx           顶栏
   floating-actions.tsx  右缘悬浮按钮
-  project-library.tsx   列表状态：tab / 搜索 / 只看收藏 / 排序
-  project-card.tsx      剧目卡片，含卡片操作菜单
+  project-library.tsx   列表状态：搜索 / 排序
+  project-card.tsx      剧目卡片，含打开 / 重命名操作菜单
   waveform.tsx          封面声波，种子伪随机保证 SSR 与水合一致
   import-novel-modal.tsx 导入小说弹窗（Provider + hook + 弹窗本体）
   clone-voice-modal.tsx 克隆新音色弹窗（Provider + hook + 弹窗本体）

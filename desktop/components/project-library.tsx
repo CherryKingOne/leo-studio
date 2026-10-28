@@ -1,15 +1,13 @@
 "use client";
 
-import { Filter, Inbox, Plus, Search, Star } from "lucide-react";
+import { Filter, Inbox, Plus, Search } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { useImportNovelModal } from "@/components/import-novel-modal";
 import { ProjectCard, type CardAction } from "@/components/project-card";
 import {
-  libraryTabs,
   sortProjects,
   sortOptions,
-  type LibraryTab,
   type ProjectEntry,
   type SortKey,
 } from "@/lib/projects";
@@ -18,8 +16,6 @@ export function ProjectLibrary({ initialProjects }: { initialProjects: ProjectEn
   const router = useRouter();
   const { open: openImportModal } = useImportNovelModal();
   const [projects, setProjects] = useState(initialProjects);
-  const [tab, setTab] = useState<LibraryTab>("全部");
-  const [favOnly, setFavOnly] = useState(false);
   const [keyword, setKeyword] = useState("");
   const [sortKey, setSortKey] = useState<SortKey | null>(null);
   const [sortMenuOpen, setSortMenuOpen] = useState(false);
@@ -48,24 +44,13 @@ export function ProjectLibrary({ initialProjects }: { initialProjects: ProjectEn
 
   const visible = useMemo(() => {
     const needle = keyword.trim().toLowerCase();
-    const matched = projects.filter((project) => {
-      const inTab =
-        tab === "全部"
-          ? !project.trashed
-          : tab === "回收站"
-            ? project.trashed
-            : !project.trashed && project.status === tab;
-      const favored = !favOnly || project.fav;
-      const hit = !needle || project.title.toLowerCase().includes(needle);
-      return inTab && favored && hit;
-    });
+    const matched = projects.filter(
+      (project) => !needle || project.title.toLowerCase().includes(needle),
+    );
     return sortKey ? sortProjects(matched, sortKey) : matched;
-  }, [projects, tab, favOnly, keyword, sortKey]);
+  }, [projects, keyword, sortKey]);
 
-  function update(
-    id: string,
-    patch: { title?: string; fav?: boolean; trashed?: boolean },
-  ) {
+  function update(id: string, patch: { title?: string }) {
     setProjects((prev) =>
       prev.map((project) => (project.id === id ? { ...project, ...patch } : project)),
     );
@@ -73,57 +58,23 @@ export function ProjectLibrary({ initialProjects }: { initialProjects: ProjectEn
 
   function handleAction(id: string, action: CardAction) {
     setMenuId(null);
-    const project = projects.find((item) => item.id === id);
-    if (!project) return;
-
     if (action === "open") {
       router.push(`/project/${id}`);
       return;
     }
     if (action === "rename") setRenamingId(id);
-    if (action === "fav") update(id, { fav: !project.fav });
-    if (action === "trash") update(id, { trashed: true });
-    if (action === "restore") update(id, { trashed: false });
-    if (action === "purge") setProjects((prev) => prev.filter((item) => item.id !== id));
   }
-
-  const emptyText =
-    tab === "回收站" && !keyword && !favOnly ? "回收站是空的" : "没有符合条件的剧目";
 
   return (
     <>
       <div className="mt-6 flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-1">
-          {libraryTabs.map((name) => (
-            <button
-              key={name}
-              type="button"
-              onClick={() => setTab(name)}
-              className={`rounded-lg px-2.5 py-1.5 text-[15px] transition-colors ${
-                tab === name
-                  ? "font-semibold text-white"
-                  : "text-white/40 hover:text-white/70"
-              }`}
-            >
-              {name}
-            </button>
-          ))}
+          <span className="rounded-lg px-2.5 py-1.5 text-[15px] font-semibold text-white">
+            全部
+          </span>
         </div>
 
         <div className="flex items-center gap-2">
-          <button
-            type="button"
-            title="只看收藏"
-            onClick={() => setFavOnly((value) => !value)}
-            className={`rounded-full border p-2 transition-colors ${
-              favOnly
-                ? "border-accent/30 bg-accent/15 text-accent-400"
-                : "border-hairline bg-ink-800 text-white/50 hover:text-white"
-            }`}
-          >
-            <Star className="h-4 w-4" />
-          </button>
-
           <div className="relative" data-menu>
             <button
               type="button"
@@ -198,7 +149,7 @@ export function ProjectLibrary({ initialProjects }: { initialProjects: ProjectEn
           <div className="min-h-[236px] rounded-2xl border border-dashed border-white/10 bg-ink-850 p-8 sm:col-span-2 xl:col-span-3">
             <div className="flex h-full flex-col items-center justify-center text-center">
               <Inbox className="h-7 w-7 text-white/20" />
-              <p className="mt-3 text-[13px] text-white/45">{emptyText}</p>
+              <p className="mt-3 text-[13px] text-white/45">没有符合条件的剧目</p>
             </div>
           </div>
         )}

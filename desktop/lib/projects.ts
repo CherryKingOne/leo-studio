@@ -1,5 +1,4 @@
 export type ProjectStatus = "制作中" | "母带就绪";
-export type LibraryTab = "全部" | ProjectStatus | "回收站";
 export type SortKey = "edited" | "progress" | "duration";
 
 export type GenreTone = "accent" | "emerald" | "amber";
@@ -20,11 +19,7 @@ export type ProjectEntry = {
   tone: GenreTone;
   seed: number;
   editedHoursAgo: number;
-  fav: boolean;
-  trashed: boolean;
 };
-
-export const libraryTabs: LibraryTab[] = ["全部", "制作中", "母带就绪", "回收站"];
 
 export const sortOptions: { key: SortKey; label: string }[] = [
   { key: "edited", label: "最近编辑" },
@@ -46,8 +41,6 @@ export const initialProjects: ProjectEntry[] = [
     tone: "accent",
     seed: 7,
     editedHoursAgo: 72,
-    fav: true,
-    trashed: false,
   },
   {
     id: "p-dao-gui-yi-xian",
@@ -61,8 +54,6 @@ export const initialProjects: ProjectEntry[] = [
     tone: "emerald",
     seed: 23,
     editedHoursAgo: 8,
-    fav: false,
-    trashed: false,
   },
   {
     id: "p-long-night",
@@ -77,8 +68,6 @@ export const initialProjects: ProjectEntry[] = [
     tone: "amber",
     seed: 41,
     editedHoursAgo: 120,
-    fav: false,
-    trashed: false,
   },
 ];
 
