@@ -2,15 +2,13 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { ChapterStudio } from "@/components/chapter-studio";
 import { ToastProvider } from "@/components/toast";
-import { hubFor, initialEntries, studioFor, type ProjectEntry } from "@/lib/projects";
+import { hubFor, initialProjects, studioFor } from "@/lib/projects";
 
 // 页面内容按 params 选剧目与章节，属于阻塞式路由
 export const instant = false;
 
 function findProject(id: string) {
-  return initialEntries.find(
-    (entry): entry is ProjectEntry => entry.kind === "project" && entry.id === id,
-  );
+  return initialProjects.find((project) => project.id === id);
 }
 
 function findChapter(projectId: string, chapterId: string) {
@@ -21,13 +19,11 @@ function findChapter(projectId: string, chapterId: string) {
 
 /** 预渲染看板里可进入工作台的章节，未知 id 走请求时渲染 */
 export function generateStaticParams() {
-  return initialEntries
-    .filter((entry): entry is ProjectEntry => entry.kind === "project")
-    .flatMap((project) =>
-      hubFor(project)
-        .chapters.filter((chapter) => chapter.openable)
-        .map((chapter) => ({ id: project.id, chapterId: chapter.id })),
-    );
+  return initialProjects.flatMap((project) =>
+    hubFor(project)
+      .chapters.filter((chapter) => chapter.openable)
+      .map((chapter) => ({ id: project.id, chapterId: chapter.id })),
+  );
 }
 
 export async function generateMetadata(

@@ -5,39 +5,27 @@ import {
   ChevronRight,
   CircleHelp,
   FileAudio,
-  Folder,
-  FolderOpen,
   History,
+  Library,
   MessageCircle,
   MicVocal,
   Plus,
 } from "lucide-react";
 import Link from "next/link";
-import { Fragment, useState } from "react";
+import { useState } from "react";
 import { useImportNovelModal } from "@/components/import-novel-modal";
-import { projectsInFolder, type LibraryEntry } from "@/lib/projects";
+import type { ProjectEntry } from "@/lib/projects";
 
 const navItem =
   "flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-[13px] text-white/65 transition-colors hover:bg-white/5 hover:text-white";
 const subItem =
   "flex items-center gap-2.5 rounded-lg py-1.5 pl-3 pr-2 text-[12.5px] transition-colors hover:bg-white/5";
 
-export function Sidebar({
-  entries,
-  activeFolderId,
-}: {
-  entries: LibraryEntry[];
-  activeFolderId?: string;
-}) {
+export function Sidebar({ projects }: { projects: ProjectEntry[] }) {
   const { open: openImportModal } = useImportNovelModal();
   const [groupExpanded, setGroupExpanded] = useState(true);
 
-  const folders = entries.filter(
-    (entry) => entry.kind === "folder" && !entry.trashed,
-  );
-  const rootProjects = entries.filter(
-    (entry) => entry.kind === "project" && !entry.trashed && !entry.folderId,
-  );
+  const activeProjects = projects.filter((project) => !project.trashed);
 
   return (
     <aside className="fixed inset-y-0 left-0 z-40 hidden w-[236px] flex-col border-r border-hairline bg-ink-900 lg:flex">
@@ -66,7 +54,7 @@ export function Sidebar({
           onClick={() => setGroupExpanded((expanded) => !expanded)}
           className="flex w-full items-center gap-2.5 rounded-lg bg-white/6 px-3 py-2 text-[13px] font-medium text-white transition-colors hover:bg-white/10"
         >
-          <FolderOpen className="h-4 w-4 text-white/50" />
+          <Library className="h-4 w-4 text-white/50" />
           <span className="flex-1 text-left">我的剧目</span>
           <ChevronRight
             className={`h-3.5 w-3.5 text-white/35 transition-transform ${
@@ -77,42 +65,7 @@ export function Sidebar({
 
         {groupExpanded && (
           <div className="mt-0.5 space-y-0.5 pl-3">
-            {folders.map((folder) => (
-              <Fragment key={folder.id}>
-                <Link
-                  href={`/folder/${folder.id}`}
-                  className={`${subItem} font-medium ${
-                    folder.id === activeFolderId
-                      ? "bg-white/6 text-white"
-                      : "text-white/70 hover:text-white"
-                  }`}
-                >
-                  {folder.id === activeFolderId ? (
-                    <FolderOpen className="h-3.5 w-3.5 shrink-0 text-amber-300/60" />
-                  ) : (
-                    <Folder className="h-3.5 w-3.5 shrink-0 text-amber-300/45" />
-                  )}
-                  <span className="truncate">{folder.title}</span>
-                  <span className="ml-auto shrink-0 font-mono text-[10.5px] text-white/25">
-                    {projectsInFolder(entries, folder.id).length}
-                  </span>
-                </Link>
-                <div className="space-y-0.5 pl-4">
-                  {projectsInFolder(entries, folder.id).map((project) => (
-                    <Link
-                      key={project.id}
-                      href={`/project/${project.id}`}
-                      className={`${subItem} text-white/45 hover:text-white`}
-                    >
-                      <FileAudio className="h-3.5 w-3.5 shrink-0 text-white/25" />
-                      <span className="truncate">{project.title}</span>
-                    </Link>
-                  ))}
-                </div>
-              </Fragment>
-            ))}
-
-            {rootProjects.map((project) => (
+            {activeProjects.map((project) => (
               <Link
                 key={project.id}
                 href={`/project/${project.id}`}

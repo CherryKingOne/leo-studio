@@ -4,21 +4,17 @@ import { CloneVoiceModalProvider } from "@/components/clone-voice-modal";
 import { HubHeader } from "@/components/hub-header";
 import { ProjectHub } from "@/components/project-hub";
 import { ToastProvider } from "@/components/toast";
-import { hubFor, initialEntries, type ProjectEntry } from "@/lib/projects";
+import { hubFor, initialProjects } from "@/lib/projects";
 
 // 页面内容按 params 选剧目，属于阻塞式路由
 export const instant = false;
 
 function findProject(id: string) {
-  return initialEntries.find(
-    (entry): entry is ProjectEntry => entry.kind === "project" && entry.id === id,
-  );
+  return initialProjects.find((project) => project.id === id);
 }
 
 export function generateStaticParams() {
-  return initialEntries
-    .filter((entry) => entry.kind === "project")
-    .map((entry) => ({ id: entry.id }));
+  return initialProjects.map((project) => ({ id: project.id }));
 }
 
 export async function generateMetadata(

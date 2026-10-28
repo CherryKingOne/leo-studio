@@ -4,21 +4,9 @@ export type SortKey = "edited" | "progress" | "duration";
 
 export type GenreTone = "accent" | "emerald" | "amber";
 
-export type FolderEntry = {
-  kind: "folder";
-  id: string;
-  title: string;
-  editedHoursAgo: number;
-  fav: boolean;
-  trashed: boolean;
-};
-
 export type ProjectEntry = {
-  kind: "project";
   id: string;
   title: string;
-  /** 所属文件夹，缺省表示根目录 */
-  folderId?: string;
   genre: string;
   author: string;
   status: ProjectStatus;
@@ -36,8 +24,6 @@ export type ProjectEntry = {
   trashed: boolean;
 };
 
-export type LibraryEntry = FolderEntry | ProjectEntry;
-
 export const libraryTabs: LibraryTab[] = ["全部", "制作中", "母带就绪", "回收站"];
 
 export const sortOptions: { key: SortKey; label: string }[] = [
@@ -46,17 +32,8 @@ export const sortOptions: { key: SortKey; label: string }[] = [
   { key: "duration", label: "按已生成时长" },
 ];
 
-export const initialEntries: LibraryEntry[] = [
+export const initialProjects: ProjectEntry[] = [
   {
-    kind: "folder",
-    id: "f-folklore",
-    title: "东方民俗系列",
-    editedHoursAgo: 168,
-    fav: false,
-    trashed: false,
-  },
-  {
-    kind: "project",
     id: "p-lord-of-mysteries",
     title: "诡秘之主：第一部 愚者",
     genre: "克苏鲁 / 西幻",
@@ -73,10 +50,8 @@ export const initialEntries: LibraryEntry[] = [
     trashed: false,
   },
   {
-    kind: "project",
     id: "p-dao-gui-yi-xian",
     title: "道诡异仙：清旺来",
-    folderId: "f-folklore",
     genre: "东方民俗 / 悬疑",
     author: "狐尾的笔",
     status: "母带就绪",
@@ -90,10 +65,8 @@ export const initialEntries: LibraryEntry[] = [
     trashed: false,
   },
   {
-    kind: "project",
     id: "p-long-night",
     title: "长夜余火：灰土列车",
-    folderId: "f-folklore",
     genre: "废土 / 科幻",
     author: "会说话的肘子",
     status: "制作中",
@@ -127,35 +100,23 @@ export function coverHint(project: ProjectEntry) {
   return `第 ${String(project.currentChapter ?? 1).padStart(3, "0")} 章 / 共 ${project.chapters} 章`;
 }
 
-export function projectsInFolder(entries: LibraryEntry[], folderId: string) {
-  return entries.filter(
-    (entry): entry is ProjectEntry =>
-      entry.kind === "project" && !entry.trashed && entry.folderId === folderId,
-  );
-}
-
-export function entryMeta(entry: LibraryEntry, entries: LibraryEntry[]) {
-  if (entry.kind === "folder") {
-    return `${projectsInFolder(entries, entry.id).length} 部剧目 · ${relativeTime(entry.editedHoursAgo)}`;
-  }
+export function projectMeta(project: ProjectEntry) {
   return [
-    `${entry.chapters} 章`,
-    `进度 ${entry.progress}%`,
-    durationLabel(entry.generatedSeconds),
-    relativeTime(entry.editedHoursAgo),
+    `${project.chapters} 章`,
+    `进度 ${project.progress}%`,
+    durationLabel(project.generatedSeconds),
+    relativeTime(project.editedHoursAgo),
   ].join(" · ");
 }
 
-export function sortEntries<T extends LibraryEntry>(entries: T[], key: SortKey) {
-  const value = (entry: T) =>
+export function sortProjects(projects: ProjectEntry[], key: SortKey) {
+  const value = (project: ProjectEntry) =>
     key === "edited"
-      ? -entry.editedHoursAgo
-      : entry.kind === "project" && key === "progress"
-        ? entry.progress
-        : entry.kind === "project" && key === "duration"
-          ? entry.generatedSeconds
-          : 0;
-  return [...entries].sort((a, b) => value(b) - value(a));
+      ? -project.editedHoursAgo
+      : key === "progress"
+        ? project.progress
+        : project.generatedSeconds;
+  return [...projects].sort((a, b) => value(b) - value(a));
 }
 
 /* ==================== 剧目看板：章节流水线与角色阵容 ==================== */

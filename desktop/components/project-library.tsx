@@ -1,27 +1,23 @@
 "use client";
 
-import { Filter, FolderPlus, Inbox, Plus, Search, Star } from "lucide-react";
+import { Filter, Inbox, Plus, Search, Star } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { useImportNovelModal } from "@/components/import-novel-modal";
 import { ProjectCard, type CardAction } from "@/components/project-card";
-import { CreateFolderModal } from "@/components/create-folder-modal";
 import {
   libraryTabs,
-  sortEntries,
+  sortProjects,
   sortOptions,
-  type LibraryEntry,
   type LibraryTab,
+  type ProjectEntry,
   type SortKey,
 } from "@/lib/projects";
 
-const toolbarButton =
-  "flex items-center gap-1.5 rounded-full border border-hairline bg-ink-800 px-3.5 py-2 text-[12.5px] text-white/70 transition-colors hover:border-white/20 hover:text-white";
-
-export function ProjectLibrary({ initialEntries }: { initialEntries: LibraryEntry[] }) {
+export function ProjectLibrary({ initialProjects }: { initialProjects: ProjectEntry[] }) {
   const router = useRouter();
   const { open: openImportModal } = useImportNovelModal();
-  const [entries, setEntries] = useState(initialEntries);
+  const [projects, setProjects] = useState(initialProjects);
   const [tab, setTab] = useState<LibraryTab>("全部");
   const [favOnly, setFavOnly] = useState(false);
   const [keyword, setKeyword] = useState("");
@@ -29,7 +25,6 @@ export function ProjectLibrary({ initialEntries }: { initialEntries: LibraryEntr
   const [sortMenuOpen, setSortMenuOpen] = useState(false);
   const [menuId, setMenuId] = useState<string | null>(null);
   const [renamingId, setRenamingId] = useState<string | null>(null);
-  const [folderModalOpen, setFolderModalOpen] = useState(false);
 
   useEffect(() => {
     const dismiss = (event: MouseEvent) => {
@@ -53,60 +48,43 @@ export function ProjectLibrary({ initialEntries }: { initialEntries: LibraryEntr
 
   const visible = useMemo(() => {
     const needle = keyword.trim().toLowerCase();
-    const matched = entries.filter((entry) => {
+    const matched = projects.filter((project) => {
       const inTab =
         tab === "全部"
-          ? !entry.trashed
+          ? !project.trashed
           : tab === "回收站"
-            ? entry.trashed
-            : !entry.trashed && entry.kind === "project" && entry.status === tab;
-      const favored = !favOnly || entry.fav;
-      const hit = !needle || entry.title.toLowerCase().includes(needle);
+            ? project.trashed
+            : !project.trashed && project.status === tab;
+      const favored = !favOnly || project.fav;
+      const hit = !needle || project.title.toLowerCase().includes(needle);
       return inTab && favored && hit;
     });
-    return sortKey ? sortEntries(matched, sortKey) : matched;
-  }, [entries, tab, favOnly, keyword, sortKey]);
+    return sortKey ? sortProjects(matched, sortKey) : matched;
+  }, [projects, tab, favOnly, keyword, sortKey]);
 
   function update(
     id: string,
     patch: { title?: string; fav?: boolean; trashed?: boolean },
   ) {
-    setEntries((prev) =>
-      prev.map((entry) =>
-        entry.id === id ? ({ ...entry, ...patch } as LibraryEntry) : entry,
-      ),
+    setProjects((prev) =>
+      prev.map((project) => (project.id === id ? { ...project, ...patch } : project)),
     );
   }
 
   function handleAction(id: string, action: CardAction) {
     setMenuId(null);
-    const entry = entries.find((item) => item.id === id);
-    if (!entry) return;
+    const project = projects.find((item) => item.id === id);
+    if (!project) return;
 
     if (action === "open") {
-      router.push(entry.kind === "folder" ? `/folder/${id}` : `/project/${id}`);
+      router.push(`/project/${id}`);
       return;
     }
     if (action === "rename") setRenamingId(id);
-    if (action === "fav") update(id, { fav: !entry.fav });
+    if (action === "fav") update(id, { fav: !project.fav });
     if (action === "trash") update(id, { trashed: true });
     if (action === "restore") update(id, { trashed: false });
-    if (action === "purge") setEntries((prev) => prev.filter((item) => item.id !== id));
-  }
-
-  function addFolder(title: string) {
-    setEntries((prev) => [
-      {
-        kind: "folder",
-        id: `folder-${crypto.randomUUID()}`,
-        title,
-        editedHoursAgo: 0,
-        fav: false,
-        trashed: false,
-      },
-      ...prev,
-    ]);
-    setTab("全部");
+    if (action === "purge") setProjects((prev) => prev.filter((item) => item.id !== id));
   }
 
   const emptyText =
@@ -133,11 +111,6 @@ export function ProjectLibrary({ initialEntries }: { initialEntries: LibraryEntr
         </div>
 
         <div className="flex items-center gap-2">
-          <button type="button" onClick={() => setFolderModalOpen(true)} className={toolbarButton}>
-            <FolderPlus className="h-3.5 w-3.5" />
-            新建文件夹
-          </button>
-
           <button
             type="button"
             title="只看收藏"
@@ -206,13 +179,12 @@ export function ProjectLibrary({ initialEntries }: { initialEntries: LibraryEntr
           </button>
         </div>
 
-        {visible.map((entry) => (
+        {visible.map((project) => (
           <ProjectCard
-            key={entry.id}
-            entry={entry}
-            entries={entries}
-            menuOpen={menuId === entry.id}
-            renaming={renamingId === entry.id}
+            key={project.id}
+            project={project}
+            menuOpen={menuId === project.id}
+            renaming={renamingId === project.id}
             onToggleMenu={(id) => setMenuId((current) => (current === id ? null : id))}
             onAction={handleAction}
             onRename={(id, title) => {
@@ -231,13 +203,6 @@ export function ProjectLibrary({ initialEntries }: { initialEntries: LibraryEntr
           </div>
         )}
       </div>
-
-      {folderModalOpen && (
-        <CreateFolderModal
-          onClose={() => setFolderModalOpen(false)}
-          onCreate={addFolder}
-        />
-      )}
     </>
   );
 }

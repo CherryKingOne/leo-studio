@@ -1,6 +1,5 @@
 import {
   ArrowUpRight,
-  Folder,
   FolderX,
   MoreHorizontal,
   Pencil,
@@ -13,9 +12,8 @@ import Link from "next/link";
 import { Waveform } from "@/components/waveform";
 import {
   coverHint,
-  entryMeta,
+  projectMeta,
   type GenreTone,
-  type LibraryEntry,
   type ProjectEntry,
 } from "@/lib/projects";
 
@@ -31,24 +29,21 @@ const menuRow =
   "flex w-full items-center gap-2.5 px-3 py-2 text-left text-[12.5px] text-white/70 hover:bg-white/5 hover:text-white";
 
 export function ProjectCard({
-  entry,
-  entries,
+  project,
   menuOpen,
   renaming,
   onToggleMenu,
   onAction,
   onRename,
 }: {
-  entry: LibraryEntry;
-  entries: LibraryEntry[];
+  project: ProjectEntry;
   menuOpen: boolean;
   renaming: boolean;
   onToggleMenu: (id: string) => void;
   onAction: (id: string, action: CardAction) => void;
   onRename: (id: string, title: string) => void;
 }) {
-  const project = entry.kind === "project" ? entry : null;
-  const rows: [CardAction, LucideIcon, string][] = entry.trashed
+  const rows: [CardAction, LucideIcon, string][] = project.trashed
     ? [
         ["restore", RotateCcw, "恢复"],
         ["purge", Trash2, "彻底删除"],
@@ -56,39 +51,37 @@ export function ProjectCard({
     : [
         ["open", ArrowUpRight, "打开"],
         ["rename", Pencil, "重命名"],
-        ["fav", Star, entry.fav ? "取消收藏" : "收藏"],
+        ["fav", Star, project.fav ? "取消收藏" : "收藏"],
         ["trash", FolderX, "移入回收站"],
       ];
 
   return (
     <article className="relative rounded-2xl border border-hairline bg-ink-800 transition-colors hover:border-white/16">
-      {project ? <ProjectCover project={project} /> : <FolderCover folderId={entry.id} />}
+      <ProjectCover project={project} />
 
       <div className="flex items-end justify-between gap-2 border-t border-hairline px-4 py-3">
         <div className="min-w-0">
           {renaming ? (
             <input
-              defaultValue={entry.title}
+              defaultValue={project.title}
               autoFocus
-              onBlur={(e) => onRename(entry.id, e.target.value.trim())}
+              onBlur={(e) => onRename(project.id, e.target.value.trim())}
               onKeyDown={(e) => {
                 if (e.key === "Enter") e.currentTarget.blur();
-                if (e.key === "Escape") onRename(entry.id, entry.title);
+                if (e.key === "Escape") onRename(project.id, project.title);
               }}
               className="w-full truncate rounded-md bg-white/5 px-1.5 py-0.5 text-[14px] font-medium text-white outline-none ring-1 ring-accent/60"
             />
           ) : (
-            <h3 className="truncate text-[14px] font-medium text-white">{entry.title}</h3>
+            <h3 className="truncate text-[14px] font-medium text-white">{project.title}</h3>
           )}
-          <p className="mt-1 truncate text-[11.5px] text-white/35">
-            {entryMeta(entry, entries)}
-          </p>
+          <p className="mt-1 truncate text-[11.5px] text-white/35">{projectMeta(project)}</p>
         </div>
         <button
           type="button"
           data-menu
-          aria-label={`${entry.title} 操作菜单`}
-          onClick={() => onToggleMenu(entry.id)}
+          aria-label={`${project.title} 操作菜单`}
+          onClick={() => onToggleMenu(project.id)}
           className="shrink-0 rounded-md p-1 text-white/30 transition-colors hover:bg-white/5 hover:text-white/70"
         >
           <MoreHorizontal className="h-4 w-4" />
@@ -104,7 +97,7 @@ export function ProjectCard({
             <button
               key={action}
               type="button"
-              onClick={() => onAction(entry.id, action)}
+              onClick={() => onAction(project.id, action)}
               className={menuRow}
             >
               <Icon className="h-3.5 w-3.5 opacity-60" />
@@ -114,17 +107,6 @@ export function ProjectCard({
         </div>
       )}
     </article>
-  );
-}
-
-function FolderCover({ folderId }: { folderId: string }) {
-  return (
-    <Link
-      href={`/folder/${folderId}`}
-      className="flex aspect-[16/10] items-center justify-center rounded-t-2xl bg-card-cover"
-    >
-      <Folder className="h-9 w-9 text-white/20" />
-    </Link>
   );
 }
 
