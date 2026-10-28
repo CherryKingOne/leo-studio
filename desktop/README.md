@@ -18,7 +18,7 @@ pnpm lint  # ESLint
 | --- | --- | --- |
 | `/project` | 已实现 | 剧目库列表页，源码 `app/project/page.tsx` |
 | `/` | 占位 | 仅 `redirect("/project")`，见 `app/page.tsx`；真正的首屏后续补，改写该文件即可，**不要**把剧目库搬回根路径 |
-| `/project/[id]` | 已实现 | 剧目看板，源码 `app/project/[id]/page.tsx` + `components/project-hub.tsx`（原型 `project-hub.html`）；`generateStaticParams` 预渲染已知剧目，未知 id 走 `notFound()` |
+| `/project/[id]` | 已实现 | 剧目看板，源码 `app/project/[id]/page.tsx` + `components/project-hub.tsx`（原型 `project-hub.html`）；`generateStaticParams` 预渲染已知剧目，未知 id 走 `notFound()`；「追更上传章节」在本地解析文稿并续编新章节行 |
 | `/project/[id]/chapter/[chapterId]` | 已实现 | 章节制作工作台，源码 `app/project/[id]/chapter/[chapterId]/page.tsx` + `components/chapter-studio.tsx`（原型 `chapter-studio.html`）；`generateStaticParams` 预渲染看板中 `openable` 的章节，未知 id 走 `notFound()`；未逐句核对过的章节由 `studioFor()` 铺占位剧本 |
 | `/project/[id]/export` | 未实现 | 整书母带导出中心（原型 `export-center.html`） |
 | `/voice-library` | 未实现 | 全局声线资产库（原型 `voice-library.html`） |
@@ -36,7 +36,7 @@ app/
   project/[id]/page.tsx 剧目看板页
   project/[id]/chapter/[chapterId]/page.tsx 章节制作工作台页
 components/
-  modal.tsx             弹窗外壳（遮罩、Esc/点击关闭、标题栏）与表单样式 token
+  modal.tsx             弹窗外壳（遮罩、Esc/点击关闭、标题栏）与表单样式 token；size="lg" 给宽弹窗 + 内部滚动 + footer 插槽
   toast.tsx             轻提示（ToastProvider + useToast，2.5 秒自动消失）
   sidebar.tsx           左侧导航（「我的剧目」分组下平铺剧目，条目用 FileAudio 图标）
   top-bar.tsx           顶栏
@@ -46,9 +46,11 @@ components/
   waveform.tsx          封面声波，种子伪随机保证 SSR 与水合一致
   import-novel-modal.tsx 导入小说弹窗（Provider + hook + 弹窗本体）
   clone-voice-modal.tsx 克隆新音色弹窗（Provider + hook + 弹窗本体）
-  hub-header.tsx        剧目看板的项目级顶栏：返回书架 + 可改名标题 + 全书进度 + 导出入口
+  chapter-import-modal.tsx 追更上传章节弹窗：本地解析「第X章」分章、导入预览与同名跳过
+  hub-header.tsx        剧目看板的项目级顶栏：返回书架 + 可改名标题 + 章节与字数统计 + 全书进度 + 导出入口
+  hub-chapters.tsx      看板章节状态（Provider + useHubChapters）：拆解与合成推进、追更导入追加章节
   project-hub.tsx       看板 tab 容器：章节流水线 / 角色阵容，持有搜索与只看已就绪
-  chapter-pipeline.tsx  章节生产流水线表格：状态筛选、批量勾选、拆解与合成推进
+  chapter-pipeline.tsx  章节生产流水线表格：状态筛选、批量勾选、拆解与合成推进、追更上传入口
   cast-matrix.tsx       全书角色台账卡片：声线绑定与试听（Web Audio 发特征音）
   chapter-studio.tsx    工作台状态容器：段落顺序与撤销重做、当前段落、大纲/正文 pane、搜索词、配音面板
   studio-header.tsx     工作台顶栏：合并胶囊（返回 + 剧目切换 + ⌘K 搜索）与批量合成状态机
@@ -66,6 +68,7 @@ lib/
 - 样式只用 Tailwind utility 与 `@theme` token（`ink-*`、`accent`、`hairline`、`bg-card-cover`），不手写原生 CSS 规则。
 - 滚动条统一用 `lib/scrollbar.ts` 的 `inkScrollbar`：`app/layout.tsx` 挂在 `html` 上管文档滚动条，页面内每个 `overflow-y-auto` 容器各自再挂一次（该样式不继承）。
 - 弹窗独立成组件文件，由 Provider 持有开关、触发方通过 hook 调用，不在页面里复制弹窗 DOM。
+- 剧目看板的章节列表由 `hub-chapters.tsx` 的 Provider 统一持有：顶栏统计、tab 计数与流水线表格读同一份 state，追更导入的新章节因此三处同步变化。
 - 图标统一用 `lucide-react`。
 - 数据目前来自 `lib/projects.ts` 的 mock，接后端时替换该文件即可，组件层不直接依赖来源。
 - 原型页与 desktop 路由一一对应，每个原型页核对通过后再单独移植成一个独立页面/组件文件；不要把新页面写进已有页面的文件里。

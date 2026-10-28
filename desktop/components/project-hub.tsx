@@ -4,19 +4,19 @@ import { ListOrdered, Search, Star, Users, type LucideIcon } from "lucide-react"
 import { useState } from "react";
 import { CastMatrix } from "@/components/cast-matrix";
 import { ChapterPipeline } from "@/components/chapter-pipeline";
-import type { CastMember, HubChapter } from "@/lib/projects";
+import { useHubChapters } from "@/components/hub-chapters";
+import type { CastMember } from "@/lib/projects";
 
 type HubTab = "pipeline" | "cast";
 
 export function ProjectHub({
   projectId,
-  chapters,
   cast,
 }: {
   projectId: string;
-  chapters: HubChapter[];
   cast: CastMember[];
 }) {
+  const { chapters } = useHubChapters();
   const [tab, setTab] = useState<HubTab>("pipeline");
   const [keyword, setKeyword] = useState("");
   const [readyOnly, setReadyOnly] = useState(false);
@@ -82,7 +82,6 @@ export function ProjectHub({
       {tab === "pipeline" ? (
         <ChapterPipeline
           projectId={projectId}
-          chapters={chapters}
           keyword={keyword}
           readyOnly={readyOnly}
           onGoToCast={() => setTab("cast")}

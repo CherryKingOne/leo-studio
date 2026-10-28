@@ -3,17 +3,13 @@
 import { BookOpen, ChevronLeft, Download } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
+import { useHubChapters } from "@/components/hub-chapters";
 import { useToast } from "@/components/toast";
-import { hubSubtitle, type HubChapter, type ProjectEntry } from "@/lib/projects";
+import { hubSubtitle, type ProjectEntry } from "@/lib/projects";
 
-export function HubHeader({
-  project,
-  chapters,
-}: {
-  project: ProjectEntry;
-  chapters: HubChapter[];
-}) {
+export function HubHeader({ project }: { project: ProjectEntry }) {
   const { show } = useToast();
+  const { chapters } = useHubChapters();
   const [title, setTitle] = useState(project.title);
   const [editing, setEditing] = useState(false);
 
@@ -64,7 +60,7 @@ export function HubHeader({
                 </h1>
               )}
               <span className="shrink-0 rounded-full border border-hairline bg-ink-800 px-2 py-0.5 font-mono text-[10.5px] text-white/50">
-                {project.chapters} 章节
+                {chapters.length} 章节
               </span>
             </div>
             <div className="mt-1 truncate text-[11.5px] text-white/35">

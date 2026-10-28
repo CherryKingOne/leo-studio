@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { CloneVoiceModalProvider } from "@/components/clone-voice-modal";
+import { HubChaptersProvider } from "@/components/hub-chapters";
 import { HubHeader } from "@/components/hub-header";
 import { ProjectHub } from "@/components/project-hub";
 import { ToastProvider } from "@/components/toast";
@@ -37,17 +38,15 @@ export default async function ProjectHubPage(props: PageProps<"/project/[id]">) 
   return (
     <ToastProvider>
       <CloneVoiceModalProvider>
-        <div className="flex min-h-screen flex-col">
-          <HubHeader project={project} chapters={hub.chapters} />
+        <HubChaptersProvider initialChapters={hub.chapters}>
+          <div className="flex min-h-screen flex-col">
+            <HubHeader project={project} />
 
-          <main className="mx-auto w-full max-w-6xl flex-1 px-5 pb-16 pt-8 sm:px-8">
-            <ProjectHub
-              projectId={project.id}
-              chapters={hub.chapters}
-              cast={hub.cast}
-            />
-          </main>
-        </div>
+            <main className="mx-auto w-full max-w-6xl flex-1 px-5 pb-16 pt-8 sm:px-8">
+              <ProjectHub projectId={project.id} cast={hub.cast} />
+            </main>
+          </div>
+        </HubChaptersProvider>
       </CloneVoiceModalProvider>
     </ToastProvider>
   );

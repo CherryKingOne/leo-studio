@@ -6,6 +6,7 @@ import {
   Check,
   ChevronDown,
   FileCheck2,
+  FilePlus2,
   Hourglass,
   Loader,
   Play,
@@ -16,11 +17,10 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
+import { useHubChapters } from "@/components/hub-chapters";
 import { useToast } from "@/components/toast";
 import {
-  chapterAfterRender,
-  chapterAfterSplit,
   chapterIsSelectable,
   formatClock,
   formatWords,
@@ -28,7 +28,6 @@ import {
   type ChapterStatusIcon,
   type HubChapter,
   type HubTone,
-  type PipelineFilter,
 } from "@/lib/projects";
 
 const statusIcon: Record<ChapterStatusIcon, LucideIcon> = {
@@ -106,50 +105,23 @@ function Tick({
 
 export function ChapterPipeline({
   projectId,
-  chapters,
   keyword,
   readyOnly,
   onGoToCast,
 }: {
   projectId: string;
-  chapters: HubChapter[];
   keyword: string;
   readyOnly: boolean;
   onGoToCast: () => void;
 }) {
   const { show } = useToast();
-  const [rows, setRows] = useState(chapters);
-  const [filter, setFilter] = useState<PipelineFilter>("全部");
+  const { chapters, filter, setFilter, splittingIds, split, openImport } = useHubChapters();
   const [expanded, setExpanded] = useState(false);
-  const [splitting, setSplitting] = useState<string | null>(null);
   const [selected, setSelected] = useState<string[]>([]);
-
-  // 合成中的章节持续推进进度，满 100% 的那一行当场落到母带就绪
-  useEffect(() => {
-    if (!rows.some((chapter) => chapter.state === "合成中")) return;
-    const timer = setInterval(() => {
-      const finished = rows.filter(
-        (chapter) => chapter.state === "合成中" && (chapter.percent ?? 0) >= 99,
-      );
-      setRows((prev) =>
-        prev.map((chapter) => {
-          if (chapter.state !== "合成中" || chapter.percent === undefined) return chapter;
-          const percent = Math.min(100, chapter.percent + 1);
-          return percent >= 100
-            ? chapterAfterRender({ ...chapter, percent })
-            : { ...chapter, percent };
-        }),
-      );
-      for (const chapter of finished) {
-        show(`${chapter.title} 已生成，可进入制作工作台试听`, "success");
-      }
-    }, 1800);
-    return () => clearInterval(timer);
-  }, [rows, show]);
 
   const visible = useMemo(() => {
     const needle = keyword.trim().toLowerCase();
-    return rows.filter((chapter) => {
+    return chapters.filter((chapter) => {
       const speakers = chapter.speakers?.map((tag) => tag.name).join(" ") ?? "";
       return (
         (expanded || !chapter.collapsed) &&
@@ -158,13 +130,13 @@ export function ChapterPipeline({
         (!needle || `${chapter.title} ${speakers}`.toLowerCase().includes(needle))
       );
     });
-  }, [rows, filter, readyOnly, keyword, expanded]);
+  }, [chapters, filter, readyOnly, keyword, expanded]);
 
   const selectable = visible.filter(chapterIsSelectable);
   const allSelected =
     selectable.length > 0 && selectable.every((chapter) => selected.includes(chapter.id));
-  const collapsedCount = rows.filter((chapter) => chapter.collapsed).length;
-  const unparsedCount = rows.filter((chapter) => chapter.state === "待拆解").length;
+  const collapsedCount = chapters.filter((chapter) => chapter.collapsed).length;
+  const unparsedCount = chapters.filter((chapter) => chapter.state === "待拆解").length;
 
   function toggle(chapter: HubChapter, checked: boolean) {
     setSelected((prev) =>
@@ -183,18 +155,6 @@ export function ChapterPipeline({
 
   function synthesize(chapter: HubChapter) {
     show(`《${chapter.title}》已进入合成队列，预计 4 分钟`, "info");
-  }
-
-  function split(chapter: HubChapter) {
-    setSplitting(chapter.id);
-    show(`正在用 Qwen2.5 拆解《${chapter.title}》的对白与情绪…`, "info");
-    setTimeout(() => {
-      setRows((prev) =>
-        prev.map((item) => (item.id === chapter.id ? chapterAfterSplit(item) : item)),
-      );
-      setSplitting(null);
-      show("拆解完成：识别出 2 位说话人、86 段对白", "success");
-    }, 1600);
   }
 
   function batchSynthesize() {
@@ -247,6 +207,14 @@ export function ChapterPipeline({
           >
             <WandSparkles className="h-3.5 w-3.5" />
             一键拆解全书
+          </button>
+          <button
+            type="button"
+            onClick={openImport}
+            className="flex items-center gap-1.5 rounded-full bg-accent px-3.5 py-2 text-[12.5px] font-medium text-white transition-colors hover:bg-accent-600"
+          >
+            <FilePlus2 className="h-3.5 w-3.5" />
+            追更上传章节
           </button>
         </div>
       </div>
@@ -301,18 +269,25 @@ export function ChapterPipeline({
                         {chapter.no}
                       </div>
                       <div className="min-w-0">
-                        {chapter.openable ? (
-                          <Link
-                            href={studioHref}
-                            className="block truncate text-[13.5px] font-medium text-white transition-colors group-hover:text-accent-400"
-                          >
-                            {chapter.title}
-                          </Link>
-                        ) : (
-                          <span className="block truncate text-[13.5px] font-medium text-white/60">
-                            {chapter.title}
-                          </span>
-                        )}
+                        <div className="flex min-w-0 items-center gap-2">
+                          {chapter.openable ? (
+                            <Link
+                              href={studioHref}
+                              className="truncate text-[13.5px] font-medium text-white transition-colors group-hover:text-accent-400"
+                            >
+                              {chapter.title}
+                            </Link>
+                          ) : (
+                            <span className="truncate text-[13.5px] font-medium text-white/60">
+                              {chapter.title}
+                            </span>
+                          )}
+                          {chapter.imported && (
+                            <span className="shrink-0 rounded border border-accent/25 bg-accent/10 px-1.5 py-0.5 text-[10px] text-accent-400">
+                              追更新增
+                            </span>
+                          )}
+                        </div>
                         <div
                           className={`mt-0.5 truncate text-[11px] ${
                             !chapter.openable
@@ -329,7 +304,7 @@ export function ChapterPipeline({
                   </td>
                   <td className="px-4 py-4 font-mono">
                     <div className={chapter.openable ? "text-white/75" : "text-white/50"}>
-                      {formatWords(chapter.words)} 字
+                      {chapter.words ? `${formatWords(chapter.words)} 字` : "待统计"}
                     </div>
                     <div
                       className={`mt-0.5 text-[11px] ${
@@ -395,7 +370,7 @@ export function ChapterPipeline({
                     <ChapterAction
                       chapter={chapter}
                       href={studioHref}
-                      splitting={splitting === chapter.id}
+                      splitting={splittingIds.includes(chapter.id)}
                       onSplit={split}
                       onSynthesize={synthesize}
                       onCast={onGoToCast}
@@ -426,7 +401,7 @@ export function ChapterPipeline({
           className="mt-3 flex w-full items-center justify-center gap-1.5 rounded-xl border border-dashed border-white/10 bg-ink-850 py-2.5 text-[12.5px] text-white/45 transition-colors hover:border-white/20 hover:text-white"
         >
           <ChevronDown className="h-3.5 w-3.5" />
-          展开全部 {rows.length} 章（其余 {collapsedCount} 章待拆解）
+          展开全部 {chapters.length} 章（其余 {collapsedCount} 章待拆解）
         </button>
       )}
     </div>

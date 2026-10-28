@@ -173,6 +173,8 @@ export type HubChapter = {
   openable: boolean;
   /** 折叠在“展开全部”之后 */
   collapsed?: boolean;
+  /** 追更上传新增或覆盖的行，标题右侧挂「追更新增」标 */
+  imported?: boolean;
 };
 
 export type CastFact = {
@@ -528,6 +530,37 @@ export function chapterAfterRender(chapter: HubChapter): HubChapter {
     status: { label: "全章母带就绪", tone: "emerald", icon: "master" },
     action: { kind: "studio" },
     openable: true,
+  };
+}
+
+/** 追更上传解析出的章节草稿 */
+export type ImportedChapterDraft = {
+  title: string;
+  /** 正文字数，非文本文档或整文件导入时为 0，表示待统计 */
+  words: number;
+  excerpt: string;
+};
+
+/** 追更续编的序号：接在当前最大序号之后 */
+export function nextChapterNo(chapters: HubChapter[]) {
+  return chapters.reduce((max, chapter) => Math.max(max, Number(chapter.no) || 0), 0) + 1;
+}
+
+export function chapterForImport(draft: ImportedChapterDraft, no: number): HubChapter {
+  return {
+    id: crypto.randomUUID(),
+    no: String(no).padStart(2, "0"),
+    title: draft.title,
+    excerpt: draft.excerpt,
+    words: draft.words,
+    etaSeconds: draft.words ? Math.round(draft.words / 4) : undefined,
+    tone: "accent",
+    state: "待拆解",
+    status: { label: "待拆解", tone: "neutral", icon: "scan" },
+    speakers: null,
+    action: { kind: "split" },
+    openable: false,
+    imported: true,
   };
 }
 
