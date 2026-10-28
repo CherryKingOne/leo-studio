@@ -19,6 +19,8 @@ class ProjectResponse(BaseModel):
     total_words: int = Field(default=0, description="总字数")
     created_at: datetime = Field(description="创建时间")
     updated_at: datetime = Field(description="最后更新时间")
+    is_deleted: bool = Field(default=False, description="是否处于回收站（已软删除）")
+    deleted_at: datetime | None = Field(default=None, description="软删除时间")
 
 
 class ProjectListItem(BaseModel):
@@ -33,6 +35,8 @@ class ProjectListItem(BaseModel):
     total_words: int = Field(default=0, description="总字数")
     created_at: datetime = Field(description="创建时间")
     updated_at: datetime = Field(description="最后更新时间")
+    is_deleted: bool = Field(default=False, description="是否处于回收站（已软删除）")
+    deleted_at: datetime | None = Field(default=None, description="软删除时间")
 
 
 class ProjectListResponse(BaseModel):
@@ -46,11 +50,35 @@ class ProjectListResponse(BaseModel):
 
 
 class ProjectDeleteResponse(BaseModel):
-    """项目删除响应。"""
+    """项目软删除响应。"""
 
-    project_id: str = Field(description="被删除的项目 ID (UUID)")
+    project_id: str = Field(description="被移入回收站的项目 ID (UUID)")
     name: str = Field(description="项目名称")
-    deleted: bool = Field(default=True, description="是否删除成功")
+    deleted: bool = Field(default=True, description="是否移入回收站成功")
+    deleted_at: datetime | None = Field(default=None, description="移入回收站时间")
+
+
+class ProjectRestoreResponse(BaseModel):
+    """项目从回收站恢复响应。"""
+
+    project_id: str = Field(description="被恢复的项目 ID (UUID)")
+    name: str = Field(description="项目名称")
+    restored: bool = Field(default=True, description="是否恢复成功")
+
+
+class ProjectHardDeleteResponse(BaseModel):
+    """项目彻底删除响应。"""
+
+    project_id: str = Field(description="被彻底删除的项目 ID (UUID)")
+    name: str = Field(description="项目名称")
+    hard_deleted: bool = Field(default=True, description="是否彻底删除成功")
+
+
+class ProjectClearRecycleBinResponse(BaseModel):
+    """清空回收站响应。"""
+
+    cleared_count: int = Field(description="清理的项目数量")
+    cleared: bool = Field(default=True, description="是否清空成功")
 
 
 class ChapterOutlineItem(BaseModel):

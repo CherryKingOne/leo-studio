@@ -176,33 +176,103 @@ class TestProjectManagementCRUD:
         body = response.json()
         assert body["code"] == 40400
 
-    def test_delete_project_cascades(self, client: TestClient) -> None:
-        """删除项目应级联删除关联的文本文件、章节与切句数据。"""
+    def test_soft_delete_and_hard_delete_flow(self, client: TestClient) -> None:
+        """测试软删除移入回收站、恢复以及彻底删除级联清理全流程。"""
         create_res = client.post(
             "/api/v1/projects",
-            data={"name": "待删除项目"},
+            data={"name": "生命周期测试项目"},
             files={"file": ("novel.txt", build_text_file(SAMPLE_NOVEL_CONTENT), "text/plain")},
         )
         project_data = create_res.json()["data"]
         project_id = project_data["project_id"]
         file_id = project_data["file_id"]
 
-        # 确认文本文件及切句存在
+        # 1. 确认文本文件及切句存在
         assert client.get(f"/api/v1/text-files/{file_id}").status_code == 200
         assert client.get(f"/api/v1/text-files/{file_id}/sentences").status_code == 200
 
-        # 执行删除项目
+        # 2. 执行软删除
         delete_res = client.delete(f"/api/v1/projects/{project_id}")
         assert delete_res.status_code == 200
         del_body = delete_res.json()
         assert del_body["code"] == 0
         assert del_body["data"]["deleted"] is True
+        assert del_body["data"]["deleted_at"] is not None
 
-        # 项目应不再存在
+        # 3. 活跃列表与详情接口不再返回该项目
         assert client.get(f"/api/v1/projects/{project_id}").status_code == 404
+        list_res = client.get("/api/v1/projects")
+        active_ids = [item["project_id"] for item in list_res.json()["data"]["items"]]
+        assert project_id not in active_ids
 
-        # 关联的文本文件与切句也应被清理
+        # 4. 回收站列表能查到该项目，且底层文件依然完好（支持随时恢复）
+        recycle_res = client.get("/api/v1/projects/recycle-bin")
+        assert recycle_res.status_code == 200
+        trash_items = recycle_res.json()["data"]["items"]
+        trash_ids = [item["project_id"] for item in trash_items]
+        assert project_id in trash_ids
+        assert client.get(f"/api/v1/text-files/{file_id}").status_code == 200
+
+        # 5. 从回收站恢复项目
+        restore_res = client.post(f"/api/v1/projects/{project_id}/restore")
+        assert restore_res.status_code == 200
+        assert restore_res.json()["data"]["restored"] is True
+
+        # 恢复后活跃列表与详情可用，且大纲完好
+        assert client.get(f"/api/v1/projects/{project_id}").status_code == 200
+        outline_res = client.get(f"/api/v1/projects/{project_id}/chapters")
+        assert outline_res.status_code == 200
+        assert outline_res.json()["data"]["total"] == 2
+
+        # 6. 再次软删除并彻底删除
+        client.delete(f"/api/v1/projects/{project_id}")
+        hard_delete_res = client.delete(f"/api/v1/projects/{project_id}/hard")
+        assert hard_delete_res.status_code == 200
+        assert hard_delete_res.json()["data"]["hard_deleted"] is True
+
+        # 彻底删除后，回收站中不存在，底层文本文件与切句也物理清理
+        recycle_after = client.get("/api/v1/projects/recycle-bin").json()["data"]["items"]
+        assert project_id not in [item["project_id"] for item in recycle_after]
         assert client.get(f"/api/v1/text-files/{file_id}").status_code == 404
+
+    def test_clear_recycle_bin(self, client: TestClient) -> None:
+        """测试一键清空回收站。"""
+        # 创建两个项目并移入回收站
+        res1 = client.post(
+            "/api/v1/projects",
+            data={"name": "清空测试1"},
+            files={"file": ("n1.txt", build_text_file(SAMPLE_NOVEL_CONTENT), "text/plain")},
+        ).json()["data"]
+        res2 = client.post(
+            "/api/v1/projects",
+            data={"name": "清空测试2"},
+            files={"file": ("n2.txt", build_text_file(SAMPLE_NOVEL_CONTENT), "text/plain")},
+        ).json()["data"]
+
+        client.delete(f"/api/v1/projects/{res1['project_id']}")
+        client.delete(f"/api/v1/projects/{res2['project_id']}")
+
+        # 清空回收站
+        clear_res = client.delete("/api/v1/projects/recycle-bin")
+        assert clear_res.status_code == 200
+        assert clear_res.json()["data"]["cleared"] is True
+        assert clear_res.json()["data"]["cleared_count"] >= 2
+
+        # 检查底层文件已清理
+        assert client.get(f"/api/v1/text-files/{res1['file_id']}").status_code == 404
+        assert client.get(f"/api/v1/text-files/{res2['file_id']}").status_code == 404
+
+    def test_restore_non_deleted_project_fails(self, client: TestClient) -> None:
+        """恢复未被删除的项目应报错 422 (INVALID_PARAMETER)。"""
+        create_res = client.post(
+            "/api/v1/projects",
+            data={"name": "未删除项目"},
+            files={"file": ("novel.txt", build_text_file(SAMPLE_NOVEL_CONTENT), "text/plain")},
+        )
+        project_id = create_res.json()["data"]["project_id"]
+        res = client.post(f"/api/v1/projects/{project_id}/restore")
+        assert res.status_code == 422
+        assert res.json()["code"] == 40000
 
     def test_delete_non_existent_project(self, client: TestClient) -> None:
         """删除不存在的项目应返回 404。"""

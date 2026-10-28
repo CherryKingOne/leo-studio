@@ -30,6 +30,8 @@ class ProjectInfo:
     total_words: int
     created_at: datetime
     updated_at: datetime
+    is_deleted: bool = False
+    deleted_at: datetime | None = None
 
 
 @dataclass(slots=True)

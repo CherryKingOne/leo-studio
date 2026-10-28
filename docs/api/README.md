@@ -92,12 +92,16 @@ Leo Studio 后端服务的 HTTP 接口文档。所有接口基于 **FastAPI** �
 | 接口 | 方法 | 路径 | 说明 | 文档 |
 | --- | --- | --- | --- | --- |
 | 创建项目并上传小说 | `POST` | `/api/v1/projects` | 上传小说文件并绑定项目名称，复用文本文件模块进行清洗、分章与切句 | [create.md](./projects/create.md) |
-| 查询项目列表 | `GET` | `/api/v1/projects` | 分页查询项目列表，按创建时间倒序 | [list.md](./projects/list.md) |
-| 查询项目详情 | `GET` | `/api/v1/projects/{project_id}` | 获取单个项目详细信息 | [project.md](./projects/project.md) |
+| 查询项目列表 | `GET` | `/api/v1/projects` | 分页查询活跃项目列表，按创建时间倒序（自动过滤回收站项目） | [list.md](./projects/list.md) |
+| 查询回收站项目列表 | `GET` | `/api/v1/projects/recycle-bin` | 分页查询回收站中的项目列表，按删除时间倒序 | [recycle-bin.md](./projects/recycle-bin.md) |
+| 清空回收站 | `DELETE` | `/api/v1/projects/recycle-bin` | 批量彻底删除回收站内的所有项目及其物理关联文件 | [recycle-bin.md](./projects/recycle-bin.md) |
+| 查询项目详情 | `GET` | `/api/v1/projects/{project_id}` | 获取单个项目详细信息（回收站内项目返回 404） | [project.md](./projects/project.md) |
 | 查询项目章节大纲列表 | `GET` | `/api/v1/projects/{project_id}/chapters` | 获取小说分章大纲列表（目录树），按序号排列 | [chapters.md](./projects/chapters.md) |
 | 查询项目章节详细内容 | `GET` | `/api/v1/projects/{project_id}/chapters/{chapter_id}` | 获取单章清洗后完整正文与切句列表 | [chapter-content.md](./projects/chapter-content.md) |
 | 追加上传项目章节文件 | `POST` | `/api/v1/projects/{project_id}/chapters/upload` | 增量追加小说章节文件，智能匹配防爬虫污染 | [append-chapters.md](./projects/append-chapters.md) |
-| 删除项目 | `DELETE` | `/api/v1/projects/{project_id}` | 删除项目记录并级联清理关联的小说文件、章节与切句 | [delete.md](./projects/delete.md) |
+| 软删除项目（移入回收站） | `DELETE` | `/api/v1/projects/{project_id}` | 将项目移入回收站，保留小说及切句数据支持随时恢复 | [delete.md](./projects/delete.md) |
+| 从回收站恢复项目 | `POST` | `/api/v1/projects/{project_id}/restore` | 将回收站中的项目恢复为正常活跃状态 | [restore.md](./projects/restore.md) |
+| 彻底删除项目（物理硬删除） | `DELETE` | `/api/v1/projects/{project_id}/hard` | 永久物理删除项目及其关联的小说文件、章节大纲与切句记录 | [hard-delete.md](./projects/hard-delete.md) |
 
 
 ### 根路径

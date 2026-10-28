@@ -32,6 +32,8 @@
 | `total_words` | `integer` | 有效总字数 |
 | `created_at` | `string` | 创建时间，ISO 8601 格式 |
 | `updated_at` | `string` | 更新时间，ISO 8601 格式 |
+| `is_deleted` | `boolean` | 是否处于回收站（软删除状态） |
+| `deleted_at` | `string \| null` | 软删除时间戳，正常活跃项目中为 `null` |
 
 ## 成功示例
 
@@ -64,12 +66,12 @@ curl -X GET "http://127.0.0.1:8000/api/v1/projects/9f8c12a4b3e2489c91d8e5f2a1b3c
 
 ## 失败示例
 
-### 项目不存在 (404)
+### 项目不存在或已移入回收站 (404)
 
 ```json
 {
   "code": 40400,
-  "message": "项目不存在：9f8c12a4b3e2489c91d8e5f2a1b3c4d5",
+  "message": "项目不存在或已移入回收站：9f8c12a4b3e2489c91d8e5f2a1b3c4d5",
   "data": null,
   "request_id": "b3f1c2d4e5a60718293a4b5c6d7e8f90"
 }

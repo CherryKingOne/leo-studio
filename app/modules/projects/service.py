@@ -130,10 +130,23 @@ class ProjectService:
             self.csv_dir / PROJECTS_CSV_FILENAME,
             columns=PROJECTS_COLUMNS,
         )
+        self.migrate_table_columns_if_needed()
+
+    def migrate_table_columns_if_needed(self) -> None:
+        """检查并自动平滑迁移 projects.csv 表头，确保包含 is_deleted 等新字段。"""
+        import csv
+
+        if not self.projects_table.path.exists() or self.projects_table.path.stat().st_size == 0:
+            return
+        with self.projects_table.lock:
+            with self.projects_table.path.open("r", encoding="utf-8") as f:
+                reader = csv.reader(f)
+                header = next(reader, None)
+            if header and header != self.projects_table.columns:
+                rows = self.projects_table.read_rows_unlocked()
+                self.projects_table.write_rows_unlocked(rows)
 
     def record_to_info(self, record: dict[str, str]) -> ProjectInfo:
-
-
         """将 CSV 记录转换为 ProjectInfo 领域模型。"""
         created_at_raw = record.get("created_at")
         updated_at_raw = record.get("updated_at")
@@ -142,6 +155,16 @@ class ProjectService:
         )
         updated_at = (
             datetime.fromisoformat(updated_at_raw) if updated_at_raw else created_at
+        )
+
+        is_deleted_str = record.get("is_deleted", "").strip().lower()
+        is_deleted = is_deleted_str in ("true", "1", "yes")
+
+        deleted_at_raw = record.get("deleted_at", "").strip()
+        deleted_at = (
+            datetime.fromisoformat(deleted_at_raw)
+            if deleted_at_raw and is_deleted
+            else None
         )
 
         return ProjectInfo(
@@ -154,6 +177,8 @@ class ProjectService:
             total_words=int(record.get("total_words", 0) or 0),
             created_at=created_at,
             updated_at=updated_at,
+            is_deleted=is_deleted,
+            deleted_at=deleted_at,
         )
 
     def create_project(
@@ -205,37 +230,119 @@ class ProjectService:
             "total_words": str(total_words),
             "created_at": now_iso,
             "updated_at": now_iso,
+            "is_deleted": "false",
+            "deleted_at": "",
         }
 
         self.projects_table.insert(record)
         return self.record_to_info(record)
 
-    def get_project(self, project_id: str) -> ProjectInfo:
+    def get_project(
+        self, project_id: str, *, include_deleted: bool = False
+    ) -> ProjectInfo:
         """根据 project_id 查询项目详情。"""
         record = self.projects_table.find_by("project_id", project_id)
         if record is None:
             raise FileNotFoundError(f"项目不存在：{project_id}")
-        return self.record_to_info(record)
+        info = self.record_to_info(record)
+        if not include_deleted and info.is_deleted:
+            raise FileNotFoundError(f"项目不存在或已移入回收站：{project_id}")
+        return info
 
     def list_projects(
         self,
         page: int = 1,
         page_size: int = 20,
+        *,
+        in_recycle_bin: bool = False,
     ) -> tuple[list[ProjectInfo], int]:
-        """分页获取项目列表，按创建时间倒序。"""
+        """分页获取项目列表。
+
+        默认按创建时间倒序获取活跃项目；若 in_recycle_bin=True 则获取回收站项目。
+        """
         rows = self.projects_table.find_all()
-        items = [self.record_to_info(r) for r in rows]
-        items.sort(key=lambda x: x.created_at, reverse=True)
+        all_items = [self.record_to_info(r) for r in rows]
+
+        if in_recycle_bin:
+            items = [x for x in all_items if x.is_deleted]
+            items.sort(
+                key=lambda x: x.deleted_at or x.updated_at or x.created_at,
+                reverse=True,
+            )
+        else:
+            items = [x for x in all_items if not x.is_deleted]
+            items.sort(key=lambda x: x.created_at, reverse=True)
 
         total = len(items)
         start = (page - 1) * page_size
         return items[start : start + page_size], total
 
     def delete_project(self, project_id: str) -> ProjectInfo:
-        """删除项目及其关联的文本文件与章节数据。"""
-        info = self.get_project(project_id)
+        """软删除项目：将其移入回收站，保留小说及切句数据支持随时恢复。"""
+        info = self.get_project(project_id, include_deleted=False)
+        now = datetime.now(UTC)
+        now_iso = now.isoformat()
 
-        # 删除项目记录
+        self.projects_table.update_by(
+            "project_id",
+            project_id,
+            {
+                "is_deleted": "true",
+                "deleted_at": now_iso,
+                "updated_at": now_iso,
+            },
+        )
+        return ProjectInfo(
+            project_id=info.project_id,
+            name=info.name,
+            file_id=info.file_id,
+            filename=info.filename,
+            status=info.status,
+            chapter_count=info.chapter_count,
+            total_words=info.total_words,
+            created_at=info.created_at,
+            updated_at=now,
+            is_deleted=True,
+            deleted_at=now,
+        )
+
+    def restore_project(self, project_id: str) -> ProjectInfo:
+        """从回收站恢复项目。"""
+        info = self.get_project(project_id, include_deleted=True)
+        if not info.is_deleted:
+            raise InvalidParameterError(f"项目未处于回收站中：{project_id}")
+
+        now = datetime.now(UTC)
+        now_iso = now.isoformat()
+
+        self.projects_table.update_by(
+            "project_id",
+            project_id,
+            {
+                "is_deleted": "false",
+                "deleted_at": "",
+                "updated_at": now_iso,
+            },
+        )
+        return ProjectInfo(
+            project_id=info.project_id,
+            name=info.name,
+            file_id=info.file_id,
+            filename=info.filename,
+            status=info.status,
+            chapter_count=info.chapter_count,
+            total_words=info.total_words,
+            created_at=info.created_at,
+            updated_at=now,
+            is_deleted=False,
+            deleted_at=None,
+        )
+
+    def hard_delete_project(self, project_id: str) -> ProjectInfo:
+        """彻底物理删除项目及其关联的文本文件、章节与切句数据。"""
+        info = self.get_project(project_id, include_deleted=True)
+
+        # 物理删除项目记录
         self.projects_table.delete_by("project_id", project_id)
 
         # 级联删除关联的文本文件及章节/切句数据
@@ -243,6 +350,20 @@ class ProjectService:
             self.storage.delete_file(info.file_id)
 
         return info
+
+    def clear_recycle_bin(self) -> int:
+        """清空回收站中所有被软删除的项目，并彻底释放物理关联文件与数据。"""
+        rows = self.projects_table.find_all()
+        trash_items = [
+            self.record_to_info(r) for r in rows if self.record_to_info(r).is_deleted
+        ]
+        cleared_count = 0
+        for item in trash_items:
+            self.projects_table.delete_by("project_id", item.project_id)
+            with contextlib.suppress(FileNotFoundError):
+                self.storage.delete_file(item.file_id)
+            cleared_count += 1
+        return cleared_count
 
 
 

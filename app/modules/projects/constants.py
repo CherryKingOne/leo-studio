@@ -24,6 +24,8 @@ PROJECTS_COLUMNS: Final[list[str]] = [
     "total_words",
     "created_at",
     "updated_at",
+    "is_deleted",
+    "deleted_at",
 ]
 
 

@@ -27,10 +27,13 @@ from app.modules.projects.schemas import (
     ChapterOutlineListResponse,
     ChapterSentenceItem,
     ProjectChapterAppendResponse,
+    ProjectClearRecycleBinResponse,
     ProjectDeleteResponse,
+    ProjectHardDeleteResponse,
     ProjectListItem,
     ProjectListResponse,
     ProjectResponse,
+    ProjectRestoreResponse,
 )
 from app.modules.projects.service import ProjectService
 from app.modules.text_files.dependencies import get_storage_service
@@ -71,6 +74,8 @@ def to_project_response(info: ProjectInfo) -> ProjectResponse:
         total_words=info.total_words,
         created_at=info.created_at,
         updated_at=info.updated_at,
+        is_deleted=info.is_deleted,
+        deleted_at=info.deleted_at,
     )
 
 
@@ -86,6 +91,8 @@ def to_project_list_item(info: ProjectInfo) -> ProjectListItem:
         total_words=info.total_words,
         created_at=info.created_at,
         updated_at=info.updated_at,
+        is_deleted=info.is_deleted,
+        deleted_at=info.deleted_at,
     )
 
 
@@ -217,6 +224,53 @@ async def list_projects(
 
 
 @router.get(
+    "/recycle-bin",
+    response_model=ApiResponse[ProjectListResponse],
+    summary="查询回收站项目列表",
+    description="按删除时间倒序返回回收站内的项目列表，支持分页。",
+)
+async def list_recycle_bin_projects(
+    page: Annotated[int, Query(ge=1, description="页码，从 1 开始")] = 1,
+    page_size: Annotated[int, Query(ge=1, le=100, description="每页数量，最大 100")] = 20,
+    service: ProjectService = Depends(resolve_project_service),
+) -> ApiResponse[ProjectListResponse]:
+    """查询回收站项目列表。"""
+    items, total = service.list_projects(
+        page=page, page_size=page_size, in_recycle_bin=True
+    )
+    pages = (total + page_size - 1) // page_size if total else 0
+    return ApiResponse(
+        data=ProjectListResponse(
+            total=total,
+            page=page,
+            page_size=page_size,
+            pages=pages,
+            items=[to_project_list_item(item) for item in items],
+        )
+    )
+
+
+@router.delete(
+    "/recycle-bin",
+    response_model=ApiResponse[ProjectClearRecycleBinResponse],
+    summary="清空回收站",
+    description="永久彻底物理删除回收站内的所有项目，并释放底层关联文件与切句数据。",
+)
+async def clear_recycle_bin(
+    service: ProjectService = Depends(resolve_project_service),
+) -> ApiResponse[ProjectClearRecycleBinResponse]:
+    """清空回收站。"""
+    cleared_count = service.clear_recycle_bin()
+    return ApiResponse(
+        data=ProjectClearRecycleBinResponse(
+            cleared_count=cleared_count,
+            cleared=True,
+        ),
+        message=f"回收站已清空，共彻底删除 {cleared_count} 个项目",
+    )
+
+
+@router.get(
     "/{project_id}",
     response_model=ApiResponse[ProjectResponse],
     summary="查询项目详情",
@@ -234,22 +288,67 @@ async def get_project(
 @router.delete(
     "/{project_id}",
     response_model=ApiResponse[ProjectDeleteResponse],
-    summary="删除项目",
-    description="根据 `project_id` 删除项目及其关联的小说文件、章节与切句记录。",
+    summary="软删除项目（移入回收站）",
+    description="根据 `project_id` 将项目移入回收站，保留小说及切句数据支持随时恢复。",
 )
 async def delete_project(
     project_id: ProjectIdPath,
     service: ProjectService = Depends(resolve_project_service),
 ) -> ApiResponse[ProjectDeleteResponse]:
-    """删除项目。"""
+    """软删除项目（移入回收站）。"""
     info = service.delete_project(project_id)
     return ApiResponse(
         data=ProjectDeleteResponse(
             project_id=info.project_id,
             name=info.name,
             deleted=True,
+            deleted_at=info.deleted_at,
         ),
-        message="项目删除成功",
+        message="项目已成功移入回收站",
+    )
+
+
+@router.post(
+    "/{project_id}/restore",
+    response_model=ApiResponse[ProjectRestoreResponse],
+    summary="从回收站恢复项目",
+    description="根据 `project_id` 将回收站中的项目恢复为正常活跃状态。",
+)
+async def restore_project(
+    project_id: ProjectIdPath,
+    service: ProjectService = Depends(resolve_project_service),
+) -> ApiResponse[ProjectRestoreResponse]:
+    """从回收站恢复项目。"""
+    info = service.restore_project(project_id)
+    return ApiResponse(
+        data=ProjectRestoreResponse(
+            project_id=info.project_id,
+            name=info.name,
+            restored=True,
+        ),
+        message="项目已成功恢复",
+    )
+
+
+@router.delete(
+    "/{project_id}/hard",
+    response_model=ApiResponse[ProjectHardDeleteResponse],
+    summary="彻底删除项目（物理硬删除）",
+    description="永久物理删除项目及其关联的小说文件、章节大纲与切句记录，不可恢复。",
+)
+async def hard_delete_project(
+    project_id: ProjectIdPath,
+    service: ProjectService = Depends(resolve_project_service),
+) -> ApiResponse[ProjectHardDeleteResponse]:
+    """彻底删除项目。"""
+    info = service.hard_delete_project(project_id)
+    return ApiResponse(
+        data=ProjectHardDeleteResponse(
+            project_id=info.project_id,
+            name=info.name,
+            hard_deleted=True,
+        ),
+        message="项目已彻底物理删除",
     )
 
 
