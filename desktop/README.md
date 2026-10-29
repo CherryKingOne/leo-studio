@@ -39,7 +39,7 @@ dev 会热更新该变量，不必重启。缺省或填错时 `/project` 渲染 
 | `/project/trash` | 已实现 | 剧目库的回收站页（tab「回收站」），源码 `app/project/trash/page.tsx` + `components/trash-panel.tsx`；列表来自 `GET /api/v1/projects/recycle-bin`，恢复走 `POST /api/v1/projects/{id}/restore`，彻底删除走 `DELETE /api/v1/projects/{id}/hard`，清空走 `DELETE /api/v1/projects/recycle-bin` |
 | `/` | 占位 | 仅 `redirect("/project")`，见 `app/page.tsx`；真正的首屏后续补，改写该文件即可，**不要**把剧目库搬回根路径 |
 | `/project/[id]` | 已实现 | 剧目看板，源码 `app/project/[id]/page.tsx` + `components/project-hub.tsx`（原型 `project-hub.html`）；真实剧目取 `GET /api/v1/projects/{id}` + `GET /api/v1/projects/{id}/chapters`，章节状态一律「待拆解」（后端暂无生产状态接口）但标题可点进制作工作台，无角色数据时不显示选角 tab；「追更上传章节」调 `POST /api/v1/projects/{id}/chapters/upload`（先 `dry_run` 预检再落盘，覆盖策略用 `overwrite_existing`），只对后端剧目开放；`p-*` 三个原型剧目仍走 mock（含角色台账与工作台剧本） |
-| `/project/[id]/chapter/[chapterId]` | 已实现 | 章节制作工作台，源码 `app/project/[id]/chapter/[chapterId]/page.tsx` + `components/chapter-studio.tsx`（原型 `chapter-studio.html`）；后端剧目取 `GET /api/v1/projects/{id}/chapters/{chapterId}`，`sentences[]` 一句一张剧本卡片、同一批数据铺「正文」对照，说话人与情绪按「旁白 / 待标定」占位；原型剧目仍由 `studioFor()` 出 mock 剧本，两个 id 都对不上时 `notFound()` |
+| `/project/[id]/chapter/[chapterId]` | 已实现 | 章节制作工作台，源码 `app/project/[id]/chapter/[chapterId]/page.tsx` + `components/chapter-studio.tsx`（原型 `chapter-studio.html`）；后端剧目取 `GET /api/v1/projects/{id}/chapters/{chapterId}`，`sentences[]` 一句一张剧本卡片、同一批数据铺「正文」对照，说话人与情绪按「旁白 / 待标定」占位；原型剧目仍由 `studioFor()` 出 mock 剧本，两个 id 都对不上时 `notFound()`；左栏三个 pane 为大纲 / 正文 / 目录，目录取 `GET /api/v1/projects/{id}/chapters` 且可直接切章 |
 | `/project/[id]/export` | 未实现 | 整书母带导出中心（原型 `export-center.html`） |
 | `/voice-library` | 未实现 | 全局声线资产库（原型 `voice-library.html`） |
 
@@ -115,3 +115,5 @@ lib/
 - 全局层页面（`/project`）用 `Sidebar` + `TopBar`；单书上下文层的剧目看板与章节工作台按原型自带的项目顶栏（`hub-header.tsx` / `studio-header.tsx`）呈现，不再叠全局外壳。
 - 章节工作台是 `h-screen` 满屏布局：页面自身不滚动，大纲、正文与剧本流各自内部滚动。
 - 左栏与剧本流互相定位：点大纲/正文条目滚到对应卡片，点卡片只滚到左栏**当前 pane** 的对应条目（大纲态就停在大纲，不切成正文）；pane 由用户手动切换，跳转用 `outline-*` / `source-*` / 卡片 id 三类 DOM 锚点。
+- 左栏第三个 pane「目录」来自 `GET /projects/{id}/chapters`（`studioTocFor()` 把大纲映射成行，当前章高亮并在进入 pane 时滚到该行），点任意一行 `router.push` 切到该章工作台；原型剧目没有该接口，由看板 mock 章节转成同构的 `ProjectChapter` 喂同一个映射函数。
+- 左栏当前 pane 记在 `chapter-studio.tsx` 的模块变量 `rememberedPane` 里：切章会让工作台子树重挂载，靠它停在用户上次看的那一栏（不闪、不水合错位），整页刷新才回到大纲。别改成 `useState` 初值读 `sessionStorage`/`useSearchParams`，那会和服务端 HTML 对不上。

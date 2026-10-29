@@ -682,6 +682,18 @@ export type ChapterStudio = {
   reverbOptions: string[];
 };
 
+/** 工作台「目录」pane 的一行，来自章节目录接口 */
+export type StudioTocEntry = {
+  /** 章节 id，点行时用它拼工作台路由 */
+  id: string;
+  /** 章节序号，如 007 */
+  no: string;
+  title: string;
+  words: number;
+  /** 当前打开的章节，目录里高亮并滚到这一行 */
+  current: boolean;
+};
+
 const kleinCastOptions: CastOption[] = [
   { option: "克莱恩（男主）", label: "克莱恩·莫雷蒂" },
   { option: "旁白", label: "旁白" },
@@ -871,6 +883,20 @@ function pendingStudio(project: ProjectEntry, chapter: HubChapter): ChapterStudi
 
 export function studioFor(project: ProjectEntry, chapter: HubChapter): ChapterStudio {
   return chapterStudios[`${project.id}/${chapter.id}`] ?? pendingStudio(project, chapter);
+}
+
+/**
+ * 章节目录：`GET /projects/{id}/chapters` 的大纲 → 工作台目录 pane 的行。
+ * 原型剧目没有该接口，由看板 mock 章节转成同构的 `ProjectChapter` 再进来。
+ */
+export function studioTocFor(chapters: ProjectChapter[], currentId: string): StudioTocEntry[] {
+  return chapters.map((chapter) => ({
+    id: chapter.id,
+    no: String(chapter.index + 1).padStart(3, "0"),
+    title: chapter.title,
+    words: chapter.words,
+    current: chapter.id === currentId,
+  }));
 }
 
 /**

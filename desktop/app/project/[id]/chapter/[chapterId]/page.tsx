@@ -2,16 +2,19 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { ChapterStudio } from "@/components/chapter-studio";
 import { ToastProvider } from "@/components/toast";
-import { getChapterContent, getProject } from "@/lib/api";
+import { getChapterContent, getProject, listChapters } from "@/lib/api";
 import {
   chapterFromOutline,
   hubFor,
   initialProjects,
   studioFor,
   studioFromContent,
+  studioTocFor,
   type ChapterStudio as StudioData,
   type HubChapter,
+  type ProjectChapter,
   type StudioProject,
+  type StudioTocEntry,
 } from "@/lib/projects";
 
 // 页面内容按 params 选剧目与章节，属于阻塞式路由
@@ -21,23 +24,40 @@ type StudioSource = {
   project: StudioProject;
   chapter: HubChapter;
   studio: StudioData;
+  toc: StudioTocEntry[];
 };
 
 /**
- * 迁移期两数据源：原型剧目用 `lib/projects.ts` 的 mock 剧本，
- * 后端剧目用 GET /projects/{id}/chapters/{chapterId} 的正文与逐句铺工作台。
+ * 迁移期两数据源：原型剧目用 `lib/projects.ts` 的 mock 剧本，目录取看板章节；
+ * 后端剧目用 GET /projects/{id}/chapters/{chapterId} 的正文与逐句铺工作台，
+ * 目录取 GET /projects/{id}/chapters。
  */
 async function loadStudio(id: string, chapterId: string): Promise<StudioSource | null> {
   const mock = initialProjects.find((project) => project.id === id);
   if (mock) {
-    const chapter = hubFor(mock).chapters.find((item) => item.id === chapterId);
+    const hub = hubFor(mock);
+    const chapter = hub.chapters.find((item) => item.id === chapterId);
     if (!chapter) return null;
-    return { project: mock, chapter, studio: studioFor(mock, chapter) };
+
+    const outline = hub.chapters.map<ProjectChapter>((item) => ({
+      id: item.id,
+      index: Number(item.no) - 1,
+      title: item.title,
+      words: item.words,
+    }));
+
+    return {
+      project: mock,
+      chapter,
+      studio: studioFor(mock, chapter),
+      toc: studioTocFor(outline, chapterId),
+    };
   }
 
-  const [project, content] = await Promise.all([
+  const [project, content, outline] = await Promise.all([
     getProject(id),
     getChapterContent(id, chapterId),
+    listChapters(id),
   ]);
   if (!project || !content) return null;
 
@@ -52,6 +72,7 @@ async function loadStudio(id: string, chapterId: string): Promise<StudioSource |
     project: { id: project.id, title: project.title },
     chapter,
     studio: studioFromContent(chapter, content),
+    toc: studioTocFor(outline, chapterId),
   };
 }
 
@@ -87,6 +108,7 @@ export default async function ChapterStudioPage(
         project={source.project}
         chapter={source.chapter}
         studio={source.studio}
+        toc={source.toc}
       />
     </ToastProvider>
   );

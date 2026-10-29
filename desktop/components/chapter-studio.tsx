@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { ParagraphOutline, type StudioPane } from "@/components/paragraph-outline";
 import { ScriptFeed, type FeedItem } from "@/components/script-feed";
 import { StudioHeader } from "@/components/studio-header";
@@ -13,21 +14,32 @@ import type {
   HubChapter,
   StudioParagraph,
   StudioProject,
+  StudioTocEntry,
 } from "@/lib/projects";
 
 /** 滚动意图：目标 DOM 元素 + 对齐方式，nonce 让重复点同一段也能再滚一次 */
 type ScrollIntent = { target: string; block: "center" | "nearest"; nonce: number };
 
+/**
+ * 上次看的是哪一栏记在模块里：从目录切章会让工作台子树重挂载，
+ * 客户端导航不换 JS runtime，所以这份记忆能跨章节保留，整页刷新才回到大纲。
+ */
+let rememberedPane: StudioPane = "outline";
+
 export function ChapterStudio({
   project,
   chapter,
   studio,
+  toc,
 }: {
   project: StudioProject;
   chapter: HubChapter;
   studio: StudioData;
+  /** 全书章节目录，来自 GET /projects/{id}/chapters */
+  toc: StudioTocEntry[];
 }) {
   const { show } = useToast();
+  const router = useRouter();
   const scrollNonce = useRef(0);
 
   const [paragraphs, setParagraphs] = useState(studio.paragraphs);
@@ -35,10 +47,15 @@ export function ChapterStudio({
   const [undoStack, setUndoStack] = useState<string[][]>([]);
   const [redoStack, setRedoStack] = useState<string[][]>([]);
   const [activeId, setActiveId] = useState(studio.paragraphs[0].id);
-  const [pane, setPane] = useState<StudioPane>("outline");
+  const [pane, setPane] = useState<StudioPane>(() => rememberedPane);
   const [keyword, setKeyword] = useState("");
   const [tuningOpen, setTuningOpen] = useState(false);
   const [scrollIntent, setScrollIntent] = useState<ScrollIntent | null>(null);
+
+  function selectPane(next: StudioPane) {
+    rememberedPane = next;
+    setPane(next);
+  }
 
   const baseOrder = useMemo(() => studio.paragraphs.map((item) => item.id), [studio]);
   const byId = useMemo(
@@ -97,19 +114,23 @@ export function ChapterStudio({
 
   /**
    * `column` 是这次要点亮的列：剧本流卡片或左栏。
-   * 左栏跟随用户当前 pane，点卡片不再把大纲强制换成正文。
+   * 左栏跟随用户当前 pane，点卡片不再把大纲换成正文；目录没有逐段锚点，只更新选中态。
    */
   function jump(id: string, column: "feed" | "pane") {
     setActiveId(id);
-    scrollNonce.current += 1;
-    const nonce = scrollNonce.current;
-    setScrollIntent(
+
+    const anchor =
       column === "feed"
-        ? { target: id, block: "center", nonce }
+        ? { target: id, block: "center" as const }
         : pane === "outline"
-          ? { target: `outline-${id}`, block: "center", nonce }
-          : { target: `source-${id}`, block: "nearest", nonce },
-    );
+          ? { target: `outline-${id}`, block: "center" as const }
+          : pane === "source"
+            ? { target: `source-${id}`, block: "nearest" as const }
+            : null;
+    if (!anchor) return;
+
+    scrollNonce.current += 1;
+    setScrollIntent({ ...anchor, nonce: scrollNonce.current });
   }
 
   function commit(next: string[]) {
@@ -196,11 +217,15 @@ export function ChapterStudio({
             seq: timeline.get(paragraph.id)?.seq ?? 1,
           }))}
           source={studio.source}
+          toc={toc}
           pane={pane}
           activeId={active.id}
           words={chapter.words}
-          onPaneChange={setPane}
+          onPaneChange={selectPane}
           onJumpToFeed={(id) => jump(id, "feed")}
+          onTocSelect={(entry) =>
+            entry.current || router.push(`/project/${project.id}/chapter/${entry.id}`)
+          }
         />
 
         <main className="flex min-w-0 flex-1 overflow-hidden">
