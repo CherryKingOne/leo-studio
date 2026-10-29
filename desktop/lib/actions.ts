@@ -2,18 +2,23 @@
 
 import { refresh, updateTag } from "next/cache";
 import {
+  appendChapters,
   clearTrash,
   createProject,
   deleteProject,
   hardDeleteProject,
   restoreProject,
 } from "@/lib/api";
+import type { ChapterAppendResult } from "@/lib/api";
 import type { ProjectSummary } from "@/lib/projects";
 
 export type MutationResult = { ok: true } | { ok: false; message: string };
 export type ClearTrashResult = { ok: true; count: number } | { ok: false; message: string };
 export type CreateProjectResult =
   | { ok: true; project: ProjectSummary }
+  | { ok: false; message: string };
+export type AppendChaptersResult =
+  | { ok: true; preview: ChapterAppendResult }
   | { ok: false; message: string };
 
 /**
@@ -45,6 +50,30 @@ export async function createProjectAction(formData: FormData): Promise<CreatePro
 
   committed();
   return { ok: true, project };
+}
+
+/**
+ * 追更上传章节：dryRun 只预检（不动缓存），真正上传后作废缓存并刷新路由，
+ * 新章节由 listChapters 重新拉取，因此接口无需返回章节标题清单。
+ */
+export async function appendChaptersAction(formData: FormData): Promise<AppendChaptersResult> {
+  const projectId = String(formData.get("projectId") ?? "");
+  const file = formData.get("file");
+  const overwriteExisting = formData.get("overwriteExisting") === "true";
+  const dryRun = formData.get("dryRun") === "true";
+
+  if (!projectId) return { ok: false, message: "缺少剧目标识" };
+  if (!(file instanceof File) || file.size === 0) {
+    return { ok: false, message: "请选择章节文件" };
+  }
+
+  try {
+    const preview = await appendChapters(projectId, file, { overwriteExisting, dryRun });
+    if (!dryRun) committed();
+    return { ok: true, preview };
+  } catch (error) {
+    return failure(error);
+  }
 }
 
 function failure(error: unknown): { ok: false; message: string } {

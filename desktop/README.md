@@ -38,7 +38,7 @@ dev 会热更新该变量，不必重启。缺省或填错时 `/project` 渲染 
 | `/project` | 已实现 | 剧目库列表页（tab「全部」），源码 `app/project/page.tsx`；数据来自 `GET /api/v1/projects`（服务端渲染，读 `.env.local` 的 `API_BASE_URL`，取数期间显示骨架屏）；「新建项目」走服务端动作调 `POST /api/v1/projects`（multipart，创建成功后直接进该剧目看板）；删除（单条与批量）调 `DELETE /api/v1/projects/{id}` 软删除进回收站 |
 | `/project/trash` | 已实现 | 剧目库的回收站页（tab「回收站」），源码 `app/project/trash/page.tsx` + `components/trash-panel.tsx`；列表来自 `GET /api/v1/projects/recycle-bin`，恢复走 `POST /api/v1/projects/{id}/restore`，彻底删除走 `DELETE /api/v1/projects/{id}/hard`，清空走 `DELETE /api/v1/projects/recycle-bin` |
 | `/` | 占位 | 仅 `redirect("/project")`，见 `app/page.tsx`；真正的首屏后续补，改写该文件即可，**不要**把剧目库搬回根路径 |
-| `/project/[id]` | 已实现 | 剧目看板，源码 `app/project/[id]/page.tsx` + `components/project-hub.tsx`（原型 `project-hub.html`）；真实剧目取 `GET /api/v1/projects/{id}` + `GET /api/v1/projects/{id}/chapters`，章节一律「待拆解」且不给工作台入口，无角色数据时不显示选角 tab；`p-*` 三个原型剧目仍走 mock（含角色台账与工作台剧本）；「追更上传章节」仍是本地解析 mock |
+| `/project/[id]` | 已实现 | 剧目看板，源码 `app/project/[id]/page.tsx` + `components/project-hub.tsx`（原型 `project-hub.html`）；真实剧目取 `GET /api/v1/projects/{id}` + `GET /api/v1/projects/{id}/chapters`，章节一律「待拆解」且不给工作台入口，无角色数据时不显示选角 tab；「追更上传章节」调 `POST /api/v1/projects/{id}/chapters/upload`（先 `dry_run` 预检再落盘，覆盖策略用 `overwrite_existing`），只对后端剧目开放；`p-*` 三个原型剧目仍走 mock（含角色台账与工作台剧本） |
 | `/project/[id]/chapter/[chapterId]` | 已实现 | 章节制作工作台，源码 `app/project/[id]/chapter/[chapterId]/page.tsx` + `components/chapter-studio.tsx`（原型 `chapter-studio.html`）；`generateStaticParams` 预渲染看板中 `openable` 的章节，未知 id 走 `notFound()`；未逐句核对过的章节由 `studioFor()` 铺占位剧本 |
 | `/project/[id]/export` | 未实现 | 整书母带导出中心（原型 `export-center.html`） |
 | `/voice-library` | 未实现 | 全局声线资产库（原型 `voice-library.html`） |
@@ -71,9 +71,9 @@ components/
   library-skeleton.tsx  剧目库骨架屏：侧栏 + 工具栏 + 卡片网格占位，配 `animate-shimmer` 微光扫过
   import-novel-modal.tsx 新建剧目弹窗（Provider + hook + 弹窗本体）：名称 + .txt 正文，提交走 `createProjectAction`
   clone-voice-modal.tsx 克隆新音色弹窗（Provider + hook + 弹窗本体）
-  chapter-import-modal.tsx 追更上传章节弹窗：本地解析「第X章」分章、导入预览与同名跳过
+  chapter-import-modal.tsx 追更上传章节弹窗：选单个 .txt → dry_run 预检摘要与冲突列表 → 确认后落盘
   hub-header.tsx        剧目看板的项目级顶栏：返回书架 + 可改名标题 + 章节与副标题 + 导出入口（无进度数据时不画进度条）
-  hub-chapters.tsx      看板章节状态（Provider + useHubChapters）：拆解与合成推进、追更导入追加章节
+  hub-chapters.tsx      看板章节状态（Provider + useHubChapters）：拆解与合成推进、持有追更上传弹窗
   project-hub.tsx       看板 tab 容器：章节流水线 / 角色阵容，持有搜索与只看已就绪；cast 为空时不渲染选角 tab
   chapter-pipeline.tsx  章节生产流水线表格：状态筛选、批量勾选、拆解与合成推进、追更上传入口
   cast-matrix.tsx       全书角色台账卡片：声线绑定与试听（Web Audio 发特征音）
@@ -95,7 +95,8 @@ lib/
 - 样式只用 Tailwind utility 与 `@theme` token（`ink-*`、`accent`、`hairline`、`bg-card-cover`），不手写原生 CSS 规则。
 - 滚动条统一用 `lib/scrollbar.ts` 的 `inkScrollbar`：`app/layout.tsx` 挂在 `html` 上管文档滚动条，页面内每个 `overflow-y-auto` 容器各自再挂一次（该样式不继承）。
 - 弹窗独立成组件文件，由 Provider 持有开关、触发方通过 hook 调用，不在页面里复制弹窗 DOM。
-- 剧目看板的章节列表由 `hub-chapters.tsx` 的 Provider 统一持有：顶栏统计、tab 计数与流水线表格读同一份 state，追更导入的新章节因此三处同步变化。
+- 剧目看板的章节列表由 `hub-chapters.tsx` 的 Provider 统一持有：顶栏统计、tab 计数与流水线表格读同一份 state。追更上传不再本地拼章节，落盘后靠 `refresh()` 让 `listChapters` 重新拉取，因此页面上 Provider 用 `key={章节 id 集合}` 强制重挂载，避免旧 state 与新 props 打架。
+- 分章、同名比对、字数统计一律交给后端（`dry_run` 预检 + `overwrite_existing` 覆盖），前端不要再用正则猜章节；接口只返回数量不返回新章节标题，导入后的列表以 `listChapters` 为准。
 - 图标统一用 `lucide-react`。
 - 数据来源分两段：剧目库列表与剧目看板（项目信息、章节大纲）读后端，`lib/api.ts` 只在服务端调用、snake_case 映射成视图模型（`ProjectSummary` / `ProjectChapter`）再下发组件；角色台账、生产状态、章节工作台仍是 `lib/projects.ts` 的 mock，后端出对应接口后逐个替换，组件层不直接依赖来源。
 - 后端没有的字段不展示：列表卡片与排序只用 `name` / `filename` / `chapter_count` / `total_words` / `updated_at`（`status` 后端有值但界面不再放胶囊），看板顶栏在没有进度数据时不画进度条，别用假数据补。

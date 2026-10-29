@@ -27,6 +27,8 @@ type HubData = {
   cast: CastMember[];
   /** 章节是否已有制作工作台数据 */
   studioReady: boolean;
+  /** 后端剧目才支持追更上传，原型剧目没有 project_id 对应记录 */
+  appendReady: boolean;
 };
 
 /**
@@ -46,6 +48,7 @@ async function loadHub(id: string): Promise<HubData | null> {
       chapters: hub.chapters,
       cast: hub.cast,
       studioReady: true,
+      appendReady: false,
     };
   }
 
@@ -65,6 +68,7 @@ async function loadHub(id: string): Promise<HubData | null> {
     chapters: outline.map(chapterFromOutline),
     cast: [],
     studioReady: false,
+    appendReady: true,
   };
 }
 
@@ -90,12 +94,17 @@ export default async function ProjectHubPage(props: PageProps<"/project/[id]">) 
   return (
     <ToastProvider>
       <CloneVoiceModalProvider>
-        <HubChaptersProvider initialChapters={hub.chapters} studioReady={hub.studioReady}>
+        <HubChaptersProvider
+          key={hub.chapters.map((chapter) => chapter.id).join(",")}
+          projectId={id}
+          initialChapters={hub.chapters}
+          studioReady={hub.studioReady}
+        >
           <div className="flex min-h-screen flex-col">
             <HubHeader projectId={id} identity={hub.identity} />
 
             <main className="mx-auto w-full max-w-6xl flex-1 px-5 pb-16 pt-8 sm:px-8">
-              <ProjectHub projectId={id} cast={hub.cast} />
+              <ProjectHub projectId={id} cast={hub.cast} appendReady={hub.appendReady} />
             </main>
           </div>
         </HubChaptersProvider>

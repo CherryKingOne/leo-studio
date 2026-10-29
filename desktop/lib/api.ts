@@ -97,25 +97,99 @@ function toSummary(item: ApiProject, now: number): ProjectSummary {
   };
 }
 
-/** 新建剧目：POST /api/v1/projects，multipart 上传 .txt 正文，服务端自动清洗分章 */
-export async function createProject(name: string, file: File): Promise<ProjectSummary> {
+/** multipart 写接口：不手动设 Content-Type，交给 fetch 生成 boundary */
+async function apiPostForm<T>(path: string, form: FormData): Promise<T> {
   const base = backendUrl();
-  const form = new FormData();
-  form.set("name", name);
-  form.set("file", file, file.name);
-
   let res: Response;
   try {
-    res = await fetch(`${base}/api/v1/projects`, { method: "POST", body: form });
+    res = await fetch(`${base}${path}`, { method: "POST", body: form });
   } catch (cause) {
     throw new Error(`无法连接后端 ${base}`, { cause });
   }
 
-  const body = (await res.json().catch(() => null)) as ApiEnvelope<ApiProject> | null;
+  const body = (await res.json().catch(() => null)) as ApiEnvelope<T> | null;
   if (!body || body.code !== 0) {
-    throw new Error(`创建剧目失败：${body?.message ?? `HTTP ${res.status}`}`);
+    throw new Error(body?.message ?? `请求失败（HTTP ${res.status}）`);
   }
-  return toSummary(body.data, Date.now());
+  return body.data;
+}
+
+/** 新建剧目：POST /api/v1/projects，multipart 上传 .txt 正文，服务端自动清洗分章 */
+export async function createProject(name: string, file: File): Promise<ProjectSummary> {
+  const form = new FormData();
+  form.set("name", name);
+  form.set("file", file, file.name);
+
+  const data = await apiPostForm<ApiProject>("/api/v1/projects", form);
+  return toSummary(data, Date.now());
+}
+
+/** 追更上传的预检/执行结果，字段对齐 ProjectChapterAppendResponse */
+export type ChapterAppendResult = {
+  addedChapters: number;
+  skippedChapters: number;
+  totalChapters: number;
+  totalWords: number;
+  hasConflicts: boolean;
+  conflicts: {
+    chapterTitle: string;
+    existingWordCount: number;
+    incomingWordCount: number;
+    wordDiff: number;
+  }[];
+};
+
+type ApiChapterAppend = {
+  project_id: string;
+  file_id: string;
+  added_chapters: number;
+  skipped_chapters: number;
+  total_chapters: number;
+  total_words: number;
+  has_conflicts: boolean;
+  conflicts: {
+    chapter_id: string;
+    chapter_index: number;
+    chapter_title: string;
+    existing_word_count: number;
+    incoming_word_count: number;
+    word_diff: number;
+  }[];
+  updated_at: string;
+};
+
+/**
+ * 追更上传章节：POST /api/v1/projects/{id}/chapters/upload
+ * dryRun=true 只做差异预检、不落盘，用来渲染弹窗里的「将要导入」摘要。
+ */
+export async function appendChapters(
+  projectId: string,
+  file: File,
+  options: { overwriteExisting: boolean; dryRun: boolean },
+): Promise<ChapterAppendResult> {
+  const form = new FormData();
+  form.set("file", file, file.name);
+  form.set("overwrite_existing", String(options.overwriteExisting));
+  form.set("dry_run", String(options.dryRun));
+
+  const data = await apiPostForm<ApiChapterAppend>(
+    `/api/v1/projects/${projectId}/chapters/upload`,
+    form,
+  );
+
+  return {
+    addedChapters: data.added_chapters,
+    skippedChapters: data.skipped_chapters,
+    totalChapters: data.total_chapters,
+    totalWords: data.total_words,
+    hasConflicts: data.has_conflicts,
+    conflicts: data.conflicts.map((item) => ({
+      chapterTitle: item.chapter_title,
+      existingWordCount: item.existing_word_count,
+      incomingWordCount: item.incoming_word_count,
+      wordDiff: item.word_diff,
+    })),
+  };
 }
 
 /** 剧目库列表：GET /api/v1/projects，单页取后端允许的上限 100 条 */

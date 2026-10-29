@@ -105,11 +105,14 @@ function Tick({
 
 export function ChapterPipeline({
   projectId,
+  appendReady,
   keyword,
   readyOnly,
   onGoToCast,
 }: {
   projectId: string;
+  /** 只有后端剧目能追更上传章节 */
+  appendReady: boolean;
   keyword: string;
   readyOnly: boolean;
   onGoToCast: () => void;
@@ -208,14 +211,16 @@ export function ChapterPipeline({
             <WandSparkles className="h-3.5 w-3.5" />
             一键拆解全书
           </button>
-          <button
-            type="button"
-            onClick={openImport}
-            className="flex items-center gap-1.5 rounded-full bg-accent px-3.5 py-2 text-[12.5px] font-medium text-white transition-colors hover:bg-accent-600"
-          >
-            <FilePlus2 className="h-3.5 w-3.5" />
-            追更上传章节
-          </button>
+          {appendReady && (
+            <button
+              type="button"
+              onClick={openImport}
+              className="flex items-center gap-1.5 rounded-full bg-accent px-3.5 py-2 text-[12.5px] font-medium text-white transition-colors hover:bg-accent-600"
+            >
+              <FilePlus2 className="h-3.5 w-3.5" />
+              追更上传章节
+            </button>
+          )}
         </div>
       </div>
 
@@ -280,11 +285,6 @@ export function ChapterPipeline({
                           ) : (
                             <span className="truncate text-[13.5px] font-medium text-white/60">
                               {chapter.title}
-                            </span>
-                          )}
-                          {chapter.imported && (
-                            <span className="shrink-0 rounded border border-accent/25 bg-accent/10 px-1.5 py-0.5 text-[10px] text-accent-400">
-                              追更新增
                             </span>
                           )}
                         </div>

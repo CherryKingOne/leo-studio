@@ -12,10 +12,7 @@ import { useToast } from "@/components/toast";
 import {
   chapterAfterRender,
   chapterAfterSplit,
-  chapterForImport,
-  nextChapterNo,
   type HubChapter,
-  type ImportedChapterDraft,
   type PipelineFilter,
 } from "@/lib/projects";
 
@@ -41,10 +38,12 @@ export function useHubChapters() {
 }
 
 export function HubChaptersProvider({
+  projectId,
   initialChapters,
   studioReady = true,
   children,
 }: {
+  projectId: string;
   initialChapters: HubChapter[];
   /** 章节是否已有制作工作台数据；后端剧目暂无，拆解完也不给工作台入口 */
   studioReady?: boolean;
@@ -87,31 +86,13 @@ export function HubChaptersProvider({
         prev.map((item) => {
           if (item.id !== chapter.id) return item;
           const ready = chapterAfterSplit(item);
-          // 追更导入与后端剧目都还没有工作台数据，不给进入制作工作台的入口
-          return item.imported || !studioReady ? { ...ready, openable: false } : ready;
+          // 后端剧目还没有工作台数据，拆解完也不给进入制作工作台的入口
+          return studioReady ? ready : { ...ready, openable: false };
         }),
       );
       setSplittingIds((prev) => prev.filter((id) => id !== chapter.id));
       show("拆解完成：识别出 2 位说话人、86 段对白", "success");
     }, 1600);
-  }
-
-  function importChapters(drafts: ImportedChapterDraft[]) {
-    let no = nextChapterNo(chapters);
-    const added = drafts.map((draft) => {
-      const chapter = chapterForImport(draft, no);
-      no += 1;
-      return chapter;
-    });
-
-    setChapters([...chapters, ...added]);
-    setFilter("全部");
-    show(
-      `已导入 ${added.length} 个新章节，接在第 ${String(no - 1).padStart(3, "0")} 章之后`,
-      "success",
-    );
-
-    added.forEach((chapter, index) => setTimeout(() => split(chapter), index * 450));
   }
 
   return (
@@ -128,9 +109,16 @@ export function HubChaptersProvider({
       {children}
       {importOpen && (
         <ChapterImportModal
-          chapters={chapters}
+          projectId={projectId}
+          chapterCount={chapters.length}
           onClose={() => setImportOpen(false)}
-          onImport={importChapters}
+          onImported={(result) => {
+            setFilter("全部");
+            show(
+              `已追加 ${result.addedChapters} 个新章节，跳过同名 ${result.skippedChapters} 章`,
+              "success",
+            );
+          }}
         />
       )}
     </HubChaptersContext.Provider>

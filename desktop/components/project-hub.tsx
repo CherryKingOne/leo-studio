@@ -12,9 +12,12 @@ type HubTab = "pipeline" | "cast";
 export function ProjectHub({
   projectId,
   cast,
+  appendReady,
 }: {
   projectId: string;
   cast: CastMember[];
+  /** 只有后端剧目能追更上传，原型剧目没有对应记录 */
+  appendReady: boolean;
 }) {
   const { chapters } = useHubChapters();
   const [tab, setTab] = useState<HubTab>("pipeline");
@@ -85,6 +88,7 @@ export function ProjectHub({
       {tab === "pipeline" ? (
         <ChapterPipeline
           projectId={projectId}
+          appendReady={appendReady}
           keyword={keyword}
           readyOnly={readyOnly}
           onGoToCast={() => setTab("cast")}
