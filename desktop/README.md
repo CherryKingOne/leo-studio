@@ -31,7 +31,8 @@ dev 会热更新该变量，不必重启。缺省或填错时 `/project` 渲染 
 
 | 路径 | 状态 | 说明 |
 | --- | --- | --- |
-| `/project` | 已实现 | 剧目库列表页，源码 `app/project/page.tsx`；数据来自 `GET /api/v1/projects`（服务端渲染，读 `.env.local` 的 `API_BASE_URL`，取数期间显示骨架屏），卡片「删除」与批量删除经服务端动作调 `DELETE /api/v1/projects/{id}` |
+| `/project` | 已实现 | 剧目库列表页（tab「全部」），源码 `app/project/page.tsx`；数据来自 `GET /api/v1/projects`（服务端渲染，读 `.env.local` 的 `API_BASE_URL`，取数期间显示骨架屏）；删除（单条与批量）经服务端动作调 `DELETE /api/v1/projects/{id}` |
+| `/project/trash` | 已实现 | 剧目库的回收站页（tab「回收站」），源码 `app/project/trash/page.tsx` + `components/trash-panel.tsx`；条目来自 `lib/trash-store.ts` 的 sessionStorage 快照，支持恢复与彻底删除 |
 | `/` | 占位 | 仅 `redirect("/project")`，见 `app/page.tsx`；真正的首屏后续补，改写该文件即可，**不要**把剧目库搬回根路径 |
 | `/project/[id]` | 已实现 | 剧目看板，源码 `app/project/[id]/page.tsx` + `components/project-hub.tsx`（原型 `project-hub.html`）；真实剧目取 `GET /api/v1/projects/{id}` + `GET /api/v1/projects/{id}/chapters`，章节一律「待拆解」且不给工作台入口，无角色数据时不显示选角 tab；`p-*` 三个原型剧目仍走 mock（含角色台账与工作台剧本）；「追更上传章节」仍是本地解析 mock |
 | `/project/[id]/chapter/[chapterId]` | 已实现 | 章节制作工作台，源码 `app/project/[id]/chapter/[chapterId]/page.tsx` + `components/chapter-studio.tsx`（原型 `chapter-studio.html`）；`generateStaticParams` 预渲染看板中 `openable` 的章节，未知 id 走 `notFound()`；未逐句核对过的章节由 `studioFor()` 铺占位剧本 |
@@ -49,6 +50,7 @@ app/
   page.tsx              根路径占位跳转
   project/page.tsx      剧目库列表页（服务端取数 + Suspense 骨架）
   project/error.tsx     后端不可用时的失败页与重试
+  project/trash/page.tsx 回收站页
   project/[id]/page.tsx 剧目看板页（原型剧目走 mock，其余取后端项目详情与章节大纲）
   project/[id]/chapter/[chapterId]/page.tsx 章节制作工作台页
 components/
@@ -57,7 +59,10 @@ components/
   sidebar.tsx           左侧导航（「我的剧目」分组下平铺剧目，条目用 FileAudio 图标；剧目库列表页传入后端数据）
   top-bar.tsx           顶栏
   floating-actions.tsx  右缘悬浮按钮
-  project-library.tsx   列表状态：搜索 / 排序 / 点击即删（带撤销提示条）；批量态工具栏为「批量管理」（hover 下拉：全选、删除项目）+ 独立「取消批量管理」
+  library-tabs.tsx      剧目库与回收站共用的一级 tab（两条独立路由，用 Link 跳转）
+  project-library.tsx   列表页状态：搜索 / 排序 / 点击即删（带撤销提示条）；批量态工具栏为「批量管理」（hover 下拉：全选、删除项目）+ 独立「取消批量管理」
+  trash-panel.tsx       回收站页主体：读回收站快照 + 搜索 + 恢复 / 彻底删除
+  trash-view.tsx        回收站视图：空态提示 + 回收卡片
   project-card.tsx      剧目卡片：文件名 + 章节数/字数/更新时间，菜单为打开 / 重命名 / 删除（红字） / 批量管理；批量态封面点击改勾选
   library-skeleton.tsx  剧目库骨架屏：侧栏 + 工具栏 + 卡片网格占位，配 `animate-shimmer` 微光扫过
   import-novel-modal.tsx 导入小说弹窗（Provider + hook + 弹窗本体）
@@ -76,6 +81,7 @@ components/
 lib/
   api.ts               后端接口层：读 `API_BASE_URL`、拆 `{ code, message, data }` 包装、字段映射为视图模型
   actions.ts            服务端动作（"use server"）：批量删除剧目后 `updateTag("projects")`，列表当场刷新
+  trash-store.ts        回收站快照：sessionStorage + `useSyncExternalStore`，剧目库页与回收站页跨路由共享
   projects.ts           数据模型、mock 数据与格式化函数
   audio.ts              试听特征音（Web Audio），工作台与台账共用
   scrollbar.ts          `inkScrollbar` 工具类串：暗色细胶囊滚动条，等价原型的 ::-webkit-scrollbar 处理
@@ -91,7 +97,8 @@ lib/
 - 数据来源分两段：剧目库列表与剧目看板（项目信息、章节大纲）读后端，`lib/api.ts` 只在服务端调用、snake_case 映射成视图模型（`ProjectSummary` / `ProjectChapter`）再下发组件；角色台账、生产状态、章节工作台仍是 `lib/projects.ts` 的 mock，后端出对应接口后逐个替换，组件层不直接依赖来源。
 - 后端没有的字段不展示：列表卡片与排序只用 `name` / `filename` / `chapter_count` / `total_words` / `updated_at`（`status` 后端有值但界面不再放胶囊），看板顶栏在没有进度数据时不画进度条，别用假数据补。
 - 浏览器不直连后端：读操作在 Server Component 里调 `lib/api.ts`，写操作放 `lib/actions.ts` 的 `"use server"` 动作里（后端未开 CORS），动作返回 `{ ok, message }` 而不是抛错。
-- 删除是「点击即删」，没有二次确认弹窗：先乐观摘掉卡片、后端失败再回滚，成功后弹 6 秒提示条 `已删除，撤销 或 在 回收站 寻找`。撤销与回收站目前是前端占位（撤销只把卡片放回本次会话的列表），等后端补软删除/恢复接口再接真逻辑。
+- 删除是「点击即删」，没有二次确认弹窗：先乐观摘掉卡片、后端失败再回滚，成功后弹 6 秒提示条 `已删除，撤销 或 在 回收站 寻找`，点「回收站」跳到 `/project/trash`。
+- 「全部」和「回收站」是两条路由、两个页面，共用 `library-tabs.tsx`；跨路由的状态放 `lib/trash-store.ts`（sessionStorage + `useSyncExternalStore`，服务端快照恒为空以免水合不一致）。撤销与回收站目前都是前端行为，等后端补软删除/恢复接口后，撤销=调恢复、彻底删除=调物理删除。
 - 服务端取数的路由用 `Suspense` + 骨架屏占住版式（`components/library-skeleton.tsx`），不要写「正在加载…」文字；骨架的容器尺寸、栅格列数要和真实卡片一致，数据到位时不跳版。
 - 批量管理的入口在卡片「···」菜单的「批量管理」项：点击后进入批量态并自动勾选该卡片，封面点击改勾选、显示`已选 N 项`。批量态下工具栏为`批量管理`(accent 高亮) + `取消批量管理` 两个按钮，前者鼠标悬停弹出下拉承载`全选/取消全选`与`删除项目`（作用于已勾选项，未选时禁用）；取消批量管理是工具栏上的独立按钮，不放进下拉。批量删除与单条删除走同一条「点击即删 + 撤销提示条」逻辑。
 - 危险项只用红色文字与红色图标（`text-red-400`），底色仍走中性 `hover:bg-white/5`，不要红色背景；红白两色要写成两个完整 class 串（`menuRow` / `menuRowDanger`），拼在一条 `text-white text-red-400` 里会被 Tailwind 的产物顺序覆盖成白色。
