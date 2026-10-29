@@ -18,7 +18,7 @@ import {
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { useToast } from "@/components/toast";
-import type { ProjectEntry } from "@/lib/projects";
+import type { StudioProject } from "@/lib/projects";
 
 type SynthState = "idle" | "busy" | "done";
 
@@ -29,7 +29,7 @@ export function StudioHeader({
   paragraphCount,
   cueCount,
 }: {
-  project: ProjectEntry;
+  project: StudioProject;
   keyword: string;
   onKeywordChange: (value: string) => void;
   paragraphCount: number;

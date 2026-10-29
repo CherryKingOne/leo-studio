@@ -1,5 +1,6 @@
 import { cacheLife, cacheTag } from "next/cache";
 import type {
+  ChapterContent,
   ProjectChapter,
   ProjectStatus,
   ProjectSummary,
@@ -40,6 +41,21 @@ type ApiChapterOutline = {
   chapter_index: number;
   chapter_title: string;
   word_count: number;
+};
+
+type ApiChapterContent = {
+  project_id: string;
+  chapter_id: string;
+  chapter_index: number;
+  chapter_title: string;
+  word_count: number;
+  content: string;
+  sentences: {
+    sentence_id: string;
+    sentence_index: number;
+    content: string;
+    word_count: number;
+  }[];
 };
 
 function backendUrl() {
@@ -232,6 +248,37 @@ export async function listChapters(id: string): Promise<ProjectChapter[]> {
     title: item.chapter_title,
     words: item.word_count,
   }));
+}
+
+/**
+ * 章节正文与逐句切分：GET /api/v1/projects/{id}/chapters/{chapterId}
+ * 制作工作台用它铺剧本流与原文对照，后端没有该章节时返回 null。
+ */
+export async function getChapterContent(
+  projectId: string,
+  chapterId: string,
+): Promise<ChapterContent | null> {
+  "use cache";
+  cacheLife("seconds");
+  cacheTag("projects");
+
+  const data = await apiGet<ApiChapterContent>(
+    `/api/v1/projects/${projectId}/chapters/${chapterId}`,
+  );
+  if (!data) return null;
+
+  return {
+    index: data.chapter_index,
+    title: data.chapter_title,
+    words: data.word_count,
+    content: data.content,
+    sentences: data.sentences.map((item) => ({
+      id: item.sentence_id,
+      index: item.sentence_index,
+      text: item.content,
+      words: item.word_count,
+    })),
+  };
 }
 
 /** 回收站列表：GET /api/v1/projects/recycle-bin，按删除时间倒序 */

@@ -82,6 +82,7 @@ export function ParagraphOutline({
               return (
                 <button
                   key={paragraph.id}
+                  id={`outline-${paragraph.id}`}
                   type="button"
                   onClick={() => onJumpToFeed(paragraph.id)}
                   className={`flex w-full items-center gap-2.5 rounded-lg py-2 pl-2.5 pr-2 text-left text-[12.5px] transition-colors ${

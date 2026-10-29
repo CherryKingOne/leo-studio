@@ -11,19 +11,19 @@ import type {
   CastOption,
   ChapterStudio as StudioData,
   HubChapter,
-  ProjectEntry,
   StudioParagraph,
+  StudioProject,
 } from "@/lib/projects";
 
-/** 按下拉/卡片/正文跳转时滚动的目标位置 */
-type ScrollIntent = { id: string; in: "feed" | "source"; nonce: number };
+/** 滚动意图：目标 DOM 元素 + 对齐方式，nonce 让重复点同一段也能再滚一次 */
+type ScrollIntent = { target: string; block: "center" | "nearest"; nonce: number };
 
 export function ChapterStudio({
   project,
   chapter,
   studio,
 }: {
-  project: ProjectEntry;
+  project: StudioProject;
   chapter: HubChapter;
   studio: StudioData;
 }) {
@@ -87,24 +87,29 @@ export function ChapterStudio({
   const cueCount = paragraphs.filter((item) => item.cue).length;
   const isDirty = order.join() !== baseOrder.join();
 
-  // 卡片与正文块各用自己的 id，切换 pane 后由 effect 统一滚动
+  // 卡片与左栏条目各用自己的 id，切换 pane 后由 effect 统一滚动
   useEffect(() => {
     if (!scrollIntent) return;
-    const target =
-      scrollIntent.in === "feed" ? scrollIntent.id : `source-${scrollIntent.id}`;
     document
-      .getElementById(target)
-      ?.scrollIntoView({
-        behavior: "smooth",
-        block: scrollIntent.in === "feed" ? "center" : "nearest",
-      });
+      .getElementById(scrollIntent.target)
+      ?.scrollIntoView({ behavior: "smooth", block: scrollIntent.block });
   }, [scrollIntent]);
 
-  function jump(id: string, target: "feed" | "source") {
+  /**
+   * `column` 是这次要点亮的列：剧本流卡片或左栏。
+   * 左栏跟随用户当前 pane，点卡片不再把大纲强制换成正文。
+   */
+  function jump(id: string, column: "feed" | "pane") {
     setActiveId(id);
-    if (target === "source") setPane("source");
     scrollNonce.current += 1;
-    setScrollIntent({ id, in: target, nonce: scrollNonce.current });
+    const nonce = scrollNonce.current;
+    setScrollIntent(
+      column === "feed"
+        ? { target: id, block: "center", nonce }
+        : pane === "outline"
+          ? { target: `outline-${id}`, block: "center", nonce }
+          : { target: `source-${id}`, block: "nearest", nonce },
+    );
   }
 
   function commit(next: string[]) {
@@ -217,7 +222,7 @@ export function ChapterStudio({
               onReset={resetOrder}
               onMove={movePara}
               onReorder={reorder}
-              onActivate={(id) => jump(id, "source")}
+              onActivate={(id) => jump(id, "pane")}
               onReassign={reassign}
               onAudition={audition}
             />

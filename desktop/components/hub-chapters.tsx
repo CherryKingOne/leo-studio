@@ -40,13 +40,10 @@ export function useHubChapters() {
 export function HubChaptersProvider({
   projectId,
   initialChapters,
-  studioReady = true,
   children,
 }: {
   projectId: string;
   initialChapters: HubChapter[];
-  /** 章节是否已有制作工作台数据；后端剧目暂无，拆解完也不给工作台入口 */
-  studioReady?: boolean;
   children: ReactNode;
 }) {
   const { show } = useToast();
@@ -83,12 +80,7 @@ export function HubChaptersProvider({
     show(`正在用 Qwen2.5 拆解《${chapter.title}》的对白与情绪…`, "info");
     setTimeout(() => {
       setChapters((prev) =>
-        prev.map((item) => {
-          if (item.id !== chapter.id) return item;
-          const ready = chapterAfterSplit(item);
-          // 后端剧目还没有工作台数据，拆解完也不给进入制作工作台的入口
-          return studioReady ? ready : { ...ready, openable: false };
-        }),
+        prev.map((item) => (item.id === chapter.id ? chapterAfterSplit(item) : item)),
       );
       setSplittingIds((prev) => prev.filter((id) => id !== chapter.id));
       show("拆解完成：识别出 2 位说话人、86 段对白", "success");

@@ -9,6 +9,23 @@ export type ProjectChapter = {
   words: number;
 };
 
+/** 后端按行切分的单句，工作台剧本卡片与原文对照共用同一条数据 */
+export type ChapterSentence = {
+  id: string;
+  index: number;
+  text: string;
+  words: number;
+};
+
+/** GET /api/v1/projects/{project_id}/chapters/{chapter_id} 的章节正文 */
+export type ChapterContent = {
+  index: number;
+  title: string;
+  words: number;
+  content: string;
+  sentences: ChapterSentence[];
+};
+
 /** 看板顶栏的剧目标识，mock 剧目与后端剧目共用 */
 export type HubIdentity = {
   title: string;
@@ -37,6 +54,9 @@ export type ProjectEntry = {
   seed: number;
   editedHoursAgo: number;
 };
+
+/** 工作台顶栏只需要剧目 id 与标题，mock 剧目与后端剧目共用这一个形状 */
+export type StudioProject = Pick<ProjectEntry, "id" | "title">;
 
 /** 剧目库列表卡片的数据，字段全部来自后端 GET /api/v1/projects */
 export type ProjectSummary = {
@@ -141,14 +161,14 @@ export function sortProjects(projects: ProjectSummary[], key: SortKey) {
 export type HubTone = "neutral" | "muted" | "accent" | "emerald" | "amber" | "violet";
 
 export type ChapterState = "待拆解" | "待合成" | "合成中" | "已就绪";
-export type PipelineFilter = "全部" | ChapterState;
+/** 状态筛选条不含「已就绪」：母带就绪的章节走右上角星标只看，不再占一个筛选 chip */
+export type PipelineFilter = "全部" | Exclude<ChapterState, "已就绪">;
 
 export const pipelineFilters: { state: PipelineFilter; label: string }[] = [
   { state: "全部", label: "全部" },
   { state: "待拆解", label: "待拆解" },
   { state: "待合成", label: "待合成" },
   { state: "合成中", label: "合成中" },
-  { state: "已就绪", label: "母带就绪" },
 ];
 
 export type HubSpeaker = { name: string; tone: HubTone };
@@ -547,20 +567,20 @@ export function chapterAfterRender(chapter: HubChapter): HubChapter {
   };
 }
 
-/** 后端章节大纲 → 流水线行：后端暂无生产状态，一律待拆解且不给工作台入口 */
+/** 后端章节大纲 → 流水线行：后端没有生产状态，状态一律待拆解，但正文已可进工作台对照 */
 export function chapterFromOutline(chapter: ProjectChapter): HubChapter {
   return {
     id: chapter.id,
     no: String(chapter.index + 1).padStart(2, "0"),
     title: chapter.title,
-    excerpt: "原文已入库，等待拆本引擎识别对白、旁白与情绪。",
+    excerpt: "原文已入库，逐句可在制作工作台对照精修。",
     words: chapter.words,
     tone: "neutral",
     state: "待拆解",
     status: { label: "待拆解", tone: "neutral", icon: "scan" },
     speakers: null,
     action: { kind: "split" },
-    openable: false,
+    openable: true,
     // 整本书可能有上千章，先只铺前 20 行，其余走「展开全部」
     collapsed: chapter.index >= 20,
   };
@@ -851,6 +871,61 @@ function pendingStudio(project: ProjectEntry, chapter: HubChapter): ChapterStudi
 
 export function studioFor(project: ProjectEntry, chapter: HubChapter): ChapterStudio {
   return chapterStudios[`${project.id}/${chapter.id}`] ?? pendingStudio(project, chapter);
+}
+
+/**
+ * 后端章节正文 → 工作台剧本：一句一张卡片，原文对照与剧本流共用同一批数据。
+ * 说话人归属、情绪标定与段时长后端还没有接口，全部按旁白 + 4 字/秒估算呈现。
+ */
+export function studioFromContent(chapter: HubChapter, content: ChapterContent): ChapterStudio {
+  const lines: { id: string; text: string; words: number }[] = content.sentences.length
+    ? content.sentences.map((item) => ({ id: item.id, text: item.text, words: item.words }))
+    : content.content
+        .split(/\n+/)
+        .map((text) => text.trim())
+        .filter(Boolean)
+        .map((text, index) => ({
+          id: `${chapter.id}-l${String(index + 1).padStart(3, "0")}`,
+          text,
+          words: [...text].length,
+        }));
+
+  if (!lines.length) {
+    lines.push({
+      id: `${chapter.id}-empty`,
+      text: "后端还没有该章正文，重新上传后可在此对照。",
+      words: 0,
+    });
+  }
+
+  const paragraphs = lines.map<StudioParagraph>((line, index) => ({
+    id: line.id,
+    speaker: "旁白",
+    displayName: "旁白",
+    tone: "neutral",
+    mood: "待标定",
+    text: line.text,
+    seconds: Math.max(1, Math.round((line.words / 4) * 10) / 10),
+    hz: 220,
+    voice: "音色 待绑定声线 · CosyVoice-Pre",
+    links: [{ label: "重新生成", toast: "已重新加入生成队列", emphasis: true }],
+    tuning: {
+      speaker: "旁白",
+      model: "CosyVoice-Pre",
+      emotion: 50,
+      speed: 1,
+      reverb: "无",
+      seed: String(1000 + ((chapter.words + index * 173) % 9000)),
+    },
+  }));
+
+  return {
+    paragraphs,
+    source: lines.map((line) => ({ text: line.text, paragraphId: line.id })),
+    speakerOptions: ["旁白"],
+    modelOptions: studioModelOptions,
+    reverbOptions: studioReverbOptions,
+  };
 }
 
 /** 卡片时间轴与大纲时长标注用 MM:SS */
