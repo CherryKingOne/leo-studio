@@ -6,13 +6,13 @@ import { ProjectLibrary } from "@/components/project-library";
 import { Sidebar } from "@/components/sidebar";
 import { ToastProvider } from "@/components/toast";
 import { TopBar } from "@/components/top-bar";
-import { listProjects } from "@/lib/api";
+import { listProjects, listTrash } from "@/lib/api";
 
 // 剧目列表来自后端，进入本页需要等服务端取数
 export const instant = false;
 
 async function LibraryShell() {
-  const projects = await listProjects();
+  const [projects, trash] = await Promise.all([listProjects(), listTrash()]);
 
   return (
     <div className="flex min-h-screen">
@@ -24,7 +24,7 @@ async function LibraryShell() {
           <h1 className="text-[26px] font-bold leading-none tracking-tight text-white">
             我的剧目
           </h1>
-          <ProjectLibrary initialProjects={projects} />
+          <ProjectLibrary projects={projects} trashCount={trash.length} />
         </main>
       </div>
     </div>

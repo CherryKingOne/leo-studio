@@ -1,27 +1,29 @@
 "use client";
 
-import { Search } from "lucide-react";
+import { Eraser, Search } from "lucide-react";
 import { useState } from "react";
 import { LibraryTabs } from "@/components/library-tabs";
 import { TrashView } from "@/components/trash-view";
-import { purgeProject, restoreProjects, useTrash } from "@/lib/trash-store";
+import { useToast } from "@/components/toast";
+import { clearAllTrash, purgeProjects, restoreProjects } from "@/lib/actions";
+import type { TrashedProject } from "@/lib/projects";
 
-export function TrashPanel() {
+export function TrashPanel({ items }: { items: TrashedProject[] }) {
+  const { show } = useToast();
+  // 列表只来自服务端 props，本地只留正在处理的条目做乐观隐藏，动作完成后 refresh() 带回新列表
+  const [pending, setPending] = useState<string[]>([]);
   const [keyword, setKeyword] = useState("");
-  const items = useTrash();
 
-  const trashed = items.filter((item) => !item.restored);
   const needle = keyword.trim().toLowerCase();
-  const visible = trashed.filter(
-    (item) => !needle || item.project.title.toLowerCase().includes(needle),
+  const visible = items.filter(
+    (item) => !pending.includes(item.id) && (!needle || item.title.toLowerCase().includes(needle)),
   );
 
-  function restore(id: string) {
-    restoreProjects(new Set([id]));
-  }
-
-  function purge(id: string) {
-    purgeProject(id);
+  async function run(ids: string[], action: () => Promise<{ ok: boolean; message?: string }>, done: string) {
+    setPending((prev) => [...prev, ...ids]);
+    const result = await action();
+    setPending((prev) => prev.filter((id) => !ids.includes(id)));
+    show(result.ok ? done : (result.message ?? "请求失败"), result.ok ? "success" : "info");
   }
 
   return (
@@ -29,9 +31,30 @@ export function TrashPanel() {
       <h1 className="text-[26px] font-bold leading-none tracking-tight text-white">我的剧目</h1>
 
       <div className="mt-6 flex flex-wrap items-center justify-between gap-3">
-        <LibraryTabs trashCount={trashed.length} />
+        <LibraryTabs trashCount={items.length - pending.length} />
 
         <div className="flex items-center gap-2">
+          <button
+            type="button"
+            disabled={items.length === 0}
+            onClick={() =>
+              void run(
+                items.map((item) => item.id),
+                async () => {
+                  const result = await clearAllTrash();
+                  return result.ok
+                    ? { ok: true, message: `已彻底删除 ${result.count} 部剧目` }
+                    : result;
+                },
+                "回收站已清空",
+              )
+            }
+            className="flex items-center gap-1.5 rounded-full border border-red-400/25 px-3.5 py-2 text-[12.5px] text-red-400 transition-colors hover:bg-white/5 disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            <Eraser className="h-3.5 w-3.5" />
+            清空回收站
+          </button>
+
           <div className="relative">
             <Search className="pointer-events-none absolute left-3.5 top-2.5 h-4 w-4 text-white/30" />
             <input
@@ -45,7 +68,15 @@ export function TrashPanel() {
         </div>
       </div>
 
-      <TrashView items={visible} onRestore={restore} onPurge={purge} />
+      <TrashView
+        items={visible}
+        onRestore={(id) =>
+          void run([id], () => restoreProjects([id]), "已恢复到剧目库")
+        }
+        onPurge={(id) =>
+          void run([id], () => purgeProjects([id]), "已彻底删除")
+        }
+      />
     </main>
   );
 }

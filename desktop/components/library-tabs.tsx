@@ -20,6 +20,7 @@ export function LibraryTabs({ trashCount }: { trashCount?: number }) {
           <Link
             key={tab.href}
             href={tab.href}
+            prefetch={false}
             scroll={false}
             className={`rounded-lg px-2.5 py-1.5 text-[15px] transition-colors ${
               active ? "font-semibold text-white" : "text-white/40 hover:text-white/70"

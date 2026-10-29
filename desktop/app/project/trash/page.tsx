@@ -7,15 +7,15 @@ import { Sidebar } from "@/components/sidebar";
 import { ToastProvider } from "@/components/toast";
 import { TopBar } from "@/components/top-bar";
 import { TrashPanel } from "@/components/trash-panel";
-import { listProjects } from "@/lib/api";
+import { listProjects, listTrash } from "@/lib/api";
 
 export const metadata: Metadata = { title: "回收站 · 剧目库" };
 
-// 侧边栏剧目列表来自后端，进入本页需要等服务端取数
+// 回收站列表来自后端，进入本页需要等服务端取数
 export const instant = false;
 
 async function TrashShell() {
-  const projects = await listProjects();
+  const [projects, trashed] = await Promise.all([listProjects(), listTrash()]);
 
   return (
     <div className="flex min-h-screen">
@@ -23,7 +23,7 @@ async function TrashShell() {
 
       <div className="flex min-w-0 flex-1 flex-col lg:ml-[236px]">
         <TopBar />
-        <TrashPanel />
+        <TrashPanel items={trashed} />
       </div>
     </div>
   );

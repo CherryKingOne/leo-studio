@@ -50,6 +50,12 @@ export type ProjectSummary = {
   editedHoursAgo: number;
 };
 
+/** 回收站条目：软删除后带删除时间，恢复即回到剧目库 */
+export type TrashedProject = ProjectSummary & {
+  /** 移入回收站距今的小时数，服务端算好后下发 */
+  deletedHoursAgo: number;
+};
+
 export const sortOptions: { key: SortKey; label: string }[] = [
   { key: "edited", label: "最近编辑" },
   { key: "chapters", label: "按章节数" },

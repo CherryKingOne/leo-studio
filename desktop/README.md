@@ -22,8 +22,12 @@ cp .env.example .env.local   # 首次拉取后执行
 dev 会热更新该变量，不必重启。缺省或填错时 `/project` 渲染 `app/project/error.tsx` 的失败页并给出提示。
 
 `lib/api.ts` 的每个取数函数都带 `'use cache'` + `cacheLife("seconds")` + `cacheTag("projects")`：
-列表页的 prefetch 与页面内反复导航不会反复打后端（5 秒内命中缓存），接上写接口后用
-`revalidateTag("projects")` 立即失效。
+列表页的 prefetch 与页面内反复导航不会反复打后端（5 秒内命中缓存），写操作里成对调用
+`updateTag("projects")` + `refresh()` 立即失效。
+
+上传走服务端动作，`next.config.ts` 把 `experimental.serverActions.bodySizeLimit` 抬到 `52mb`
+（默认 1MB 会挡掉几 MB 的小说正文），与后端 `LEO_MAX_UPLOAD_SIZE_MB=50` 对齐；
+后端扩展名白名单目前只有 `.txt`，所以新建弹窗的 `accept` 也只收 `.txt`。
 
 ## 路由约定
 
@@ -31,8 +35,8 @@ dev 会热更新该变量，不必重启。缺省或填错时 `/project` 渲染 
 
 | 路径 | 状态 | 说明 |
 | --- | --- | --- |
-| `/project` | 已实现 | 剧目库列表页（tab「全部」），源码 `app/project/page.tsx`；数据来自 `GET /api/v1/projects`（服务端渲染，读 `.env.local` 的 `API_BASE_URL`，取数期间显示骨架屏）；删除（单条与批量）经服务端动作调 `DELETE /api/v1/projects/{id}` |
-| `/project/trash` | 已实现 | 剧目库的回收站页（tab「回收站」），源码 `app/project/trash/page.tsx` + `components/trash-panel.tsx`；条目来自 `lib/trash-store.ts` 的 sessionStorage 快照，支持恢复与彻底删除 |
+| `/project` | 已实现 | 剧目库列表页（tab「全部」），源码 `app/project/page.tsx`；数据来自 `GET /api/v1/projects`（服务端渲染，读 `.env.local` 的 `API_BASE_URL`，取数期间显示骨架屏）；「新建项目」走服务端动作调 `POST /api/v1/projects`（multipart，创建成功后直接进该剧目看板）；删除（单条与批量）调 `DELETE /api/v1/projects/{id}` 软删除进回收站 |
+| `/project/trash` | 已实现 | 剧目库的回收站页（tab「回收站」），源码 `app/project/trash/page.tsx` + `components/trash-panel.tsx`；列表来自 `GET /api/v1/projects/recycle-bin`，恢复走 `POST /api/v1/projects/{id}/restore`，彻底删除走 `DELETE /api/v1/projects/{id}/hard`，清空走 `DELETE /api/v1/projects/recycle-bin` |
 | `/` | 占位 | 仅 `redirect("/project")`，见 `app/page.tsx`；真正的首屏后续补，改写该文件即可，**不要**把剧目库搬回根路径 |
 | `/project/[id]` | 已实现 | 剧目看板，源码 `app/project/[id]/page.tsx` + `components/project-hub.tsx`（原型 `project-hub.html`）；真实剧目取 `GET /api/v1/projects/{id}` + `GET /api/v1/projects/{id}/chapters`，章节一律「待拆解」且不给工作台入口，无角色数据时不显示选角 tab；`p-*` 三个原型剧目仍走 mock（含角色台账与工作台剧本）；「追更上传章节」仍是本地解析 mock |
 | `/project/[id]/chapter/[chapterId]` | 已实现 | 章节制作工作台，源码 `app/project/[id]/chapter/[chapterId]/page.tsx` + `components/chapter-studio.tsx`（原型 `chapter-studio.html`）；`generateStaticParams` 预渲染看板中 `openable` 的章节，未知 id 走 `notFound()`；未逐句核对过的章节由 `studioFor()` 铺占位剧本 |
@@ -61,11 +65,11 @@ components/
   floating-actions.tsx  右缘悬浮按钮
   library-tabs.tsx      剧目库与回收站共用的一级 tab（两条独立路由，用 Link 跳转）
   project-library.tsx   列表页状态：搜索 / 排序 / 点击即删（带撤销提示条）；批量态工具栏为「批量管理」（hover 下拉：全选、删除项目）+ 独立「取消批量管理」
-  trash-panel.tsx       回收站页主体：读回收站快照 + 搜索 + 恢复 / 彻底删除
-  trash-view.tsx        回收站视图：空态提示 + 回收卡片
+  trash-panel.tsx       回收站页主体：搜索 + 清空回收站 + 恢复 / 彻底删除
+  trash-view.tsx        回收站视图：空态提示 + 回收卡片（含删除时间）
   project-card.tsx      剧目卡片：文件名 + 章节数/字数/更新时间，菜单为打开 / 重命名 / 删除（红字） / 批量管理；批量态封面点击改勾选
   library-skeleton.tsx  剧目库骨架屏：侧栏 + 工具栏 + 卡片网格占位，配 `animate-shimmer` 微光扫过
-  import-novel-modal.tsx 导入小说弹窗（Provider + hook + 弹窗本体）
+  import-novel-modal.tsx 新建剧目弹窗（Provider + hook + 弹窗本体）：名称 + .txt 正文，提交走 `createProjectAction`
   clone-voice-modal.tsx 克隆新音色弹窗（Provider + hook + 弹窗本体）
   chapter-import-modal.tsx 追更上传章节弹窗：本地解析「第X章」分章、导入预览与同名跳过
   hub-header.tsx        剧目看板的项目级顶栏：返回书架 + 可改名标题 + 章节与副标题 + 导出入口（无进度数据时不画进度条）
@@ -80,8 +84,7 @@ components/
   tuning-dock.tsx       右缘悬浮工具栏与展开的配音设置面板（说话人 / 模型 / 情绪 / 语速 / 混响 / Seed）
 lib/
   api.ts               后端接口层：读 `API_BASE_URL`、拆 `{ code, message, data }` 包装、字段映射为视图模型
-  actions.ts            服务端动作（"use server"）：批量删除剧目后 `updateTag("projects")`，列表当场刷新
-  trash-store.ts        回收站快照：sessionStorage + `useSyncExternalStore`，剧目库页与回收站页跨路由共享
+  actions.ts            服务端动作（"use server"）：新建剧目 / 移入回收站 / 恢复 / 彻底删除 / 清空，成功后 `updateTag` + `refresh()`
   projects.ts           数据模型、mock 数据与格式化函数
   audio.ts              试听特征音（Web Audio），工作台与台账共用
   scrollbar.ts          `inkScrollbar` 工具类串：暗色细胶囊滚动条，等价原型的 ::-webkit-scrollbar 处理
@@ -97,8 +100,11 @@ lib/
 - 数据来源分两段：剧目库列表与剧目看板（项目信息、章节大纲）读后端，`lib/api.ts` 只在服务端调用、snake_case 映射成视图模型（`ProjectSummary` / `ProjectChapter`）再下发组件；角色台账、生产状态、章节工作台仍是 `lib/projects.ts` 的 mock，后端出对应接口后逐个替换，组件层不直接依赖来源。
 - 后端没有的字段不展示：列表卡片与排序只用 `name` / `filename` / `chapter_count` / `total_words` / `updated_at`（`status` 后端有值但界面不再放胶囊），看板顶栏在没有进度数据时不画进度条，别用假数据补。
 - 浏览器不直连后端：读操作在 Server Component 里调 `lib/api.ts`，写操作放 `lib/actions.ts` 的 `"use server"` 动作里（后端未开 CORS），动作返回 `{ ok, message }` 而不是抛错。
-- 删除是「点击即删」，没有二次确认弹窗：先乐观摘掉卡片、后端失败再回滚，成功后弹 6 秒提示条 `已删除，撤销 或 在 回收站 寻找`，点「回收站」跳到 `/project/trash`。
-- 「全部」和「回收站」是两条路由、两个页面，共用 `library-tabs.tsx`；跨路由的状态放 `lib/trash-store.ts`（sessionStorage + `useSyncExternalStore`，服务端快照恒为空以免水合不一致）。撤销与回收站目前都是前端行为，等后端补软删除/恢复接口后，撤销=调恢复、彻底删除=调物理删除。
+- 删除是「点击即删」，没有二次确认弹窗：先乐观摘掉卡片、接口失败再回滚，成功后弹 6 秒提示条 `已删除，撤销 或 在 回收站 寻找`；撤销调恢复接口并把卡片放回列表，点「回收站」跳 `/project/trash`。
+- 「全部」和「回收站」是两条路由、两个页面，共用 `library-tabs.tsx`；回收站数据全部来自后端（软删除保留正文与章节，可恢复；`/hard` 与清空才是不可逆物理删除），前端不再用 sessionStorage 存状态。
+- 所有写操作都走 `lib/actions.ts` 的 `"use server"` 动作，动作里成对调用 `updateTag("projects")` + `refresh()`：前者作废服务端缓存，后者让浏览器丢掉已缓存的 RSC payload，两条路由互相切换时不必手动刷新。
+- 列表组件不再把 props 复制进 state（`ProjectLibrary` 收 `projects`、`TrashPanel` 收 `items`）：本地只保留「正在处理中的 id」这类乐观覆盖，动作返回后随新 props 自动收敛，避免出现两份数据源。
+- 剧目库与回收站之间的 tab 切换、以及指向剧目看板的卡片链接都 `prefetch={false}`：这些路由的数据是请求时取的，预取只会让切过去时看到旧 payload。
 - 服务端取数的路由用 `Suspense` + 骨架屏占住版式（`components/library-skeleton.tsx`），不要写「正在加载…」文字；骨架的容器尺寸、栅格列数要和真实卡片一致，数据到位时不跳版。
 - 批量管理的入口在卡片「···」菜单的「批量管理」项：点击后进入批量态并自动勾选该卡片，封面点击改勾选、显示`已选 N 项`。批量态下工具栏为`批量管理`(accent 高亮) + `取消批量管理` 两个按钮，前者鼠标悬停弹出下拉承载`全选/取消全选`与`删除项目`（作用于已勾选项，未选时禁用）；取消批量管理是工具栏上的独立按钮，不放进下拉。批量删除与单条删除走同一条「点击即删 + 撤销提示条」逻辑。
 - 危险项只用红色文字与红色图标（`text-red-400`），底色仍走中性 `hover:bg-white/5`，不要红色背景；红白两色要写成两个完整 class 串（`menuRow` / `menuRowDanger`），拼在一条 `text-white text-red-400` 里会被 Tailwind 的产物顺序覆盖成白色。

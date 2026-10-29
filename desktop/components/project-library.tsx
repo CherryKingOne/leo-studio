@@ -7,13 +7,7 @@ import { useImportNovelModal } from "@/components/import-novel-modal";
 import { LibraryTabs } from "@/components/library-tabs";
 import { ProjectCard, type CardAction } from "@/components/project-card";
 import { useToast } from "@/components/toast";
-import { removeProjects } from "@/lib/actions";
-import {
-  purgeProject,
-  restoreProjects,
-  trashProjects,
-  useTrash,
-} from "@/lib/trash-store";
+import { removeProjects, restoreProjects } from "@/lib/actions";
 import {
   sortProjects,
   sortOptions,
@@ -33,11 +27,21 @@ const menuItemDanger =
 const toastLink =
   "flex items-center gap-1 font-medium text-accent-400 transition-colors hover:text-accent";
 
-export function ProjectLibrary({ initialProjects }: { initialProjects: ProjectSummary[] }) {
+export function ProjectLibrary({
+  projects,
+  trashCount,
+}: {
+  projects: ProjectSummary[];
+  trashCount: number;
+}) {
   const router = useRouter();
   const { show } = useToast();
   const { open: openImportModal } = useImportNovelModal();
-  const [projects, setProjects] = useState(initialProjects);
+  // 列表本身只来自服务端 props；本地只留「乐观删除的 id」与「改名草稿」两类覆盖，
+  // 动作完成后 refresh() 会带回新 props，覆盖随即清掉，避免和后端数据打架
+  const [hidden, setHidden] = useState<string[]>([]);
+  const [pendingTrash, setPendingTrash] = useState(0);
+  const [renames, setRenames] = useState<Record<string, string>>({});
   const [keyword, setKeyword] = useState("");
   const [sortKey, setSortKey] = useState<SortKey | null>(null);
   const [sortMenuOpen, setSortMenuOpen] = useState(false);
@@ -69,17 +73,14 @@ export function ProjectLibrary({ initialProjects }: { initialProjects: ProjectSu
     };
   }, []);
 
-  const trash = useTrash();
-  const trashCount = trash.filter((item) => !item.restored).length;
-
-  // 从回收站恢复过的剧目不在后端列表里，读快照时并回本次列表
   const list = useMemo(() => {
-    const known = new Set(projects.map((project) => project.id));
-    const restored = trash
-      .filter((item) => item.restored && !known.has(item.project.id))
-      .map((item) => item.project);
-    return restored.length ? [...restored, ...projects] : projects;
-  }, [projects, trash]);
+    const dropped = new Set(hidden);
+    return projects
+      .filter((project) => !dropped.has(project.id))
+      .map((project) =>
+        renames[project.id] ? { ...project, title: renames[project.id] } : project,
+      );
+  }, [projects, hidden, renames]);
 
   const visible = useMemo(() => {
     const needle = keyword.trim().toLowerCase();
@@ -88,12 +89,6 @@ export function ProjectLibrary({ initialProjects }: { initialProjects: ProjectSu
     );
     return sortKey ? sortProjects(matched, sortKey) : matched;
   }, [list, keyword, sortKey]);
-
-  function update(id: string, patch: { title?: string }) {
-    setProjects((prev) =>
-      prev.map((project) => (project.id === id ? { ...project, ...patch } : project)),
-    );
-  }
 
   function handleAction(id: string, action: CardAction) {
     setMenuId(null);
@@ -107,7 +102,7 @@ export function ProjectLibrary({ initialProjects }: { initialProjects: ProjectSu
     }
     if (action === "delete") {
       const project = list.find((item) => item.id === id);
-      if (project) deleteProjects([project]);
+      if (project) void moveToTrash([project]);
       return;
     }
     setBatchMode(true);
@@ -125,29 +120,29 @@ export function ProjectLibrary({ initialProjects }: { initialProjects: ProjectSu
     setSelected([]);
   }
 
-  /** 点击即删：先摘掉卡片并记进回收站，后端失败再回滚 */
-  function deleteProjects(targets: ProjectSummary[]) {
+  /** 移入回收站：先乐观摘卡，动作里 refresh() 带回新 props 后再撤掉覆盖 */
+  async function moveToTrash(targets: ProjectSummary[]) {
     if (!targets.length) return;
 
-    const ids = new Set(targets.map((project) => project.id));
-    const snapshot = projects;
-    setProjects(snapshot.filter((project) => !ids.has(project.id)));
-    trashProjects(targets);
-    setSelected((prev) => prev.filter((id) => !ids.has(id)));
+    const ids = targets.map((project) => project.id);
+    const dropped = new Set(ids);
+    setHidden((prev) => [...prev, ...ids]);
+    setPendingTrash(ids.length);
+    setSelected((prev) => prev.filter((id) => !dropped.has(id)));
     setBatchMenuOpen(false);
 
-    void removeProjects([...ids]).then((result) => {
-      if (!result.ok) {
-        setProjects(snapshot);
-        purgeAll(ids);
-        show(result.message, "info");
-      }
-    });
+    const result = await removeProjects(ids);
+    setHidden((prev) => prev.filter((id) => !dropped.has(id)));
+    setPendingTrash(0);
+    if (!result.ok) {
+      show(result.message, "info");
+      return;
+    }
 
     show(
       <span className="flex flex-wrap items-center gap-1.5">
         已删除，
-        <button type="button" onClick={() => restoreProjectsBack(ids)} className={toastLink}>
+        <button type="button" onClick={() => void restore(ids)} className={toastLink}>
           <Undo2 className="h-3.5 w-3.5" />
           撤销
         </button>
@@ -163,13 +158,14 @@ export function ProjectLibrary({ initialProjects }: { initialProjects: ProjectSu
     );
   }
 
-  /** 撤销：把条目从回收站放回剧目库，列表由回收站快照并回 */
-  function restoreProjectsBack(ids: Set<string>) {
-    restoreProjects(ids);
-  }
-
-  function purgeAll(ids: Set<string>) {
-    ids.forEach(purgeProject);
+  /** 撤销：调恢复接口，新列表由 refresh() 带回 */
+  async function restore(ids: string[]) {
+    const result = await restoreProjects(ids);
+    if (!result.ok) {
+      show(result.message, "info");
+      return;
+    }
+    show(`已恢复 ${ids.length} 部剧目`, "success");
   }
 
   const allSelected = visible.length > 0 && visible.every((project) => selected.includes(project.id));
@@ -178,7 +174,7 @@ export function ProjectLibrary({ initialProjects }: { initialProjects: ProjectSu
     <>
       <div className="mt-6 flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-3">
-          <LibraryTabs trashCount={trashCount} />
+          <LibraryTabs trashCount={trashCount + pendingTrash} />
           {batchMode && selected.length > 0 && (
             <span className="font-mono text-[11.5px] text-white/40">
               已选 {selected.length} 项
@@ -219,9 +215,7 @@ export function ProjectLibrary({ initialProjects }: { initialProjects: ProjectSu
                   <button
                     type="button"
                     disabled={selected.length === 0}
-                    onClick={() =>
-                      deleteProjects(list.filter((project) => selected.includes(project.id)))
-                    }
+                    onClick={() => void moveToTrash(list.filter((project) => selected.includes(project.id)))}
                     className={menuItemDanger}
                   >
                     <Trash2 className="h-3.5 w-3.5" />
@@ -309,7 +303,8 @@ export function ProjectLibrary({ initialProjects }: { initialProjects: ProjectSu
             onToggleMenu={(id) => setMenuId((current) => (current === id ? null : id))}
             onAction={handleAction}
             onRename={(id, title) => {
-              if (title) update(id, { title });
+              // 后端还没有改名接口，改名先留在本地覆盖层
+              if (title) setRenames((prev) => ({ ...prev, [id]: title }));
               setRenamingId(null);
             }}
             onToggleSelect={toggleSelect}

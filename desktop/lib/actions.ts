@@ -1,30 +1,99 @@
 "use server";
 
-import { updateTag } from "next/cache";
-import { deleteProject } from "@/lib/api";
+import { refresh, updateTag } from "next/cache";
+import {
+  clearTrash,
+  createProject,
+  deleteProject,
+  hardDeleteProject,
+  restoreProject,
+} from "@/lib/api";
+import type { ProjectSummary } from "@/lib/projects";
 
-export type RemoveProjectsResult = {
-  ok: true;
-  /** 后端确认删除的剧目名，已被他人删掉的不在其中 */
-  deleted: string[];
-} | { ok: false; message: string };
+export type MutationResult = { ok: true } | { ok: false; message: string };
+export type ClearTrashResult = { ok: true; count: number } | { ok: false; message: string };
+export type CreateProjectResult =
+  | { ok: true; project: ProjectSummary }
+  | { ok: false; message: string };
 
 /**
- * 批量删除剧目走服务端动作：浏览器不直连后端（后端未开 CORS），
- * 全部处理完再失效 projects 缓存标签，列表一次刷新。
+ * 回收站相关的写操作都走服务端动作（后端未开 CORS，浏览器不直连）。
+ * updateTag 立刻作废服务端缓存，refresh 让浏览器丢掉已缓存的 RSC payload 重新取数，
+ * 否则切到另一条路由会看到上次导航/预取留下的旧列表。
  */
-export async function removeProjects(ids: string[]): Promise<RemoveProjectsResult> {
-  const deleted: string[] = [];
+function committed(): void {
+  updateTag("projects");
+  refresh();
+}
 
-  for (const id of ids) {
-    try {
-      const name = await deleteProject(id);
-      if (name) deleted.push(name);
-    } catch (error) {
-      return { ok: false, message: error instanceof Error ? error.message : "删除失败" };
-    }
+/** 新建剧目：表单里取名称与 .txt 正文，交给后端清洗分章 */
+export async function createProjectAction(formData: FormData): Promise<CreateProjectResult> {
+  const name = String(formData.get("name") ?? "").trim();
+  const file = formData.get("file");
+
+  if (!name) return { ok: false, message: "请填写剧目名称" };
+  if (!(file instanceof File) || file.size === 0) {
+    return { ok: false, message: "请选择小说正文文件" };
   }
 
-  updateTag("projects");
-  return { ok: true, deleted };
+  let project: ProjectSummary;
+  try {
+    project = await createProject(name, file);
+  } catch (error) {
+    return failure(error);
+  }
+
+  committed();
+  return { ok: true, project };
+}
+
+function failure(error: unknown): { ok: false; message: string } {
+  return { ok: false, message: error instanceof Error ? error.message : "请求失败" };
+}
+
+/** 移入回收站（软删除） */
+export async function removeProjects(ids: string[]): Promise<MutationResult> {
+  try {
+    for (const id of ids) await deleteProject(id);
+  } catch (error) {
+    return failure(error);
+  }
+
+  committed();
+  return { ok: true };
+}
+
+/** 从回收站恢复 */
+export async function restoreProjects(ids: string[]): Promise<MutationResult> {
+  try {
+    for (const id of ids) await restoreProject(id);
+  } catch (error) {
+    return failure(error);
+  }
+
+  committed();
+  return { ok: true };
+}
+
+/** 彻底删除（物理硬删除，不可逆） */
+export async function purgeProjects(ids: string[]): Promise<MutationResult> {
+  try {
+    for (const id of ids) await hardDeleteProject(id);
+  } catch (error) {
+    return failure(error);
+  }
+
+  committed();
+  return { ok: true };
+}
+
+/** 清空回收站 */
+export async function clearAllTrash(): Promise<ClearTrashResult> {
+  try {
+    const count = await clearTrash();
+    committed();
+    return { ok: true, count };
+  } catch (error) {
+    return failure(error);
+  }
 }

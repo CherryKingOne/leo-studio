@@ -1,5 +1,10 @@
 import { cacheLife, cacheTag } from "next/cache";
-import type { ProjectChapter, ProjectStatus, ProjectSummary } from "@/lib/projects";
+import type {
+  ProjectChapter,
+  ProjectStatus,
+  ProjectSummary,
+  TrashedProject,
+} from "@/lib/projects";
 
 type ApiEnvelope<T> = {
   code: number;
@@ -18,6 +23,8 @@ type ApiProject = {
   total_words: number;
   created_at: string;
   updated_at: string;
+  is_deleted?: boolean;
+  deleted_at?: string | null;
 };
 
 type ApiProjectList = {
@@ -47,7 +54,7 @@ function backendUrl() {
 
 /** 后端统一响应包装：HTTP 200 但 code 非 0 同样按失败处理 */
 async function apiSend<T>(
-  method: "GET" | "DELETE",
+  method: "GET" | "POST" | "DELETE",
   path: string,
   params: Record<string, string | number> = {},
 ): Promise<T> {
@@ -88,6 +95,27 @@ function toSummary(item: ApiProject, now: number): ProjectSummary {
     // 相对时间在服务端算成小时数后下发，避免水合两端各取当前时刻导致不一致
     editedHoursAgo: Math.max(0, (now - Date.parse(item.updated_at)) / 3_600_000),
   };
+}
+
+/** 新建剧目：POST /api/v1/projects，multipart 上传 .txt 正文，服务端自动清洗分章 */
+export async function createProject(name: string, file: File): Promise<ProjectSummary> {
+  const base = backendUrl();
+  const form = new FormData();
+  form.set("name", name);
+  form.set("file", file, file.name);
+
+  let res: Response;
+  try {
+    res = await fetch(`${base}/api/v1/projects`, { method: "POST", body: form });
+  } catch (cause) {
+    throw new Error(`无法连接后端 ${base}`, { cause });
+  }
+
+  const body = (await res.json().catch(() => null)) as ApiEnvelope<ApiProject> | null;
+  if (!body || body.code !== 0) {
+    throw new Error(`创建剧目失败：${body?.message ?? `HTTP ${res.status}`}`);
+  }
+  return toSummary(body.data, Date.now());
 }
 
 /** 剧目库列表：GET /api/v1/projects，单页取后端允许的上限 100 条 */
@@ -132,11 +160,50 @@ export async function listChapters(id: string): Promise<ProjectChapter[]> {
   }));
 }
 
-/** 删除剧目：DELETE /api/v1/projects/{id}，级联清掉小说、章节与切句；后端无该剧目时返回 null */
+/** 回收站列表：GET /api/v1/projects/recycle-bin，按删除时间倒序 */
+export async function listTrash(): Promise<TrashedProject[]> {
+  "use cache";
+  cacheLife("seconds");
+  cacheTag("projects");
+
+  const data = await apiGet<ApiProjectList>("/api/v1/projects/recycle-bin", {
+    page: 1,
+    page_size: 100,
+  });
+  const now = Date.now();
+
+  return data.items.map((item) => ({
+    ...toSummary(item, now),
+    deletedHoursAgo: item.deleted_at
+      ? Math.max(0, (now - Date.parse(item.deleted_at)) / 3_600_000)
+      : 0,
+  }));
+}
+
+/** 移入回收站（软删除）：DELETE /api/v1/projects/{id} */
 export async function deleteProject(id: string): Promise<string | null> {
   const data = await apiSend<{ project_id: string; name: string; deleted: boolean }>(
     "DELETE",
     `/api/v1/projects/${id}`,
   );
   return data?.name ?? null;
+}
+
+/** 从回收站恢复：POST /api/v1/projects/{id}/restore */
+export async function restoreProject(id: string): Promise<void> {
+  await apiSend("POST", `/api/v1/projects/${id}/restore`);
+}
+
+/** 彻底删除（物理硬删除，不可逆）：DELETE /api/v1/projects/{id}/hard */
+export async function hardDeleteProject(id: string): Promise<void> {
+  await apiSend("DELETE", `/api/v1/projects/${id}/hard`);
+}
+
+/** 清空回收站：DELETE /api/v1/projects/recycle-bin */
+export async function clearTrash(): Promise<number> {
+  const data = await apiSend<{ cleared_count: number; cleared: boolean }>(
+    "DELETE",
+    "/api/v1/projects/recycle-bin",
+  );
+  return data?.cleared_count ?? 0;
 }
