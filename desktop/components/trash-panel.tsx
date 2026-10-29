@@ -1,7 +1,7 @@
 "use client";
 
 import { Eraser, Search } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { LibraryTabs } from "@/components/library-tabs";
 import { TrashView } from "@/components/trash-view";
 import { useToast } from "@/components/toast";
@@ -12,7 +12,24 @@ export function TrashPanel({ items }: { items: TrashedProject[] }) {
   const { show } = useToast();
   // 列表只来自服务端 props，本地只留正在处理的条目做乐观隐藏，动作完成后 refresh() 带回新列表
   const [pending, setPending] = useState<string[]>([]);
+  const [menuId, setMenuId] = useState<string | null>(null);
   const [keyword, setKeyword] = useState("");
+
+  useEffect(() => {
+    const dismiss = (event: MouseEvent) => {
+      if ((event.target as Element).closest("[data-menu]")) return;
+      setMenuId(null);
+    };
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setMenuId(null);
+    };
+    document.addEventListener("mousedown", dismiss);
+    document.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.removeEventListener("mousedown", dismiss);
+      document.removeEventListener("keydown", onKeyDown);
+    };
+  }, []);
 
   const needle = keyword.trim().toLowerCase();
   const visible = items.filter(
@@ -20,10 +37,19 @@ export function TrashPanel({ items }: { items: TrashedProject[] }) {
   );
 
   async function run(ids: string[], action: () => Promise<{ ok: boolean; message?: string }>, done: string) {
+    setMenuId(null);
     setPending((prev) => [...prev, ...ids]);
     const result = await action();
     setPending((prev) => prev.filter((id) => !ids.includes(id)));
     show(result.ok ? done : (result.message ?? "请求失败"), result.ok ? "success" : "info");
+  }
+
+  function handleAction(id: string, action: "restore" | "purge") {
+    if (action === "restore") {
+      void run([id], () => restoreProjects([id]), "已恢复到剧目库");
+      return;
+    }
+    void run([id], () => purgeProjects([id]), "已彻底删除");
   }
 
   return (
@@ -70,12 +96,9 @@ export function TrashPanel({ items }: { items: TrashedProject[] }) {
 
       <TrashView
         items={visible}
-        onRestore={(id) =>
-          void run([id], () => restoreProjects([id]), "已恢复到剧目库")
-        }
-        onPurge={(id) =>
-          void run([id], () => purgeProjects([id]), "已彻底删除")
-        }
+        menuId={menuId}
+        onToggleMenu={(id) => setMenuId((current) => (current === id ? null : id))}
+        onAction={handleAction}
       />
     </main>
   );
