@@ -3,7 +3,6 @@
 import {
   BadgeCheck,
   ChevronLeft,
-  ChevronRight,
   Coins,
   Download,
   Layers,
@@ -118,18 +117,13 @@ export function StudioHeader({
         </Link>
 
         <div className="flex min-w-0 items-center gap-2">
-          <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-accent/15 text-[11px] font-bold text-accent-400">
-            {project.title.slice(0, 1)}
-          </span>
           <span
-            className="max-w-[128px] shrink-0 truncate text-[12.5px] text-white/45"
+            className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-accent/15 text-[11px] font-bold text-accent-400"
             title={project.title}
           >
-            {project.title}
+            {project.title.slice(0, 1)}
           </span>
         </div>
-
-        <ChevronRight className="h-3.5 w-3.5 shrink-0 text-white/15" />
 
         <h1
           className="min-w-0 truncate text-[13.5px] font-semibold text-white"
