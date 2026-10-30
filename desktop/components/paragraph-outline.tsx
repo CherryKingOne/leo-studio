@@ -102,7 +102,7 @@ export function ParagraphOutline({
                   id={`outline-${paragraph.id}`}
                   type="button"
                   onClick={() => onJumpToFeed(paragraph.id)}
-                  className={`flex w-full items-center gap-2.5 rounded-lg py-2 pl-2.5 pr-2 text-left text-[12.5px] transition-colors ${
+                  className={`flex w-full items-center gap-2.5 rounded-lg py-2 pl-2.5 pr-2 text-left text-[13.5px] transition-colors ${
                     active
                       ? "bg-white/6 text-white ring-1 ring-accent/25"
                       : "text-white/50 hover:bg-white/5 hover:text-white"
@@ -118,7 +118,7 @@ export function ParagraphOutline({
                     {paragraph.speaker} · {studioPreview(paragraph.text)}
                   </span>
                   <span
-                    className={`shrink-0 font-mono text-[10.5px] ${
+                    className={`shrink-0 font-mono text-[11.5px] ${
                       active ? "text-white/40" : "text-white/30"
                     }`}
                   >
@@ -130,7 +130,7 @@ export function ParagraphOutline({
           </nav>
         ) : pane === "source" ? (
           <div
-            className={`flex-1 space-y-4 overflow-y-auto p-4 text-[13px] leading-relaxed text-white/60 ${inkScrollbar}`}
+            className={`flex-1 space-y-4 overflow-y-auto p-4 text-[14px] leading-relaxed text-white/60 ${inkScrollbar}`}
           >
             {source.map((block, index) => {
               const active = block.paragraphId === activeId;
@@ -161,17 +161,17 @@ export function ParagraphOutline({
                     ref={entry.current ? currentRow : undefined}
                     type="button"
                     onClick={() => onTocSelect(entry)}
-                    className={`flex w-full items-center gap-2.5 rounded-lg py-2 pl-2.5 pr-2 text-left text-[12.5px] transition-colors ${
+                    className={`flex w-full items-center gap-2.5 rounded-lg py-2 pl-2.5 pr-2 text-left text-[13.5px] transition-colors ${
                       entry.current
                         ? "bg-accent/8 text-white ring-1 ring-accent/25"
                         : "text-white/50 hover:bg-white/5 hover:text-white"
                     }`}
                   >
-                    <span className="shrink-0 font-mono text-[10.5px] text-white/35">
+                    <span className="shrink-0 font-mono text-[11.5px] text-white/35">
                       {entry.no}
                     </span>
                     <span className="min-w-0 flex-1 truncate">{entry.title}</span>
-                    <span className="shrink-0 font-mono text-[10.5px] text-white/30">
+                    <span className="shrink-0 font-mono text-[11.5px] text-white/30">
                       {formatWords(entry.words)}
                     </span>
                   </button>

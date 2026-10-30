@@ -148,7 +148,7 @@ function renderText(
         {mark.reading && (
           <sup
             data-reading="1"
-            className="ml-px align-super font-mono text-[9.5px] leading-none text-emerald-300/90"
+            className="ml-px align-super font-mono text-[10px] leading-none text-emerald-300/90"
           >
             {mark.reading}
           </sup>
@@ -475,7 +475,7 @@ function ParagraphCard({
             const value = e.currentTarget.textContent?.trim() ?? "";
             if (value && value !== paragraph.text) show("文案已更新，后续合成使用新文案", "success");
           }}
-          className="mt-3 cursor-text rounded-xl border border-hairline bg-ink-900 px-3.5 py-2.5 text-[13px] leading-relaxed text-white focus:underline focus:[text-decoration-style:dotted] focus:[text-decoration-color:rgb(255_255_255/0.35)] focus:[text-underline-offset:3px] focus:outline-none"
+          className="mt-3 cursor-text rounded-xl border border-hairline bg-ink-900 px-3.5 py-2.5 text-[14px] leading-relaxed text-white focus:underline focus:[text-decoration-style:dotted] focus:[text-decoration-color:rgb(255_255_255/0.35)] focus:[text-underline-offset:3px] focus:outline-none"
         >
           {paragraph.text}
         </div>
@@ -483,7 +483,7 @@ function ParagraphCard({
         <div
           data-text="1"
           onMouseUp={(event) => captureSelection(event.currentTarget)}
-          className="mt-3 cursor-text text-[13px] leading-relaxed text-white/75"
+          className="mt-3 cursor-text text-[14px] leading-relaxed text-white/75"
         >
           {renderText(
             paragraph.text,
