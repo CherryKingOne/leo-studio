@@ -1,6 +1,6 @@
 "use client";
 
-import { Bell, Coins, Crown, Plus } from "lucide-react";
+import { Bell, Plus } from "lucide-react";
 import { useImportNovelModal } from "@/components/import-novel-modal";
 
 const pill =
@@ -28,21 +28,6 @@ export function TopBar() {
             新
           </span>
           拆本引擎 v3：EPUB 章节自动识别
-        </button>
-
-        <button type="button" className={`${pill} hidden px-3.5 py-2 md:flex`}>
-          <Crown className="h-3.5 w-3.5 text-amber-400" />
-          <span>会员订阅</span>
-          <span className="h-3 w-px bg-white/10" />
-          <span className="text-amber-400/90">剩 620 分钟</span>
-        </button>
-
-        <button type="button" className={`${pill} px-3 py-2 text-white/80`}>
-          <Coins className="h-3.5 w-3.5 text-white/40" />
-          <span className="font-mono">6,240</span>
-          <span className="rounded bg-white/10 px-1.5 py-0.5 text-[10px] font-semibold text-white/60">
-            PRO
-          </span>
         </button>
 
         <button
