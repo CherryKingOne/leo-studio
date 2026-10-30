@@ -7,6 +7,12 @@ from datetime import datetime
 from pydantic import BaseModel, Field
 
 
+class ProjectUpdateRequest(BaseModel):
+    """更新项目请求体（重命名）。"""
+
+    name: str | None = Field(default=None, description="新项目名称（重命名），长度 1~255 字符")
+
+
 class ProjectResponse(BaseModel):
     """单个项目详情响应。"""
 

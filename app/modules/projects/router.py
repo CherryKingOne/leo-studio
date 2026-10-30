@@ -34,6 +34,7 @@ from app.modules.projects.schemas import (
     ProjectListResponse,
     ProjectResponse,
     ProjectRestoreResponse,
+    ProjectUpdateRequest,
 )
 from app.modules.projects.service import ProjectService
 from app.modules.text_files.dependencies import get_storage_service
@@ -283,6 +284,31 @@ async def get_project(
     """查询项目详情。"""
     info = service.get_project(project_id)
     return ApiResponse(data=to_project_response(info))
+
+
+@router.patch(
+    "/{project_id}",
+    response_model=ApiResponse[ProjectResponse],
+    summary="更新项目名称（重命名）",
+    description="更新指定项目的名称（剧目重命名）。",
+)
+@router.put(
+    "/{project_id}",
+    response_model=ApiResponse[ProjectResponse],
+    summary="更新项目名称（别名路径）",
+    include_in_schema=False,
+)
+async def update_project(
+    project_id: ProjectIdPath,
+    payload: ProjectUpdateRequest,
+    service: ProjectService = Depends(resolve_project_service),
+) -> ApiResponse[ProjectResponse]:
+    """更新指定项目的名称（重命名）。"""
+    info = service.update_project(
+        project_id=project_id,
+        name=payload.name,
+    )
+    return ApiResponse(data=to_project_response(info), message="项目更新成功")
 
 
 @router.delete(

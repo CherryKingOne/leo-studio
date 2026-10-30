@@ -96,6 +96,7 @@ Leo Studio 后端服务的 HTTP 接口文档。所有接口基于 **FastAPI** �
 | 查询回收站项目列表 | `GET` | `/api/v1/projects/recycle-bin` | 分页查询回收站中的项目列表，按删除时间倒序 | [recycle-bin.md](./projects/recycle-bin.md) |
 | 清空回收站 | `DELETE` | `/api/v1/projects/recycle-bin` | 批量彻底删除回收站内的所有项目及其物理关联文件 | [recycle-bin.md](./projects/recycle-bin.md) |
 | 查询项目详情 | `GET` | `/api/v1/projects/{project_id}` | 获取单个项目详细信息（回收站内项目返回 404） | [project.md](./projects/project.md) |
+| 更新项目名称（重命名） | `PATCH` / `PUT` | `/api/v1/projects/{project_id}` | 更新指定项目的名称（剧目重命名） | [update.md](./projects/update.md) |
 | 查询项目章节大纲列表 | `GET` | `/api/v1/projects/{project_id}/chapters` | 获取小说分章大纲列表（目录树），按序号排列 | [chapters.md](./projects/chapters.md) |
 | 查询项目章节详细内容 | `GET` | `/api/v1/projects/{project_id}/chapters/{chapter_id}` | 获取单章清洗后完整正文与切句列表 | [chapter-content.md](./projects/chapter-content.md) |
 | 追加上传项目章节文件 | `POST` | `/api/v1/projects/{project_id}/chapters/upload` | 增量追加小说章节文件，智能匹配防爬虫污染 | [append-chapters.md](./projects/append-chapters.md) |

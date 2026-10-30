@@ -281,6 +281,136 @@ class TestProjectManagementCRUD:
         assert response.json()["code"] == 40400
 
 
+class TestUpdateProject:
+    """更新项目接口测试（剧目重命名）。"""
+
+    def test_update_project_rename_success(self, client: TestClient) -> None:
+        """正常修改项目名称（重命名）。"""
+        create_res = client.post(
+            "/api/v1/projects",
+            data={"name": "原项目名称"},
+            files={"file": ("novel.txt", build_text_file(SAMPLE_NOVEL_CONTENT), "text/plain")},
+        )
+        assert create_res.status_code == 200
+        project_id = create_res.json()["data"]["project_id"]
+
+        update_res = client.patch(
+            f"/api/v1/projects/{project_id}",
+            json={"name": "新项目名称"},
+        )
+        assert update_res.status_code == 200
+        body = update_res.json()
+        assert body["code"] == 0
+        assert body["message"] == "项目更新成功"
+        assert body["data"]["name"] == "新项目名称"
+        assert body["data"]["project_id"] == project_id
+
+        # 再次查询验证持久化生效
+        detail_res = client.get(f"/api/v1/projects/{project_id}")
+        assert detail_res.status_code == 200
+        assert detail_res.json()["data"]["name"] == "新项目名称"
+
+    def test_update_project_put_alias(self, client: TestClient) -> None:
+        """支持通过 PUT 请求别名更新项目。"""
+        create_res = client.post(
+            "/api/v1/projects",
+            data={"name": "PUT测试项目"},
+            files={"file": ("novel.txt", build_text_file(SAMPLE_NOVEL_CONTENT), "text/plain")},
+        )
+        project_id = create_res.json()["data"]["project_id"]
+
+        update_res = client.put(
+            f"/api/v1/projects/{project_id}",
+            json={"name": "PUT重命名成功"},
+        )
+        assert update_res.status_code == 200
+        assert update_res.json()["data"]["name"] == "PUT重命名成功"
+
+    def test_update_project_empty_body_fails(self, client: TestClient) -> None:
+        """请求体为空字典或未提供名称时返回 422。"""
+        create_res = client.post(
+            "/api/v1/projects",
+            data={"name": "空更新测试项目"},
+            files={"file": ("novel.txt", build_text_file(SAMPLE_NOVEL_CONTENT), "text/plain")},
+        )
+        project_id = create_res.json()["data"]["project_id"]
+
+        update_res = client.patch(
+            f"/api/v1/projects/{project_id}",
+            json={},
+        )
+        assert update_res.status_code == 422
+        body = update_res.json()
+        assert body["code"] == 40000
+        assert "项目名称不能为空" in body["message"]
+
+    def test_update_project_empty_name_fails(self, client: TestClient) -> None:
+        """更新名称为空字符串或纯空白时返回 422。"""
+        create_res = client.post(
+            "/api/v1/projects",
+            data={"name": "空名称校验项目"},
+            files={"file": ("novel.txt", build_text_file(SAMPLE_NOVEL_CONTENT), "text/plain")},
+        )
+        project_id = create_res.json()["data"]["project_id"]
+
+        update_res = client.patch(
+            f"/api/v1/projects/{project_id}",
+            json={"name": "   "},
+        )
+        assert update_res.status_code == 422
+        body = update_res.json()
+        assert body["code"] == 40000
+        assert "项目名称不能为空" in body["message"]
+
+    def test_update_project_name_too_long_fails(self, client: TestClient) -> None:
+        """更新名称超出 255 字符时返回 422。"""
+        create_res = client.post(
+            "/api/v1/projects",
+            data={"name": "长名称校验项目"},
+            files={"file": ("novel.txt", build_text_file(SAMPLE_NOVEL_CONTENT), "text/plain")},
+        )
+        project_id = create_res.json()["data"]["project_id"]
+
+        update_res = client.patch(
+            f"/api/v1/projects/{project_id}",
+            json={"name": "超长名称" * 70},
+        )
+        assert update_res.status_code == 422
+        body = update_res.json()
+        assert body["code"] == 40000
+        assert "长度不能超过 255" in body["message"]
+
+    def test_update_project_non_existent_fails(self, client: TestClient) -> None:
+        """更新不存在的项目返回 404。"""
+        update_res = client.patch(
+            "/api/v1/projects/non_existent_project_id",
+            json={"name": "新名称"},
+        )
+        assert update_res.status_code == 404
+        assert update_res.json()["code"] == 40400
+
+    def test_update_project_in_recycle_bin_fails(self, client: TestClient) -> None:
+        """更新处于回收站中的项目返回 404。"""
+        create_res = client.post(
+            "/api/v1/projects",
+            data={"name": "回收站更新项目"},
+            files={"file": ("novel.txt", build_text_file(SAMPLE_NOVEL_CONTENT), "text/plain")},
+        )
+        project_id = create_res.json()["data"]["project_id"]
+
+        # 软删除移入回收站
+        client.delete(f"/api/v1/projects/{project_id}")
+
+        # 尝试更新返回 404
+        update_res = client.patch(
+            f"/api/v1/projects/{project_id}",
+            json={"name": "回收站修改名称"},
+        )
+        assert update_res.status_code == 404
+        assert update_res.json()["code"] == 40400
+        assert "已移入回收站" in update_res.json()["message"]
+
+
 class TestProjectChapters:
     """项目章节大纲与章节内容接口测试。"""
 

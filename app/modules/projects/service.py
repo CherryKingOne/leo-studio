@@ -277,6 +277,31 @@ class ProjectService:
         start = (page - 1) * page_size
         return items[start : start + page_size], total
 
+    def update_project(
+        self,
+        project_id: str,
+        name: str | None = None,
+    ) -> ProjectInfo:
+        """更新项目名称（重命名）。"""
+        actual_name = name.strip() if name else ""
+        if not actual_name:
+            raise InvalidParameterError("项目名称不能为空")
+        if len(actual_name) > 255:
+            raise InvalidParameterError("项目名称长度不能超过 255 个字符")
+
+        self.get_project(project_id, include_deleted=False)
+        now = datetime.now(UTC)
+
+        self.projects_table.update_by(
+            "project_id",
+            project_id,
+            {
+                "name": actual_name,
+                "updated_at": now.isoformat(),
+            },
+        )
+        return self.get_project(project_id)
+
     def delete_project(self, project_id: str) -> ProjectInfo:
         """软删除项目：将其移入回收站，保留小说及切句数据支持随时恢复。"""
         info = self.get_project(project_id, include_deleted=False)
