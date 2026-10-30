@@ -10,7 +10,7 @@ export function TopBar() {
   const { open: openImportModal } = useImportNovelModal();
 
   return (
-    <header className="sticky top-0 z-30 flex h-16 shrink-0 items-center justify-between gap-3 border-b border-hairline bg-ink-900/85 px-5 backdrop-blur-md sm:px-8">
+    <header className="sticky top-0 z-30 flex h-16 shrink-0 items-center justify-between gap-3 bg-ink-900/85 px-5 backdrop-blur-md sm:px-8">
       <button
         type="button"
         onClick={openImportModal}

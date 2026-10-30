@@ -72,7 +72,7 @@ components/
   import-novel-modal.tsx 新建剧目弹窗（Provider + hook + 弹窗本体）：名称 + .txt 正文，提交走 `createProjectAction`
   clone-voice-modal.tsx 克隆新音色弹窗（Provider + hook + 弹窗本体）
   chapter-import-modal.tsx 追更上传章节弹窗：选单个 .txt → dry_run 预检摘要与冲突列表 → 确认后落盘
-  hub-header.tsx        剧目看板的项目级顶栏：返回书架 + 可改名标题 + 章节与副标题 + 导出入口（无进度数据时不画进度条）
+  hub-header.tsx        剧目看板的项目级顶栏：返回书架胶囊 + 迷你封面（与剧目库卡片同底色）+ 可改名标题（hover 铅笔或双击）+ 章节数与副标题 + 导出入口（无进度数据时不画进度条）
   hub-chapters.tsx      看板章节状态（Provider + useHubChapters）：拆解与合成推进、持有追更上传弹窗
   project-hub.tsx       看板 tab 容器：章节流水线 / 角色阵容，持有搜索与只看已就绪；cast 为空时不渲染选角 tab
   chapter-pipeline.tsx  章节生产流水线表格：状态筛选、批量勾选、拆解与合成推进、追更上传入口

@@ -39,7 +39,7 @@ export function ProjectHub({
 
   return (
     <>
-      <div className="mt-7 flex flex-wrap items-center justify-between gap-4 border-b border-hairline pb-2">
+      <div className="mt-7 flex flex-wrap items-center justify-between gap-4">
         <div className="flex items-center gap-1">
           {tabs.map(({ key, label, Icon }) => (
             <button
