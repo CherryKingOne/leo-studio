@@ -25,8 +25,8 @@ type HubData = {
   identity: HubIdentity;
   chapters: HubChapter[];
   cast: CastMember[];
-  /** 后端剧目才支持追更上传，原型剧目没有 project_id 对应记录 */
-  appendReady: boolean;
+  /** 后端剧目才有 project_id 对应记录，原型剧目的改名与追更都不能落库 */
+  remote: boolean;
 };
 
 /**
@@ -45,7 +45,7 @@ async function loadHub(id: string): Promise<HubData | null> {
       },
       chapters: hub.chapters,
       cast: hub.cast,
-      appendReady: false,
+      remote: false,
     };
   }
 
@@ -64,7 +64,7 @@ async function loadHub(id: string): Promise<HubData | null> {
     },
     chapters: outline.map(chapterFromOutline),
     cast: [],
-    appendReady: true,
+    remote: true,
   };
 }
 
@@ -96,10 +96,10 @@ export default async function ProjectHubPage(props: PageProps<"/project/[id]">) 
           initialChapters={hub.chapters}
         >
           <div className="flex min-h-screen flex-col">
-            <HubHeader projectId={id} identity={hub.identity} />
+            <HubHeader projectId={id} identity={hub.identity} remote={hub.remote} />
 
             <main className="mx-auto w-full max-w-6xl flex-1 px-5 pb-16 pt-8 sm:px-8">
-              <ProjectHub projectId={id} cast={hub.cast} appendReady={hub.appendReady} />
+              <ProjectHub projectId={id} cast={hub.cast} appendReady={hub.remote} />
             </main>
           </div>
         </HubChaptersProvider>

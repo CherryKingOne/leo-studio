@@ -5,25 +5,43 @@ import Link from "next/link";
 import { useState } from "react";
 import { useHubChapters } from "@/components/hub-chapters";
 import { useToast } from "@/components/toast";
+import { renameProjectAction } from "@/lib/actions";
 import type { HubIdentity } from "@/lib/projects";
 
 export function HubHeader({
   projectId,
   identity,
+  remote,
 }: {
   projectId: string;
   identity: HubIdentity;
+  /** 后端剧目才改名；原型剧目没有 project_id 对应记录，只在本地改标题 */
+  remote: boolean;
 }) {
   const { show } = useToast();
   const { chapters } = useHubChapters();
   const [title, setTitle] = useState(identity.title);
   const [editing, setEditing] = useState(false);
 
-  function commit(value: string) {
+  async function commit(value: string) {
     setEditing(false);
-    if (!value || value === title) return;
-    setTitle(value);
-    show("剧目名称已更新", "success");
+    const next = value.trim();
+    if (!next || next === title) return;
+
+    const previous = title;
+    setTitle(next);
+    if (!remote) {
+      show("剧目名称已更新", "success");
+      return;
+    }
+
+    // PATCH /api/v1/projects/{id} 成功后服务端动作会 refresh()，列表与侧栏同步换新名
+    const result = await renameProjectAction(projectId, next);
+    if (result.ok) show("剧目名称已更新", "success");
+    else {
+      setTitle(previous);
+      show(result.message, "info");
+    }
   }
 
   return (

@@ -116,3 +116,19 @@ curl -X PATCH "http://127.0.0.1:8000/api/v1/projects/915c2735cb2a40a18b9293ae86b
   "request_id": "b3f1c2d4e5a60718293a4b5c6d7e8f90"
 }
 ```
+
+## 前端接入
+
+`desktop/` 的两处剧目重命名入口都走本接口。后端未开 CORS，浏览器不直连，
+统一由服务端动作发起请求：
+
+| 页面 | 入口 | 调用链 |
+| --- | --- | --- |
+| `/project`（我的剧目） | 卡片菜单「重命名」后的行内输入框 | `ProjectLibrary.submitRename` → `renameProjectAction` → `renameProject` |
+| `/project/{project_id}`（剧目看板） | 顶栏标题双击或铅笔图标 | `HubHeader.commit` → 同上 |
+
+- 请求期间前端先乐观替换标题：成功即作废 `projects` 缓存标签并刷新路由，
+  书架、侧栏与看板同步换新名；失败（404、超过 255 字符等）则回滚标题，
+  并把响应的 `message` 原样提示给用户。
+- 原型 mock 剧目（`desktop/lib/projects.ts` 的 `initialProjects`）没有后端记录，
+  看板顶栏改名只改本地标题，不发请求。

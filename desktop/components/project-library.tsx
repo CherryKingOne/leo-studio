@@ -7,7 +7,7 @@ import { useImportNovelModal } from "@/components/import-novel-modal";
 import { LibraryTabs } from "@/components/library-tabs";
 import { ProjectCard, type CardAction } from "@/components/project-card";
 import { useToast } from "@/components/toast";
-import { removeProjects, restoreProjects } from "@/lib/actions";
+import { removeProjects, renameProjectAction, restoreProjects } from "@/lib/actions";
 import {
   sortProjects,
   sortOptions,
@@ -168,6 +168,26 @@ export function ProjectLibrary({
     show(`已恢复 ${ids.length} 部剧目`, "success");
   }
 
+  /**
+   * 重命名：请求期间先乐观盖上标题，落库或失败后都撤掉覆盖 ——
+   * 成功时 refresh() 带回后端新名，失败时回到后端旧名，本地草稿不留存。
+   */
+  async function submitRename(id: string, title: string) {
+    setRenamingId(null);
+    const original = projects.find((project) => project.id === id);
+    if (!title || title === original?.title) return;
+
+    setRenames((prev) => ({ ...prev, [id]: title }));
+    const result = await renameProjectAction(id, title);
+    setRenames((prev) => {
+      const next = { ...prev };
+      delete next[id];
+      return next;
+    });
+
+    show(result.ok ? "剧目名称已更新" : result.message, result.ok ? "success" : "info");
+  }
+
   const allSelected = visible.length > 0 && visible.every((project) => selected.includes(project.id));
 
   return (
@@ -302,11 +322,7 @@ export function ProjectLibrary({
             selected={selected.includes(project.id)}
             onToggleMenu={(id) => setMenuId((current) => (current === id ? null : id))}
             onAction={handleAction}
-            onRename={(id, title) => {
-              // 后端还没有改名接口，改名先留在本地覆盖层
-              if (title) setRenames((prev) => ({ ...prev, [id]: title }));
-              setRenamingId(null);
-            }}
+            onRename={(id, title) => void submitRename(id, title)}
             onToggleSelect={toggleSelect}
           />
         ))}

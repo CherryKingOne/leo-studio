@@ -7,6 +7,7 @@ import {
   createProject,
   deleteProject,
   hardDeleteProject,
+  renameProject,
   restoreProject,
 } from "@/lib/api";
 import type { ChapterAppendResult } from "@/lib/api";
@@ -78,6 +79,21 @@ export async function appendChaptersAction(formData: FormData): Promise<AppendCh
 
 function failure(error: unknown): { ok: false; message: string } {
   return { ok: false, message: error instanceof Error ? error.message : "请求失败" };
+}
+
+/** 剧目重命名：先挡掉空名，长度等其余校验交给 PATCH /api/v1/projects/{id} */
+export async function renameProjectAction(id: string, title: string): Promise<MutationResult> {
+  const name = title.trim();
+  if (!name) return { ok: false, message: "剧目名称不能为空" };
+
+  try {
+    await renameProject(id, name);
+  } catch (error) {
+    return failure(error);
+  }
+
+  committed();
+  return { ok: true };
 }
 
 /** 移入回收站（软删除） */

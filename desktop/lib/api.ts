@@ -130,6 +130,30 @@ async function apiPostForm<T>(path: string, form: FormData): Promise<T> {
   return body.data;
 }
 
+/**
+ * JSON 写接口：404 也按失败抛出。
+ * 改名这类操作的目标剧目不存在就是异常（回收站里的剧目不可更新），不能像 GET 那样静默返回 null。
+ */
+async function apiPatchJson<T>(path: string, payload: unknown): Promise<T> {
+  const base = backendUrl();
+  let res: Response;
+  try {
+    res = await fetch(`${base}${path}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json", Accept: "application/json" },
+      body: JSON.stringify(payload),
+    });
+  } catch (cause) {
+    throw new Error(`无法连接后端 ${base}`, { cause });
+  }
+
+  const body = (await res.json().catch(() => null)) as ApiEnvelope<T> | null;
+  if (!body || body.code !== 0) {
+    throw new Error(body?.message ?? `请求失败（HTTP ${res.status}）`);
+  }
+  return body.data;
+}
+
 /** 新建剧目：POST /api/v1/projects，multipart 上传 .txt 正文，服务端自动清洗分章 */
 export async function createProject(name: string, file: File): Promise<ProjectSummary> {
   const form = new FormData();
@@ -229,6 +253,11 @@ export async function getProject(id: string): Promise<ProjectSummary | null> {
 
   const data = await apiGet<ApiProject>(`/api/v1/projects/${id}`);
   return data ? toSummary(data, Date.now()) : null;
+}
+
+/** 剧目重命名：PATCH /api/v1/projects/{id}，仅改 name，回收站中的剧目会被后端拒绝 */
+export async function renameProject(id: string, name: string): Promise<void> {
+  await apiPatchJson<ApiProject>(`/api/v1/projects/${id}`, { name });
 }
 
 /** 章节大纲：GET /api/v1/projects/{id}/chapters，按章节序号升序 */
