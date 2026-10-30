@@ -66,6 +66,39 @@ function PolyphoneIcon({ className }: { className?: string }) {
   );
 }
 
+/**
+ * 重读图标：A 常规字重 + B 极粗字重、B 下挂一个圆点。字形由字体绘制，
+ * viewBox 按墨迹外接框裁切，才能与多音字图标同尺寸时视觉等高。
+ */
+function StressIcon({ className }: { className?: string }) {
+  return (
+    <svg viewBox="122 134.5 386 386" fill="none" aria-hidden="true" className={className}>
+      <text
+        x="130"
+        y="380"
+        fill="currentColor"
+        fontFamily="Inter, -apple-system, sans-serif"
+        fontSize="280"
+        letterSpacing="-8"
+      >
+        A
+      </text>
+      <text
+        x="315"
+        y="380"
+        fill="currentColor"
+        fontFamily="Inter, -apple-system, sans-serif"
+        fontSize="280"
+        fontWeight="900"
+        letterSpacing="-8"
+      >
+        B
+      </text>
+      <circle cx="390" cy="450" r="18" fill="currentColor" />
+    </svg>
+  );
+}
+
 export function TuningDock({
   open,
   paragraph,
@@ -131,6 +164,14 @@ export function TuningDock({
             className={dockButton}
           >
             <PolyphoneIcon className="h-5 w-5" />
+          </button>
+          <button
+            type="button"
+            title="标记重读"
+            onClick={() => show("已标记本段重读，重新合成时生效", "success")}
+            className={dockButton}
+          >
+            <StressIcon className="h-5 w-5" />
           </button>
           <button
             type="button"
