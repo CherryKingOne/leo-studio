@@ -204,6 +204,7 @@ export function ChapterStudio({
     <div className="flex h-screen min-h-0 flex-col overflow-hidden">
       <StudioHeader
         project={project}
+        chapter={chapter}
         keyword={keyword}
         onKeywordChange={setKeyword}
         paragraphCount={paragraphs.length}

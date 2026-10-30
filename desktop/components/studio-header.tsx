@@ -2,8 +2,8 @@
 
 import {
   BadgeCheck,
-  ChevronDown,
   ChevronLeft,
+  ChevronRight,
   Coins,
   Download,
   Layers,
@@ -18,18 +18,23 @@ import {
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { useToast } from "@/components/toast";
-import type { StudioProject } from "@/lib/projects";
+import { formatWords, type HubChapter, type StudioProject } from "@/lib/projects";
 
 type SynthState = "idle" | "busy" | "done";
 
+const iconButton =
+  "flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-hairline bg-ink-800 text-white/55 transition-colors hover:bg-ink-700 hover:text-white";
+
 export function StudioHeader({
   project,
+  chapter,
   keyword,
   onKeywordChange,
   paragraphCount,
   cueCount,
 }: {
   project: StudioProject;
+  chapter: HubChapter;
   keyword: string;
   onKeywordChange: (value: string) => void;
   paragraphCount: number;
@@ -101,60 +106,74 @@ export function StudioHeader({
   }
 
   return (
-    <header className="sticky top-0 z-30 flex h-16 shrink-0 items-center gap-3 bg-ink-900/85 px-4 backdrop-blur-md sm:px-6">
-      <div className="flex min-w-0 max-w-[560px] flex-1 items-center gap-1 rounded-full border border-hairline bg-ink-800 p-1.5">
+    <header className="sticky top-0 z-30 flex h-16 shrink-0 items-center gap-3 border-b border-hairline bg-ink-900/85 px-4 backdrop-blur-md sm:gap-4 sm:px-6">
+      {/* 面包屑：返回看板 + 剧目 + 当前章。原来的「切换剧目」是个假下拉，已去掉 */}
+      <div className="flex min-w-0 flex-1 items-center gap-2.5">
         <Link
           href={`/project/${project.id}`}
           title="返回剧目看板"
-          className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-white/45 transition-colors hover:bg-white/7 hover:text-white"
+          className={iconButton}
         >
           <ChevronLeft className="h-4 w-4" />
         </Link>
 
-        <Link
-          href={`/project/${project.id}`}
-          title="切换剧目"
-          className="flex h-7 shrink-0 items-center gap-1.5 rounded-full bg-white/7 pl-1 pr-2 transition-colors hover:bg-white/12"
-        >
-          <span className="flex h-5 w-5 items-center justify-center rounded-full bg-accent/15 text-[10px] font-bold text-accent-400">
+        <div className="flex min-w-0 items-center gap-2">
+          <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-accent/15 text-[11px] font-bold text-accent-400">
             {project.title.slice(0, 1)}
           </span>
-          <span className="max-w-[92px] truncate text-[12.5px] text-white/85">{project.title}</span>
-          <ChevronDown className="h-3.5 w-3.5 text-white/30" />
-        </Link>
-
-        <div className="h-4 w-px shrink-0 bg-white/7" />
-
-        <div className="relative min-w-0 flex-1">
-          <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-white/25" />
-          <input
-            ref={input}
-            type="text"
-            value={keyword}
-            onChange={(e) => onKeywordChange(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key !== "Escape") return;
-              onKeywordChange("");
-              e.currentTarget.blur();
-            }}
-            placeholder="搜索段落、角色或输入指令…"
-            className="w-full rounded-full bg-transparent py-1 pl-8 pr-12 text-[12.5px] text-white placeholder:text-white/30 focus:outline-none"
-          />
-          <kbd className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 rounded border border-white/10 bg-white/6 px-1.5 py-0.5 font-mono text-[10px] text-white/40">
-            ⌘K
-          </kbd>
+          <span
+            className="max-w-[128px] shrink-0 truncate text-[12.5px] text-white/45"
+            title={project.title}
+          >
+            {project.title}
+          </span>
         </div>
 
+        <ChevronRight className="h-3.5 w-3.5 shrink-0 text-white/15" />
+
+        <h1
+          className="min-w-0 truncate text-[13.5px] font-semibold text-white"
+          title={chapter.title}
+        >
+          {chapter.title}
+        </h1>
+
+        <span className="hidden shrink-0 rounded-full border border-hairline bg-ink-800 px-2 py-0.5 font-mono text-[10.5px] text-white/40 lg:inline">
+          {chapter.words ? `${formatWords(chapter.words)} 字` : "待统计"}
+        </span>
+      </div>
+
+      <div className="relative hidden w-[200px] shrink-0 md:block xl:w-[280px]">
+        <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-white/25" />
+        <input
+          ref={input}
+          type="text"
+          value={keyword}
+          onChange={(e) => onKeywordChange(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key !== "Escape") return;
+            onKeywordChange("");
+            e.currentTarget.blur();
+          }}
+          placeholder="搜索段落、角色…"
+          className="h-8 w-full rounded-full border border-hairline bg-ink-800 pl-8 pr-11 text-[12.5px] text-white placeholder:text-white/30 focus:border-accent/50 focus:bg-ink-750 focus:outline-none"
+        />
+        <kbd className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 rounded border border-white/10 bg-white/6 px-1.5 py-0.5 font-mono text-[10px] text-white/40">
+          ⌘K
+        </kbd>
+      </div>
+
+      <div className="flex shrink-0 items-center gap-1">
         <button
           type="button"
           title="复制章节链接"
           onClick={shareChapter}
-          className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-white/45 transition-colors hover:bg-white/7 hover:text-white"
+          className={iconButton}
         >
           <Share className="h-4 w-4" />
         </button>
 
-        <div className="relative shrink-0">
+        <div className="relative">
           <button
             type="button"
             title="更多操作"
@@ -162,17 +181,17 @@ export function StudioHeader({
               e.stopPropagation();
               setMenuOpen((open) => !open);
             }}
-            className="flex h-7 w-7 items-center justify-center rounded-full text-white/45 transition-colors hover:bg-white/7 hover:text-white"
+            className={iconButton}
           >
             <MoreHorizontal className="h-4 w-4" />
           </button>
 
           {menuOpen && (
-            <div className="absolute right-0 top-9 z-40 w-44 overflow-hidden rounded-xl border border-hairline bg-ink-750 py-1 shadow-2xl shadow-black/60">
+            <div className="absolute right-0 top-10 z-40 w-44 overflow-hidden rounded-xl border border-hairline bg-ink-750 py-1 shadow-2xl shadow-black/60">
               <button
                 type="button"
                 onClick={reparse}
-                className="flex w-full items-center gap-2.5 px-3 py-2 text-left text-[12.5px] text-white/70 hover:bg-white/5 hover:text-white"
+                className="flex w-full items-center gap-2.5 px-3 py-2 text-left text-[12.5px] text-white transition-colors hover:bg-white/5"
               >
                 <RefreshCw className="h-3.5 w-3.5 opacity-60" />
                 重新解析剧本
@@ -180,7 +199,7 @@ export function StudioHeader({
               <button
                 type="button"
                 onClick={() => show("已把本章加入批量产量队列", "success")}
-                className="flex w-full items-center gap-2.5 px-3 py-2 text-left text-[12.5px] text-white/70 hover:bg-white/5 hover:text-white"
+                className="flex w-full items-center gap-2.5 px-3 py-2 text-left text-[12.5px] text-white transition-colors hover:bg-white/5"
               >
                 <Layers className="h-3.5 w-3.5 opacity-60" />
                 加入批量队列
@@ -188,7 +207,7 @@ export function StudioHeader({
               <button
                 type="button"
                 onClick={() => show("已打开章节设置", "info")}
-                className="flex w-full items-center gap-2.5 px-3 py-2 text-left text-[12.5px] text-white/70 hover:bg-white/5 hover:text-white"
+                className="flex w-full items-center gap-2.5 px-3 py-2 text-left text-[12.5px] text-white transition-colors hover:bg-white/5"
               >
                 <Settings className="h-3.5 w-3.5 opacity-60" />
                 章节设置
@@ -198,7 +217,7 @@ export function StudioHeader({
         </div>
       </div>
 
-      <div className="ml-auto flex shrink-0 items-center gap-2">
+      <div className="flex shrink-0 items-center gap-2">
         <Link
           href={`/project/${project.id}/export`}
           className="flex items-center gap-2 rounded-full border border-hairline bg-ink-800 px-3 py-2 text-[12.5px] font-medium text-white/75 transition-colors hover:border-emerald-400/30 hover:bg-emerald-400/10 hover:text-emerald-300"
