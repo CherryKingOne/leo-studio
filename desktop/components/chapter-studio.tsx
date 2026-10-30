@@ -389,7 +389,6 @@ export function ChapterStudio({
           modelOptions={studio.modelOptions}
           reverbOptions={studio.reverbOptions}
           onOpenChange={setTuningOpen}
-          onAudition={audition}
           onPolyphone={openPolyphone}
           onProsody={openProsody}
         />

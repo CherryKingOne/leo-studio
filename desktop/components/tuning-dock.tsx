@@ -2,16 +2,14 @@
 
 import {
   Dices,
-  Mic,
   MoreVertical,
   PanelRightClose,
   RotateCw,
   SlidersHorizontal,
-  Volume2,
   WandSparkles,
 } from "lucide-react";
 import Link from "next/link";
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { useToast } from "@/components/toast";
 import { inkScrollbar } from "@/lib/scrollbar";
 import type { StudioParagraph } from "@/lib/projects";
@@ -99,6 +97,50 @@ function StressIcon({ className }: { className?: string }) {
   );
 }
 
+const dockPrimary =
+  "flex h-9 w-9 items-center justify-center rounded-full bg-accent text-white transition-colors hover:bg-accent-600";
+
+const tipClass =
+  "pointer-events-none absolute top-1/2 z-50 -translate-y-1/2 opacity-0 transition-opacity duration-150 delay-150 group-hover:opacity-100 group-focus-within:opacity-100";
+
+/** dock 贴着屏幕右边缘，气泡一律朝左弹出 */
+function DockTip({ label }: { label: string }) {
+  return (
+    <>
+      <span
+        role="tooltip"
+        className={`${tipClass} right-[calc(100%+10px)] whitespace-nowrap rounded-lg border border-hairline bg-ink-750 px-2.5 py-1.5 text-[11.5px] text-white/85 shadow-2xl shadow-black/60`}
+      >
+        {label}
+      </span>
+      <span
+        className={`${tipClass} right-[calc(100%+6px)] size-2 rotate-45 border-t border-r border-hairline bg-ink-750`}
+      />
+    </>
+  );
+}
+
+function DockButton({
+  label,
+  buttonClass = dockButton,
+  onClick,
+  children,
+}: {
+  label: string;
+  buttonClass?: string;
+  onClick: () => void;
+  children: ReactNode;
+}) {
+  return (
+    <span className="group relative flex">
+      <button type="button" aria-label={label} onClick={onClick} className={buttonClass}>
+        {children}
+      </button>
+      <DockTip label={label} />
+    </span>
+  );
+}
+
 export function TuningDock({
   open,
   paragraph,
@@ -107,7 +149,6 @@ export function TuningDock({
   modelOptions,
   reverbOptions,
   onOpenChange,
-  onAudition,
   onPolyphone,
   onProsody,
 }: {
@@ -118,7 +159,6 @@ export function TuningDock({
   modelOptions: string[];
   reverbOptions: string[];
   onOpenChange: (open: boolean) => void;
-  onAudition: (hz: number, seconds: number) => void;
   /** 弹多音字读音候选，目标为正文里刚划选或点选的那个字 */
   onPolyphone: () => void;
   /** 弹语气标注菜单（重读/拖音），目标为正文里刚划选的那段文字 */
@@ -141,71 +181,31 @@ export function TuningDock({
         />
       ) : (
         <div className="pointer-events-auto absolute right-4 top-1/2 flex -translate-y-1/2 flex-col items-center gap-1 rounded-full border border-hairline bg-ink-800/95 p-1.5 shadow-2xl shadow-black/60 backdrop-blur-md">
-          <button
-            type="button"
-            title="展开配音设置"
+          <DockButton
+            label="展开配音设置"
+            buttonClass={dockPrimary}
             onClick={() => onOpenChange(true)}
-            className="flex h-9 w-9 items-center justify-center rounded-full bg-accent text-white transition-colors hover:bg-accent-600"
           >
             <SlidersHorizontal className="h-4 w-4" />
-          </button>
+          </DockButton>
 
           <div className="my-1 h-px w-6 bg-white/7" />
 
-          <button
-            type="button"
-            title="试听当前段"
-            onClick={() => onAudition(paragraph.hz, paragraph.seconds)}
-            className={dockButton}
-          >
-            <Volume2 className="h-4 w-4" />
-          </button>
-          <button
-            type="button"
-            title="校对多音字"
-            onClick={onPolyphone}
-            className={dockButton}
-          >
+          <DockButton label="校对多音字" onClick={onPolyphone}>
             <PolyphoneIcon className="h-5 w-5" />
-          </button>
-          <button
-            type="button"
-            title="标记重读"
-            onClick={onProsody}
-            className={dockButton}
-          >
+          </DockButton>
+          <DockButton label="标记重读" onClick={onProsody}>
             <StressIcon className="h-5 w-5" />
-          </button>
-          <button
-            type="button"
-            title="局部重绘本段"
-            onClick={() => show("正在局部重新推理，仅覆盖当前段落", "info")}
-            className={dockButton}
-          >
-            <WandSparkles className="h-4 w-4" />
-          </button>
-          <Link href="/voice-library" title="更换音色" className={dockButton}>
-            <Mic className="h-4 w-4" />
-          </Link>
-          <button
-            type="button"
-            title="重新生成"
-            onClick={() => show("已重新加入生成队列", "info")}
-            className={dockButton}
-          >
+          </DockButton>
+          <DockButton label="重新生成" onClick={() => show("已重新加入生成队列", "info")}>
             <RotateCw className="h-4 w-4" />
-          </button>
+          </DockButton>
 
           <div className="my-1 h-px w-6 bg-white/7" />
 
-          <button
-            type="button"
-            title="更多参数"
-            onClick={() => onOpenChange(true)}
-            className={dockButton}
-          >
+          <DockButton label="更多参数" onClick={() => onOpenChange(true)}>
             <MoreVertical className="h-4 w-4" />
-          </button>
+          </DockButton>
         </div>
       )}
     </div>
