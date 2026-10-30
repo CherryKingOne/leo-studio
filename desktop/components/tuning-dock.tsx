@@ -75,6 +75,7 @@ export function TuningDock({
   reverbOptions,
   onOpenChange,
   onAudition,
+  onPolyphone,
 }: {
   open: boolean;
   paragraph: StudioParagraph;
@@ -84,6 +85,8 @@ export function TuningDock({
   reverbOptions: string[];
   onOpenChange: (open: boolean) => void;
   onAudition: (hz: number, seconds: number) => void;
+  /** 弹多音字读音候选，目标为正文里刚划选或点选的那个字 */
+  onPolyphone: () => void;
 }) {
   const { show } = useToast();
 
@@ -124,7 +127,7 @@ export function TuningDock({
           <button
             type="button"
             title="校对多音字"
-            onClick={() => show("多音字注音已校准", "success")}
+            onClick={onPolyphone}
             className={dockButton}
           >
             <PolyphoneIcon className="h-5 w-5" />

@@ -1,6 +1,6 @@
 "use client";
 
-import { CircleCheck, Info } from "lucide-react";
+import { CircleAlert, CircleCheck, Info } from "lucide-react";
 import {
   createContext,
   useCallback,
@@ -10,7 +10,7 @@ import {
   type ReactNode,
 } from "react";
 
-type ToastTone = "info" | "success";
+type ToastTone = "info" | "success" | "warn";
 type ToastItem = { id: number; message: ReactNode; tone: ToastTone };
 
 const ToastContext = createContext<{
@@ -44,7 +44,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
 
       <div className="pointer-events-none fixed bottom-6 right-6 z-50 flex flex-col gap-2">
         {toasts.map(({ id, message, tone }) => {
-          const Icon = tone === "success" ? CircleCheck : Info;
+          const Icon = tone === "success" ? CircleCheck : tone === "warn" ? CircleAlert : Info;
           return (
             <div
               key={id}
@@ -52,7 +52,11 @@ export function ToastProvider({ children }: { children: ReactNode }) {
             >
               <Icon
                 className={`h-4 w-4 shrink-0 ${
-                  tone === "success" ? "text-emerald-400" : "text-accent-400"
+                  tone === "success"
+                    ? "text-emerald-400"
+                    : tone === "warn"
+                      ? "text-amber-400"
+                      : "text-accent-400"
                 }`}
               />
               <span>{message}</span>

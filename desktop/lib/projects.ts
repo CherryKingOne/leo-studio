@@ -674,6 +674,9 @@ export type StudioParagraph = {
 /** 原著正文块，点击跳转到对应剧本卡片 */
 export type StudioSourceBlock = { text: string; paragraphId: string };
 
+/** 多音字标注：正文第 index 个字改读为 reading，reading 缺省表示已划选、待挑读音 */
+export type PolyphoneMark = { index: number; char: string; reading?: string };
+
 export type ChapterStudio = {
   paragraphs: StudioParagraph[];
   source: StudioSourceBlock[];

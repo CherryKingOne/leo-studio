@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ParagraphOutline, type StudioPane } from "@/components/paragraph-outline";
+import { PolyphonePopover } from "@/components/polyphone-popover";
 import { ScriptFeed, type FeedItem } from "@/components/script-feed";
 import { StudioHeader } from "@/components/studio-header";
 import { TuningDock } from "@/components/tuning-dock";
@@ -12,6 +13,7 @@ import type {
   CastOption,
   ChapterStudio as StudioData,
   HubChapter,
+  PolyphoneMark,
   StudioParagraph,
   StudioProject,
   StudioTocEntry,
@@ -25,6 +27,19 @@ type ScrollIntent = { target: string; block: "center" | "nearest"; nonce: number
  * 客户端导航不换 JS runtime，所以这份记忆能跨章节保留，整页刷新才回到大纲。
  */
 let rememberedPane: StudioPane = "outline";
+
+/** 原型数据里预置的 polyphone 短语首字，转成与划选同一套标注呈现 */
+function seedPolyphones(paragraphs: StudioParagraph[]) {
+  const seeded: Record<string, PolyphoneMark[]> = {};
+  for (const paragraph of paragraphs) {
+    const { polyphone } = paragraph;
+    const at = polyphone ? paragraph.text.indexOf(polyphone.phrase) : -1;
+    if (polyphone && at >= 0) {
+      seeded[paragraph.id] = [{ index: at, char: polyphone.phrase[0], reading: polyphone.reading }];
+    }
+  }
+  return seeded;
+}
 
 export function ChapterStudio({
   project,
@@ -51,6 +66,14 @@ export function ChapterStudio({
   const [keyword, setKeyword] = useState("");
   const [tuningOpen, setTuningOpen] = useState(false);
   const [scrollIntent, setScrollIntent] = useState<ScrollIntent | null>(null);
+  const [polyphones, setPolyphones] = useState(() => seedPolyphones(studio.paragraphs));
+  /** 正文里当前待校对的那个字，右侧多音字按钮按它定位弹候选 */
+  const [pending, setPending] = useState<{ paragraphId: string; index: number } | null>(null);
+  const [polyAnchor, setPolyAnchor] = useState<{
+    x: number;
+    top: number;
+    bottom: number;
+  } | null>(null);
 
   function selectPane(next: StudioPane) {
     rememberedPane = next;
@@ -118,6 +141,7 @@ export function ChapterStudio({
    */
   function jump(id: string, column: "feed" | "pane") {
     setActiveId(id);
+    setPolyAnchor(null);
 
     const anchor =
       column === "feed"
@@ -200,6 +224,67 @@ export function ChapterStudio({
     show(`正在试听${label} ${hz}Hz · ${seconds}s`, "info");
   }
 
+  /** 去掉还没定读音的临时标记：同一时间只留一个待选字 */
+  function dropPendingMarks(prev: Record<string, PolyphoneMark[]>) {
+    const kept: Record<string, PolyphoneMark[]> = {};
+    for (const [id, list] of Object.entries(prev)) {
+      const rest = list.filter((item) => item.reading);
+      if (rest.length) kept[id] = rest;
+    }
+    return kept;
+  }
+
+  /** 划选命中单个汉字：先清掉上一个待选字，再把这个字标成待选 */
+  function selectChar(paragraphId: string, index: number, char: string) {
+    setPending({ paragraphId, index });
+    setPolyAnchor(null);
+    setPolyphones((prev) => {
+      const kept = dropPendingMarks(prev);
+      const list = kept[paragraphId] ?? [];
+      return list.some((item) => item.index === index)
+        ? kept
+        : { ...kept, [paragraphId]: [...list, { index, char }] };
+    });
+  }
+
+  /** 划选落在多个字或标点字母上：只作废目标，提示留到点按钮时给 */
+  function rejectChar() {
+    setPending(null);
+    setPolyAnchor(null);
+    setPolyphones(dropPendingMarks);
+  }
+
+  const pendingMark = pending
+    ? polyphones[pending.paragraphId]?.find((item) => item.index === pending.index)
+    : undefined;
+
+  /** dock 的多音字按钮：按标注字在视口里的位置弹候选，弹窗本身用 fixed 免遭滚动容器裁切 */
+  function openPolyphone() {
+    if (!pending) {
+      show("请滑选单个汉字", "warn");
+      return;
+    }
+    const anchor = document.getElementById(`poly-${pending.paragraphId}-${pending.index}`);
+    if (!anchor) {
+      show("请滑选单个汉字", "warn");
+      return;
+    }
+    const box = anchor.getBoundingClientRect();
+    setPolyAnchor({ x: box.left + box.width / 2, top: box.top, bottom: box.bottom });
+  }
+
+  function applyReading(reading: string) {
+    if (!pending || !pendingMark) return;
+    setPolyphones((prev) => ({
+      ...prev,
+      [pending.paragraphId]: (prev[pending.paragraphId] ?? []).map((item) =>
+        item.index === pending.index ? { ...item, reading } : item,
+      ),
+    }));
+    setPolyAnchor(null);
+    show(`已把「${pendingMark.char}」标注为 ${reading}，本段重新合成时生效`, "success");
+  }
+
   return (
     <div className="flex h-screen min-h-0 flex-col overflow-hidden">
       <StudioHeader
@@ -239,6 +324,7 @@ export function ChapterStudio({
               items={items}
               activeId={active.id}
               keyword={keyword}
+              polyphones={polyphones}
               orderLabel={isDirty ? `自定义顺序 · 可撤销 ${undoStack.length} 步` : "原始顺序"}
               canUndo={undoStack.length > 0}
               canRedo={redoStack.length > 0}
@@ -251,6 +337,8 @@ export function ChapterStudio({
               onActivate={(id) => jump(id, "pane")}
               onReassign={reassign}
               onAudition={audition}
+              onSelectChar={selectChar}
+              onSelectInvalid={rejectChar}
             />
           </div>
         </main>
@@ -264,7 +352,18 @@ export function ChapterStudio({
           reverbOptions={studio.reverbOptions}
           onOpenChange={setTuningOpen}
           onAudition={audition}
+          onPolyphone={openPolyphone}
         />
+
+        {polyAnchor && pendingMark && (
+          <PolyphonePopover
+            char={pendingMark.char}
+            current={pendingMark.reading}
+            anchor={polyAnchor}
+            onPick={applyReading}
+            onClose={() => setPolyAnchor(null)}
+          />
+        )}
       </div>
     </div>
   );
