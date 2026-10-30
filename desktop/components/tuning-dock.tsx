@@ -22,6 +22,50 @@ const field =
 const dockButton =
   "flex h-8 w-8 items-center justify-center rounded-full text-white/50 transition-colors hover:bg-white/7 hover:text-white";
 
+/**
+ * 多音字图标：左「阿」+ 右侧叠读 ā/ē。lucide 没有对应字形，故内联矢量路径；
+ * viewBox 按图形外接框裁切，让字形高度与同排 lucide 图标视觉等大。
+ */
+function PolyphoneIcon({ className }: { className?: string }) {
+  return (
+    <svg viewBox="20 16 182 182" fill="none" aria-hidden="true" className={className}>
+      {/* 左耳旁（阝） */}
+      <path
+        fill="currentColor"
+        d="M 22 43 H 64.5 V 53.5 L 50 93.5 C 59.5 106.5 64 119 64 131.5 C 64 146.5 55.5 153 41 153 H 36.5 L 34 142 H 40 C 48.5 142 53 138 53 130 C 53 119.5 48.5 107.5 38.5 94.5 L 52.5 54 H 33 V 170 H 22 V 43 Z"
+      />
+      {/* 「可」的顶横与竖钩 */}
+      <path
+        fill="currentColor"
+        d="M 70 45 H 148 V 56 H 138 V 156 C 138 166.5 133 170 119 170 H 104.5 L 102 158.5 H 116.5 C 124.5 158.5 126.5 156.5 126.5 151.5 V 56 H 70 V 45 Z"
+      />
+      {/* 「口」方框 */}
+      <path
+        fill="currentColor"
+        fillRule="evenodd"
+        clipRule="evenodd"
+        d="M 73.5 76 H 113.5 V 131.5 H 73.5 V 76 Z M 84 86.5 V 121 H 103 V 86.5 H 84 Z"
+      />
+      {/* ā：独立加粗的一声横线 + 字母 a */}
+      <rect x="165.5" y="36.5" width="27" height="6.5" fill="currentColor" />
+      <path
+        fill="currentColor"
+        fillRule="evenodd"
+        clipRule="evenodd"
+        d="M 178.5 51.5 C 190 51.5 196.5 56.8 196.5 67.5 V 97 H 187.5 V 90.5 C 184.2 95.3 178.8 98 172.2 98 C 163.2 98 157 92.6 157 84.2 C 157 75.2 164 70.2 177.5 69.2 L 187 68.5 V 66.8 C 187 61.2 183.5 58.5 177.5 58.5 C 172 58.5 168.5 60.8 167.2 64.8 L 158.2 63.2 C 160.2 55.5 167.2 51.5 178.5 51.5 Z M 174.5 91 C 181.5 91 187 86.5 187 79.8 V 75 L 178.2 75.7 C 169.8 76.4 166.2 79 166.2 83.8 C 166.2 88.3 169.5 91 174.5 91 Z"
+      />
+      {/* ē：同上 */}
+      <rect x="165.5" y="114.5" width="27" height="6.5" fill="currentColor" />
+      <path
+        fill="currentColor"
+        fillRule="evenodd"
+        clipRule="evenodd"
+        d="M 178.5 129.5 C 191.5 129.5 199.5 138.5 199.5 152.5 V 155.5 H 166.2 C 166.8 164.2 171.8 169.2 179.5 169.2 C 185.2 169.2 189.2 166.5 191.2 162 L 199.5 164.8 C 196.2 172.5 189 176.8 179.2 176.8 C 165.5 176.8 156.8 167.5 156.8 153 C 156.8 138.5 165.5 129.5 178.5 129.5 Z M 166.5 148.5 H 190.2 C 189.5 141.2 185 136.8 178.5 136.8 C 172 136.8 167.5 141.2 166.5 148.5 Z"
+      />
+    </svg>
+  );
+}
+
 export function TuningDock({
   open,
   paragraph,
@@ -76,6 +120,14 @@ export function TuningDock({
             className={dockButton}
           >
             <Volume2 className="h-4 w-4" />
+          </button>
+          <button
+            type="button"
+            title="校对多音字"
+            onClick={() => show("多音字注音已校准", "success")}
+            className={dockButton}
+          >
+            <PolyphoneIcon className="h-5 w-5" />
           </button>
           <button
             type="button"
