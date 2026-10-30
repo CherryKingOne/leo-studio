@@ -2,21 +2,28 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { anchorOf, type AnchorRect } from "@/components/floating-card";
 import { ParagraphOutline, type StudioPane } from "@/components/paragraph-outline";
 import { PolyphonePopover } from "@/components/polyphone-popover";
+import { ProsodyMenu } from "@/components/prosody-menu";
 import { ScriptFeed, type FeedItem } from "@/components/script-feed";
 import { StudioHeader } from "@/components/studio-header";
 import { TuningDock } from "@/components/tuning-dock";
 import { useToast } from "@/components/toast";
 import { playAudition } from "@/lib/audio";
-import type {
-  CastOption,
-  ChapterStudio as StudioData,
-  HubChapter,
-  PolyphoneMark,
-  StudioParagraph,
-  StudioProject,
-  StudioTocEntry,
+import { isHanChar } from "@/lib/polyphone";
+import {
+  prosodyLabel,
+  type CastOption,
+  type ChapterStudio as StudioData,
+  type HubChapter,
+  type PolyphoneMark,
+  type ProsodyKind,
+  type ProsodyMark,
+  type StudioParagraph,
+  type StudioProject,
+  type StudioTocEntry,
+  type TextSelection,
 } from "@/lib/projects";
 
 /** 滚动意图：目标 DOM 元素 + 对齐方式，nonce 让重复点同一段也能再滚一次 */
@@ -27,6 +34,11 @@ type ScrollIntent = { target: string; block: "center" | "nearest"; nonce: number
  * 客户端导航不换 JS runtime，所以这份记忆能跨章节保留，整页刷新才回到大纲。
  */
 let rememberedPane: StudioPane = "outline";
+
+/** 提示条里放不下整段引文 */
+function clip(text: string) {
+  return text.length > 12 ? `${text.slice(0, 12)}…` : text;
+}
 
 /** 原型数据里预置的 polyphone 短语首字，转成与划选同一套标注呈现 */
 function seedPolyphones(paragraphs: StudioParagraph[]) {
@@ -67,13 +79,11 @@ export function ChapterStudio({
   const [tuningOpen, setTuningOpen] = useState(false);
   const [scrollIntent, setScrollIntent] = useState<ScrollIntent | null>(null);
   const [polyphones, setPolyphones] = useState(() => seedPolyphones(studio.paragraphs));
-  /** 正文里当前待校对的那个字，右侧多音字按钮按它定位弹候选 */
-  const [pending, setPending] = useState<{ paragraphId: string; index: number } | null>(null);
-  const [polyAnchor, setPolyAnchor] = useState<{
-    x: number;
-    top: number;
-    bottom: number;
-  } | null>(null);
+  /** 正文里当前那段划选：多音字与语气标注都以它为操作目标，弹窗也按它定位 */
+  const [selection, setSelection] = useState<TextSelection | null>(null);
+  const [prosodies, setProsodies] = useState<Record<string, ProsodyMark[]>>({});
+  const [polyAnchor, setPolyAnchor] = useState<AnchorRect | null>(null);
+  const [prosodyAnchor, setProsodyAnchor] = useState<AnchorRect | null>(null);
 
   function selectPane(next: StudioPane) {
     rememberedPane = next;
@@ -142,6 +152,7 @@ export function ChapterStudio({
   function jump(id: string, column: "feed" | "pane") {
     setActiveId(id);
     setPolyAnchor(null);
+    setProsodyAnchor(null);
 
     const anchor =
       column === "feed"
@@ -224,65 +235,91 @@ export function ChapterStudio({
     show(`正在试听${label} ${hz}Hz · ${seconds}s`, "info");
   }
 
-  /** 去掉还没定读音的临时标记：同一时间只留一个待选字 */
-  function dropPendingMarks(prev: Record<string, PolyphoneMark[]>) {
-    const kept: Record<string, PolyphoneMark[]> = {};
-    for (const [id, list] of Object.entries(prev)) {
-      const rest = list.filter((item) => item.reading);
-      if (rest.length) kept[id] = rest;
-    }
-    return kept;
-  }
+  /** 划选正好是一个汉字时，才有多音字可读 */
+  const polyTarget =
+    selection && selection.end === selection.start + 1 && isHanChar(selection.text)
+      ? {
+          char: selection.text,
+          reading: polyphones[selection.paragraphId]?.find(
+            (item) => item.index === selection.start,
+          )?.reading,
+        }
+      : null;
 
-  /** 划选命中单个汉字：先清掉上一个待选字，再把这个字标成待选 */
-  function selectChar(paragraphId: string, index: number, char: string) {
-    setPending({ paragraphId, index });
-    setPolyAnchor(null);
-    setPolyphones((prev) => {
-      const kept = dropPendingMarks(prev);
-      const list = kept[paragraphId] ?? [];
-      return list.some((item) => item.index === index)
-        ? kept
-        : { ...kept, [paragraphId]: [...list, { index, char }] };
-    });
-  }
-
-  /** 划选落在多个字或标点字母上：只作废目标，提示留到点按钮时给 */
-  function rejectChar() {
-    setPending(null);
-    setPolyAnchor(null);
-    setPolyphones(dropPendingMarks);
-  }
-
-  const pendingMark = pending
-    ? polyphones[pending.paragraphId]?.find((item) => item.index === pending.index)
+  /** 该区间已有的语气标注：菜单据此打勾并决定是否给「移除」 */
+  const selectedProsody = selection
+    ? (prosodies[selection.paragraphId] ?? []).find(
+        (item) => item.start === selection.start && item.end === selection.end,
+      )
     : undefined;
 
-  /** dock 的多音字按钮：按标注字在视口里的位置弹候选，弹窗本身用 fixed 免遭滚动容器裁切 */
+  /** 划选或点标注：记下这段区间，正文给它铺底色，两个弹窗都以它为目标 */
+  function selectText(paragraphId: string, start: number, end: number) {
+    setSelection({ paragraphId, start, end, text: byId.get(paragraphId)?.text.slice(start, end) ?? "" });
+    setPolyAnchor(null);
+    setProsodyAnchor(null);
+  }
+
+  /** 选区底色元素的矩形；取不到说明选区已不在当前正文里（换段、筛选或改了文案） */
+  function selectionAnchor() {
+    if (!selection) return null;
+    return anchorOf(document.getElementById(`sel-${selection.paragraphId}-${selection.start}`));
+  }
+
+  /** dock 的多音字按钮：只认单个汉字 */
   function openPolyphone() {
-    if (!pending) {
-      show("请滑选单个汉字", "warn");
-      return;
-    }
-    const anchor = document.getElementById(`poly-${pending.paragraphId}-${pending.index}`);
-    if (!anchor) {
-      show("请滑选单个汉字", "warn");
-      return;
-    }
-    const box = anchor.getBoundingClientRect();
-    setPolyAnchor({ x: box.left + box.width / 2, top: box.top, bottom: box.bottom });
+    const anchor = polyTarget ? selectionAnchor() : null;
+    setProsodyAnchor(null);
+    setPolyAnchor(anchor);
+    if (!anchor) show("请滑选单个汉字", "warn");
+  }
+
+  /** dock 的重读按钮：单个字和一整段都接受 */
+  function openProsody() {
+    const anchor = selection ? selectionAnchor() : null;
+    setPolyAnchor(null);
+    setProsodyAnchor(anchor);
+    if (!anchor) show("请先划选要标注的文字", "warn");
   }
 
   function applyReading(reading: string) {
-    if (!pending || !pendingMark) return;
+    if (!selection || !polyTarget) return;
+    const { paragraphId, start, text: char } = selection;
     setPolyphones((prev) => ({
       ...prev,
-      [pending.paragraphId]: (prev[pending.paragraphId] ?? []).map((item) =>
-        item.index === pending.index ? { ...item, reading } : item,
-      ),
+      [paragraphId]: [
+        ...(prev[paragraphId] ?? []).filter((item) => item.index !== start),
+        { index: start, char, reading },
+      ].sort((a, b) => a.index - b.index),
     }));
     setPolyAnchor(null);
-    show(`已把「${pendingMark.char}」标注为 ${reading}，本段重新合成时生效`, "success");
+    setSelection(null);
+    show(`已把「${char}」标注为 ${reading}，本段重新合成时生效`, "success");
+  }
+
+  function applyProsody(kind: ProsodyKind) {
+    if (!selection) return;
+    const { paragraphId, start, end, text } = selection;
+    setProsodies((prev) => ({
+      ...prev,
+      // 与新区间相交的旧标注整体让位，免得叠出认不出的符号
+      [paragraphId]: [
+        ...(prev[paragraphId] ?? []).filter((item) => item.end <= start || item.start >= end),
+        { start, end, kind },
+      ].sort((a, b) => a.start - b.start),
+    }));
+    setProsodyAnchor(null);
+    setSelection(null);
+    show(`已把「${clip(text)}」标为${prosodyLabel(kind)}`, "success");
+  }
+
+  function removeProsody(paragraphId: string, mark: ProsodyMark) {
+    setProsodies((prev) => ({
+      ...prev,
+      [paragraphId]: (prev[paragraphId] ?? []).filter((item) => item !== mark),
+    }));
+    setProsodyAnchor(null);
+    show(`已移除「${prosodyLabel(mark.kind)}」标注`, "info");
   }
 
   return (
@@ -325,6 +362,8 @@ export function ChapterStudio({
               activeId={active.id}
               keyword={keyword}
               polyphones={polyphones}
+              prosodies={prosodies}
+              selection={selection}
               orderLabel={isDirty ? `自定义顺序 · 可撤销 ${undoStack.length} 步` : "原始顺序"}
               canUndo={undoStack.length > 0}
               canRedo={redoStack.length > 0}
@@ -337,8 +376,7 @@ export function ChapterStudio({
               onActivate={(id) => jump(id, "pane")}
               onReassign={reassign}
               onAudition={audition}
-              onSelectChar={selectChar}
-              onSelectInvalid={rejectChar}
+              onSelectText={selectText}
             />
           </div>
         </main>
@@ -353,15 +391,26 @@ export function ChapterStudio({
           onOpenChange={setTuningOpen}
           onAudition={audition}
           onPolyphone={openPolyphone}
+          onProsody={openProsody}
         />
 
-        {polyAnchor && pendingMark && (
+        {polyAnchor && polyTarget && (
           <PolyphonePopover
-            char={pendingMark.char}
-            current={pendingMark.reading}
+            char={polyTarget.char}
+            current={polyTarget.reading}
             anchor={polyAnchor}
             onPick={applyReading}
             onClose={() => setPolyAnchor(null)}
+          />
+        )}
+
+        {prosodyAnchor && selection && (
+          <ProsodyMenu
+            current={selectedProsody?.kind}
+            anchor={prosodyAnchor}
+            onPick={applyProsody}
+            onRemove={() => selectedProsody && removeProsody(selection.paragraphId, selectedProsody)}
+            onClose={() => setProsodyAnchor(null)}
           />
         )}
       </div>

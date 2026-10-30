@@ -109,6 +109,7 @@ export function TuningDock({
   onOpenChange,
   onAudition,
   onPolyphone,
+  onProsody,
 }: {
   open: boolean;
   paragraph: StudioParagraph;
@@ -120,6 +121,8 @@ export function TuningDock({
   onAudition: (hz: number, seconds: number) => void;
   /** 弹多音字读音候选，目标为正文里刚划选或点选的那个字 */
   onPolyphone: () => void;
+  /** 弹语气标注菜单（重读/拖音），目标为正文里刚划选的那段文字 */
+  onProsody: () => void;
 }) {
   const { show } = useToast();
 
@@ -168,7 +171,7 @@ export function TuningDock({
           <button
             type="button"
             title="标记重读"
-            onClick={() => show("已标记本段重读，重新合成时生效", "success")}
+            onClick={onProsody}
             className={dockButton}
           >
             <StressIcon className="h-5 w-5" />

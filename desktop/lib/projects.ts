@@ -674,8 +674,27 @@ export type StudioParagraph = {
 /** 原著正文块，点击跳转到对应剧本卡片 */
 export type StudioSourceBlock = { text: string; paragraphId: string };
 
-/** 多音字标注：正文第 index 个字改读为 reading，reading 缺省表示已划选、待挑读音 */
-export type PolyphoneMark = { index: number; char: string; reading?: string };
+/** 多音字标注：正文第 index 个字改读为 reading */
+export type PolyphoneMark = { index: number; char: string; reading: string };
+
+/** 语气标注类型：重读、拖音，或两者叠加 */
+export type ProsodyKind = "stress" | "drawl" | "both";
+
+/** 正文 [start, end) 区间上的语气标注，下标按 UTF-16 长度算 */
+export type ProsodyMark = { start: number; end: number; kind: ProsodyKind };
+
+/** 工作台正文里当前那段划选：多音字与语气标注都以它为操作目标 */
+export type TextSelection = { paragraphId: string; start: number; end: number; text: string };
+
+export const prosodyOptions: { kind: ProsodyKind; label: string }[] = [
+  { kind: "stress", label: "重读" },
+  { kind: "drawl", label: "拖音" },
+  { kind: "both", label: "重读 + 拖音" },
+];
+
+export function prosodyLabel(kind: ProsodyKind) {
+  return prosodyOptions.find((option) => option.kind === kind)?.label ?? kind;
+}
 
 export type ChapterStudio = {
   paragraphs: StudioParagraph[];
