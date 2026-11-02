@@ -1,24 +1,45 @@
 export type ProjectStatus = "制作中" | "母带就绪";
-export type LibraryTab = "全部" | ProjectStatus | "回收站";
-export type SortKey = "edited" | "progress" | "duration";
+export type SortKey = "edited" | "chapters" | "words";
+
+/** 后端章节大纲映射后的轻量结构 */
+export type ProjectChapter = {
+  id: string;
+  index: number;
+  title: string;
+  words: number;
+};
+
+/** 后端按行切分的单句，工作台剧本卡片与原文对照共用同一条数据 */
+export type ChapterSentence = {
+  id: string;
+  index: number;
+  text: string;
+  words: number;
+};
+
+/** GET /api/v1/projects/{project_id}/chapters/{chapter_id} 的章节正文 */
+export type ChapterContent = {
+  index: number;
+  title: string;
+  words: number;
+  content: string;
+  sentences: ChapterSentence[];
+};
+
+/** 看板顶栏的剧目标识，mock 剧目与后端剧目共用 */
+export type HubIdentity = {
+  title: string;
+  /** 标题下的副标题行：作者或文件名 · 字数 · 更新时间 */
+  subtitle: string;
+  /** 全书进度百分比，后端暂无该数据时不画进度条 */
+  progress?: number;
+};
 
 export type GenreTone = "accent" | "emerald" | "amber";
 
-export type FolderEntry = {
-  kind: "folder";
-  id: string;
-  title: string;
-  editedHoursAgo: number;
-  fav: boolean;
-  trashed: boolean;
-};
-
 export type ProjectEntry = {
-  kind: "project";
   id: string;
   title: string;
-  /** 所属文件夹，缺省表示根目录 */
-  folderId?: string;
   genre: string;
   author: string;
   status: ProjectStatus;
@@ -32,31 +53,37 @@ export type ProjectEntry = {
   tone: GenreTone;
   seed: number;
   editedHoursAgo: number;
-  fav: boolean;
-  trashed: boolean;
 };
 
-export type LibraryEntry = FolderEntry | ProjectEntry;
+/** 工作台顶栏只需要剧目 id 与标题，mock 剧目与后端剧目共用这一个形状 */
+export type StudioProject = Pick<ProjectEntry, "id" | "title">;
 
-export const libraryTabs: LibraryTab[] = ["全部", "制作中", "母带就绪", "回收站"];
+/** 剧目库列表卡片的数据，字段全部来自后端 GET /api/v1/projects */
+export type ProjectSummary = {
+  id: string;
+  title: string;
+  /** 上传时的原始文件名 */
+  filename: string;
+  chapters: number;
+  totalWords: number;
+  /** 距最后更新的小时数，由服务端算好后下发 */
+  editedHoursAgo: number;
+};
+
+/** 回收站条目：软删除后带删除时间，恢复即回到剧目库 */
+export type TrashedProject = ProjectSummary & {
+  /** 移入回收站距今的小时数，服务端算好后下发 */
+  deletedHoursAgo: number;
+};
 
 export const sortOptions: { key: SortKey; label: string }[] = [
   { key: "edited", label: "最近编辑" },
-  { key: "progress", label: "按进度" },
-  { key: "duration", label: "按已生成时长" },
+  { key: "chapters", label: "按章节数" },
+  { key: "words", label: "按字数" },
 ];
 
-export const initialEntries: LibraryEntry[] = [
+export const initialProjects: ProjectEntry[] = [
   {
-    kind: "folder",
-    id: "f-folklore",
-    title: "东方民俗系列",
-    editedHoursAgo: 168,
-    fav: false,
-    trashed: false,
-  },
-  {
-    kind: "project",
     id: "p-lord-of-mysteries",
     title: "诡秘之主：第一部 愚者",
     genre: "克苏鲁 / 西幻",
@@ -69,14 +96,10 @@ export const initialEntries: LibraryEntry[] = [
     tone: "accent",
     seed: 7,
     editedHoursAgo: 72,
-    fav: true,
-    trashed: false,
   },
   {
-    kind: "project",
     id: "p-dao-gui-yi-xian",
     title: "道诡异仙：清旺来",
-    folderId: "f-folklore",
     genre: "东方民俗 / 悬疑",
     author: "狐尾的笔",
     status: "母带就绪",
@@ -86,14 +109,10 @@ export const initialEntries: LibraryEntry[] = [
     tone: "emerald",
     seed: 23,
     editedHoursAgo: 8,
-    fav: false,
-    trashed: false,
   },
   {
-    kind: "project",
     id: "p-long-night",
     title: "长夜余火：灰土列车",
-    folderId: "f-folklore",
     genre: "废土 / 科幻",
     author: "会说话的肘子",
     status: "制作中",
@@ -104,8 +123,6 @@ export const initialEntries: LibraryEntry[] = [
     tone: "amber",
     seed: 41,
     editedHoursAgo: 120,
-    fav: false,
-    trashed: false,
   },
 ];
 
@@ -116,46 +133,26 @@ export function relativeTime(hoursAgo: number) {
   return `${Math.round(hoursAgo / 168)} 周前`;
 }
 
-export function durationLabel(seconds: number) {
-  if (!seconds) return "待批量生成";
-  return `已生成 ${Math.floor(seconds / 60)}分${String(seconds % 60).padStart(2, "0")}秒`;
+export function wordsLabel(words: number) {
+  return words >= 10000 ? `${(words / 10000).toFixed(1)} 万字` : `${formatWords(words)} 字`;
 }
 
-export function coverHint(project: ProjectEntry) {
-  if (project.progress === 100) return "全章混音完成";
-  if (project.pendingRoles) return `${project.pendingRoles} 位角色待选角`;
-  return `第 ${String(project.currentChapter ?? 1).padStart(3, "0")} 章 / 共 ${project.chapters} 章`;
-}
-
-export function projectsInFolder(entries: LibraryEntry[], folderId: string) {
-  return entries.filter(
-    (entry): entry is ProjectEntry =>
-      entry.kind === "project" && !entry.trashed && entry.folderId === folderId,
-  );
-}
-
-export function entryMeta(entry: LibraryEntry, entries: LibraryEntry[]) {
-  if (entry.kind === "folder") {
-    return `${projectsInFolder(entries, entry.id).length} 部剧目 · ${relativeTime(entry.editedHoursAgo)}`;
-  }
+export function projectMeta(project: ProjectSummary) {
   return [
-    `${entry.chapters} 章`,
-    `进度 ${entry.progress}%`,
-    durationLabel(entry.generatedSeconds),
-    relativeTime(entry.editedHoursAgo),
+    `${project.chapters} 章`,
+    wordsLabel(project.totalWords),
+    relativeTime(project.editedHoursAgo),
   ].join(" · ");
 }
 
-export function sortEntries<T extends LibraryEntry>(entries: T[], key: SortKey) {
-  const value = (entry: T) =>
+export function sortProjects(projects: ProjectSummary[], key: SortKey) {
+  const value = (project: ProjectSummary) =>
     key === "edited"
-      ? -entry.editedHoursAgo
-      : entry.kind === "project" && key === "progress"
-        ? entry.progress
-        : entry.kind === "project" && key === "duration"
-          ? entry.generatedSeconds
-          : 0;
-  return [...entries].sort((a, b) => value(b) - value(a));
+      ? -project.editedHoursAgo
+      : key === "chapters"
+        ? project.chapters
+        : project.totalWords;
+  return [...projects].sort((a, b) => value(b) - value(a));
 }
 
 /* ==================== 剧目看板：章节流水线与角色阵容 ==================== */
@@ -164,14 +161,14 @@ export function sortEntries<T extends LibraryEntry>(entries: T[], key: SortKey) 
 export type HubTone = "neutral" | "muted" | "accent" | "emerald" | "amber" | "violet";
 
 export type ChapterState = "待拆解" | "待合成" | "合成中" | "已就绪";
-export type PipelineFilter = "全部" | ChapterState;
+/** 状态筛选条不含「已就绪」：母带就绪的章节走右上角星标只看，不再占一个筛选 chip */
+export type PipelineFilter = "全部" | Exclude<ChapterState, "已就绪">;
 
 export const pipelineFilters: { state: PipelineFilter; label: string }[] = [
   { state: "全部", label: "全部" },
   { state: "待拆解", label: "待拆解" },
   { state: "待合成", label: "待合成" },
   { state: "合成中", label: "合成中" },
-  { state: "已就绪", label: "母带就绪" },
 ];
 
 export type HubSpeaker = { name: string; tone: HubTone };
@@ -570,6 +567,25 @@ export function chapterAfterRender(chapter: HubChapter): HubChapter {
   };
 }
 
+/** 后端章节大纲 → 流水线行：后端没有生产状态，状态一律待拆解，但正文已可进工作台对照 */
+export function chapterFromOutline(chapter: ProjectChapter): HubChapter {
+  return {
+    id: chapter.id,
+    no: String(chapter.index + 1).padStart(2, "0"),
+    title: chapter.title,
+    excerpt: "原文已入库，逐句可在制作工作台对照精修。",
+    words: chapter.words,
+    tone: "neutral",
+    state: "待拆解",
+    status: { label: "待拆解", tone: "neutral", icon: "scan" },
+    speakers: null,
+    action: { kind: "split" },
+    openable: true,
+    // 整本书可能有上千章，先只铺前 20 行，其余走「展开全部」
+    collapsed: chapter.index >= 20,
+  };
+}
+
 export function chapterRuntimeSeconds(chapter: HubChapter) {
   return chapter.masterSeconds ?? chapter.etaSeconds ?? Math.round(chapter.words / 4);
 }
@@ -658,12 +674,46 @@ export type StudioParagraph = {
 /** 原著正文块，点击跳转到对应剧本卡片 */
 export type StudioSourceBlock = { text: string; paragraphId: string };
 
+/** 多音字标注：正文第 index 个字改读为 reading */
+export type PolyphoneMark = { index: number; char: string; reading: string };
+
+/** 语气标注类型：重读、拖音，或两者叠加 */
+export type ProsodyKind = "stress" | "drawl" | "both";
+
+/** 正文 [start, end) 区间上的语气标注，下标按 UTF-16 长度算 */
+export type ProsodyMark = { start: number; end: number; kind: ProsodyKind };
+
+/** 工作台正文里当前那段划选：多音字与语气标注都以它为操作目标 */
+export type TextSelection = { paragraphId: string; start: number; end: number; text: string };
+
+export const prosodyOptions: { kind: ProsodyKind; label: string }[] = [
+  { kind: "stress", label: "重读" },
+  { kind: "drawl", label: "拖音" },
+  { kind: "both", label: "重读 + 拖音" },
+];
+
+export function prosodyLabel(kind: ProsodyKind) {
+  return prosodyOptions.find((option) => option.kind === kind)?.label ?? kind;
+}
+
 export type ChapterStudio = {
   paragraphs: StudioParagraph[];
   source: StudioSourceBlock[];
   speakerOptions: string[];
   modelOptions: string[];
   reverbOptions: string[];
+};
+
+/** 工作台「目录」pane 的一行，来自章节目录接口 */
+export type StudioTocEntry = {
+  /** 章节 id，点行时用它拼工作台路由 */
+  id: string;
+  /** 章节序号，如 007 */
+  no: string;
+  title: string;
+  words: number;
+  /** 当前打开的章节，目录里高亮并滚到这一行 */
+  current: boolean;
 };
 
 const kleinCastOptions: CastOption[] = [
@@ -855,6 +905,75 @@ function pendingStudio(project: ProjectEntry, chapter: HubChapter): ChapterStudi
 
 export function studioFor(project: ProjectEntry, chapter: HubChapter): ChapterStudio {
   return chapterStudios[`${project.id}/${chapter.id}`] ?? pendingStudio(project, chapter);
+}
+
+/**
+ * 章节目录：`GET /projects/{id}/chapters` 的大纲 → 工作台目录 pane 的行。
+ * 原型剧目没有该接口，由看板 mock 章节转成同构的 `ProjectChapter` 再进来。
+ */
+export function studioTocFor(chapters: ProjectChapter[], currentId: string): StudioTocEntry[] {
+  return chapters.map((chapter) => ({
+    id: chapter.id,
+    no: String(chapter.index + 1).padStart(3, "0"),
+    title: chapter.title,
+    words: chapter.words,
+    current: chapter.id === currentId,
+  }));
+}
+
+/**
+ * 后端章节正文 → 工作台剧本：一句一张卡片，原文对照与剧本流共用同一批数据。
+ * 说话人归属、情绪标定与段时长后端还没有接口，全部按旁白 + 4 字/秒估算呈现。
+ */
+export function studioFromContent(chapter: HubChapter, content: ChapterContent): ChapterStudio {
+  const lines: { id: string; text: string; words: number }[] = content.sentences.length
+    ? content.sentences.map((item) => ({ id: item.id, text: item.text, words: item.words }))
+    : content.content
+        .split(/\n+/)
+        .map((text) => text.trim())
+        .filter(Boolean)
+        .map((text, index) => ({
+          id: `${chapter.id}-l${String(index + 1).padStart(3, "0")}`,
+          text,
+          words: [...text].length,
+        }));
+
+  if (!lines.length) {
+    lines.push({
+      id: `${chapter.id}-empty`,
+      text: "后端还没有该章正文，重新上传后可在此对照。",
+      words: 0,
+    });
+  }
+
+  const paragraphs = lines.map<StudioParagraph>((line, index) => ({
+    id: line.id,
+    speaker: "旁白",
+    displayName: "旁白",
+    tone: "neutral",
+    mood: "待标定",
+    text: line.text,
+    seconds: Math.max(1, Math.round((line.words / 4) * 10) / 10),
+    hz: 220,
+    voice: "音色 待绑定声线 · CosyVoice-Pre",
+    links: [{ label: "重新生成", toast: "已重新加入生成队列", emphasis: true }],
+    tuning: {
+      speaker: "旁白",
+      model: "CosyVoice-Pre",
+      emotion: 50,
+      speed: 1,
+      reverb: "无",
+      seed: String(1000 + ((chapter.words + index * 173) % 9000)),
+    },
+  }));
+
+  return {
+    paragraphs,
+    source: lines.map((line) => ({ text: line.text, paragraphId: line.id })),
+    speakerOptions: ["旁白"],
+    modelOptions: studioModelOptions,
+    reverbOptions: studioReverbOptions,
+  };
 }
 
 /** 卡片时间轴与大纲时长标注用 MM:SS */

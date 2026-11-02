@@ -1,0 +1,865 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>多音字图标 (阿 ā/ē) 像素级还原与定制工作台</title>
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Google Fonts: Noto Sans SC & Inter for high accuracy typography fallback -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+SC:wght@400;500;700&display=swap" rel="stylesheet">
+  <style>
+    body {
+      font-family: 'Inter', 'Noto Sans SC', -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif;
+    }
+    /* 棋盘格透明背景 */
+    .bg-checkerboard {
+      background-color: #ffffff;
+      background-image: 
+        linear-gradient(45deg, #f0f0f0 25%, transparent 25%), 
+        linear-gradient(-45deg, #f0f0f0 25%, transparent 25%), 
+        linear-gradient(45deg, transparent 75%, #f0f0f0 75%), 
+        linear-gradient(-45deg, transparent 75%, #f0f0f0 75%);
+      background-size: 20px 20px;
+      background-position: 0 0, 0 10px, 10px -10px, -10px 0px;
+    }
+    .bg-checkerboard-dark {
+      background-color: #1e293b;
+      background-image: 
+        linear-gradient(45deg, #334155 25%, transparent 25%), 
+        linear-gradient(-45deg, #334155 25%, transparent 25%), 
+        linear-gradient(45deg, transparent 75%, #334155 75%), 
+        linear-gradient(-45deg, transparent 75%, #334155 75%);
+      background-size: 20px 20px;
+      background-position: 0 0, 0 10px, 10px -10px, -10px 0px;
+    }
+    /* 参考辅助线动画 */
+    .guide-line {
+      transition: opacity 0.2s ease;
+    }
+    /* 自定义滚动条 */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #f1f5f9;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #cbd5e1;
+      border-radius: 3px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #94a3b8;
+    }
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-800 min-h-screen flex flex-col">
+
+  <!-- 顶部导航栏 -->
+  <header class="bg-white border-b border-slate-200 sticky top-0 z-30">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+      <div class="flex items-center space-x-3">
+        <!-- 顶部小预览 Logo -->
+        <div class="w-9 h-9 rounded-lg bg-slate-100 border border-slate-200 flex items-center justify-center shadow-inner" id="header-mini-icon">
+          <!-- 动态注入 -->
+        </div>
+        <div>
+          <h1 class="text-base font-bold text-slate-900 flex items-center gap-2">
+            多音字图标设计工作台
+            <span class="text-xs font-medium px-2 py-0.5 bg-amber-100 text-amber-800 rounded-full">1:1 像素级还原</span>
+          </h1>
+          <p class="text-xs text-slate-500">基于截图解构：左侧黑体“阿” + 右侧双层声调韵母 “ā / ē” (SVG / Tailwind / HTML)</p>
+        </div>
+      </div>
+
+      <!-- 快捷导出按钮组 -->
+      <div class="flex items-center gap-2.5">
+        <button id="btn-copy-svg" class="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-medium text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 active:scale-95 transition shadow-sm">
+          <svg class="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
+          <span>复制 SVG 代码</span>
+        </button>
+        <button id="btn-download-svg" class="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-medium text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 active:scale-95 transition shadow-sm">
+          <svg class="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+          <span>下载 .SVG</span>
+        </button>
+        <button id="btn-download-png" class="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-semibold text-white bg-slate-900 rounded-lg hover:bg-slate-800 active:scale-95 transition shadow-sm">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+          <span>导出高清 PNG</span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- 主体内容区 -->
+  <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 grid grid-cols-1 lg:grid-cols-12 gap-6">
+    
+    <!-- 左侧与中间：画布预览 + 真实工具栏场景模拟 + 视觉解构说明 (占 7 列) -->
+    <div class="lg:col-span-7 flex flex-col gap-6">
+      
+      <!-- 主画布卡片 -->
+      <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden flex flex-col">
+        <!-- 画布顶部工具条 -->
+        <div class="px-4 py-3 border-b border-slate-100 flex flex-wrap items-center justify-between gap-2 bg-slate-50/60">
+          <div class="flex items-center gap-2">
+            <span class="text-xs font-semibold text-slate-600 uppercase tracking-wider">主画布预览</span>
+            <span id="badge-mode" class="text-[11px] font-medium px-2 py-0.5 rounded bg-emerald-100 text-emerald-800">1:1 纯矢量路径模式</span>
+          </div>
+
+          <!-- 画布背景与辅助线开关 -->
+          <div class="flex items-center gap-3">
+            <!-- 辅助参考线开关 -->
+            <label class="inline-flex items-center gap-1.5 cursor-pointer select-none text-xs text-slate-600">
+              <input type="checkbox" id="toggle-guides" class="rounded text-slate-900 focus:ring-0 w-3.5 h-3.5">
+              <span>显示几何对齐线</span>
+            </label>
+
+            <div class="h-3.5 w-[1px] bg-slate-200"></div>
+
+            <!-- 背景切换 -->
+            <div class="flex items-center bg-slate-200/70 p-0.5 rounded-lg text-xs">
+              <button data-bg="white" class="bg-btn px-2 py-1 rounded-md font-medium bg-white text-slate-800 shadow-sm transition">纯白原图</button>
+              <button data-bg="checker" class="bg-btn px-2 py-1 rounded-md font-medium text-slate-600 hover:text-slate-900 transition">透明网格</button>
+              <button data-bg="dark" class="bg-btn px-2 py-1 rounded-md font-medium text-slate-600 hover:text-slate-900 transition">深色模式</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- 核心展示区域 -->
+        <div id="canvas-stage" class="relative h-80 sm:h-96 flex items-center justify-center bg-white transition-colors duration-200 select-none overflow-hidden">
+          
+          <!-- 几何对齐分析辅助层 (默认隐藏，勾选后展示原图比例关系) -->
+          <div id="guides-overlay" class="pointer-events-none absolute inset-0 flex items-center justify-center opacity-0 guide-line">
+            <div class="w-[300px] h-[300px] relative border border-dashed border-sky-400/60">
+              <!-- 顶部声调对齐线 -->
+              <div class="absolute left-0 right-0 top-[18.5%] border-t border-dashed border-rose-400/80 flex justify-end pr-1">
+                <span class="text-[10px] text-rose-500 bg-white/80 px-1 -mt-3.5">声调顶线 (Y: 37)</span>
+              </div>
+              <!-- 汉字顶线 -->
+              <div class="absolute left-0 right-0 top-[21.5%] border-t border-dashed border-indigo-400/70 flex justify-start pl-1">
+                <span class="text-[10px] text-indigo-500 bg-white/80 px-1 -mt-3.5">“阿”字起笔顶线 (Y: 43)</span>
+              </div>
+              <!-- 视觉中分线 -->
+              <div class="absolute left-0 right-0 top-[53%] border-t border-dotted border-amber-500/70"></div>
+              <!-- 底部基线 -->
+              <div class="absolute left-0 right-0 top-[85%] border-t border-dashed border-rose-400/80 flex justify-between px-1">
+                <span class="text-[10px] text-rose-500 bg-white/80 px-1 mt-0.5">竖钩底线 (Y: 170)</span>
+                <span class="text-[10px] text-rose-500 bg-white/80 px-1 mt-0.5">ē 字母底线</span>
+              </div>
+              <!-- 左右分界线 (68% : 32%) -->
+              <div class="absolute top-0 bottom-0 left-[66.5%] border-l border-dashed border-emerald-500/80">
+                <span class="text-[10px] text-emerald-600 bg-white/80 px-1 ml-1 mt-1 inline-block">黄金分割 67:33</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- 图标主容器 -->
+          <div id="main-svg-container" class="w-[280px] h-[280px] sm:w-[300px] sm:h-[300px] flex items-center justify-center transition-transform duration-150">
+            <!-- 由 JS 渲染 SVG -->
+          </div>
+
+          <!-- 右下角尺寸角标 -->
+          <div class="absolute bottom-3 right-4 text-[11px] font-mono text-slate-400 bg-slate-100/80 backdrop-blur px-2 py-0.5 rounded border border-slate-200/60">
+            viewBox="0 0 200 200"
+          </div>
+        </div>
+
+        <!-- 多尺寸与应用场景实时预览栏 -->
+        <div class="px-5 py-4 bg-slate-50 border-t border-slate-200/80">
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <!-- 多尺寸还原度测试 -->
+            <div>
+              <div class="text-xs font-medium text-slate-500 mb-2">全尺寸清晰度测试 (64px / 32px / 24px / 16px)</div>
+              <div class="flex items-end gap-4">
+                <div class="flex flex-col items-center gap-1">
+                  <div class="w-16 h-16 bg-white rounded-xl border border-slate-200 shadow-xs flex items-center justify-center p-1.5 preview-slot" data-size="52"></div>
+                  <span class="text-[10px] font-mono text-slate-400">64px</span>
+                </div>
+                <div class="flex flex-col items-center gap-1">
+                  <div class="w-10 h-10 bg-white rounded-lg border border-slate-200 shadow-xs flex items-center justify-center p-1 preview-slot" data-size="32"></div>
+                  <span class="text-[10px] font-mono text-slate-400">32px</span>
+                </div>
+                <div class="flex flex-col items-center gap-1">
+                  <div class="w-8 h-8 bg-white rounded-md border border-slate-200 shadow-xs flex items-center justify-center p-1 preview-slot" data-size="24"></div>
+                  <span class="text-[10px] font-mono text-slate-400">24px</span>
+                </div>
+                <div class="flex flex-col items-center gap-1">
+                  <div class="w-6 h-6 bg-white rounded border border-slate-200 shadow-xs flex items-center justify-center p-0.5 preview-slot" data-size="16"></div>
+                  <span class="text-[10px] font-mono text-slate-400">16px</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- 实战 UI 工具栏模拟 (有声书/TTS 编辑器工具栏) -->
+            <div class="flex-1 max-w-md">
+              <div class="text-xs font-medium text-slate-500 mb-2">实战 UI 预览 (TTS 语音合成 / 多音字标注工具栏)</div>
+              <div class="bg-white p-1.5 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between gap-1">
+                <div class="flex items-center gap-1">
+                  <!-- 多音字按钮 (激活态) -->
+                  <button class="group relative flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-amber-50/90 text-amber-900 border border-amber-200/80 hover:bg-amber-100/70 transition">
+                    <span class="w-5 h-5 flex items-center justify-center preview-slot" data-size="20"></span>
+                    <span class="text-xs font-medium">多音字</span>
+                  </button>
+                  <!-- 停顿按钮 -->
+                  <button class="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-slate-600 hover:bg-slate-100 transition">
+                    <svg class="w-4 h-4 text-slate-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="6" y="4" width="4" height="16" rx="1"/><rect x="14" y="4" width="4" height="16" rx="1"/></svg>
+                    <span class="text-xs font-medium">插入停顿</span>
+                  </button>
+                  <!-- 局部变速 -->
+                  <button class="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-slate-600 hover:bg-slate-100 transition">
+                    <svg class="w-4 h-4 text-slate-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+                    <span class="text-xs font-medium">语速</span>
+                  </button>
+                </div>
+                <span class="text-[11px] text-slate-400 pr-2 hidden sm:inline">已选中: “阿房宫”</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 截图视觉分析报告 + HTML/Tailwind 组件代码一栏 -->
+      <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
+        <div class="flex items-center justify-between mb-3">
+          <h2 class="text-sm font-bold text-slate-900 flex items-center gap-2">
+            <svg class="w-4 h-4 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+            原图视觉逆向工程分析参数
+          </h2>
+          <span class="text-xs text-slate-400">基于 920×666 原始截图测算</span>
+        </div>
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
+          <div class="p-3 rounded-xl bg-slate-50 border border-slate-100">
+            <div class="font-semibold text-slate-800 mb-1">1. 汉字 “阿” 结构解析</div>
+            <p class="text-slate-600 leading-relaxed">
+              采用无衬线黑体，笔画粗细约占画布 <strong>5.2%</strong>。左耳刀（阝）横折弯钩圆润内收；右侧“可”字顶部横画平直，内框“口”呈高宽比 <code>1.32:1</code> 的矩形。
+            </p>
+          </div>
+          <div class="p-3 rounded-xl bg-slate-50 border border-slate-100">
+            <div class="font-semibold text-slate-800 mb-1">2. 韵母 “ā / ē” 声调强化</div>
+            <p class="text-slate-600 leading-relaxed">
+              普通字体的声调在小图标下极易模糊。原图对一声（阴平）做了<strong>独立矩形加粗处理</strong>，横线宽度约为字母宽度的 <code>64%</code>，与字母间距精准固定。
+            </p>
+          </div>
+          <div class="p-3 rounded-xl bg-slate-50 border border-slate-100">
+            <div class="font-semibold text-slate-800 mb-1">3. 色彩与负空间平衡</div>
+            <p class="text-slate-600 leading-relaxed">
+              色值为标准深炭灰 <code>#333333</code>（RGB: 51, 51, 51）。汉字与拼音水平间距占 <code>6%</code>，上下两拼音垂直间距均衡，整体呈现正方形视觉重心。
+            </p>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- 右侧：参数定制与代码输出面板 (占 5 列) -->
+    <div class="lg:col-span-5 flex flex-col gap-6">
+      
+      <!-- 控制器卡片 -->
+      <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-5 flex flex-col gap-5">
+        <div>
+          <h2 class="text-sm font-bold text-slate-900 mb-1">渲染模式与参数微调</h2>
+          <p class="text-xs text-slate-500">支持「1:1 纯矢量路径还原」或切换为「动态任意多音字生成」</p>
+        </div>
+
+        <!-- 模式切换 Tab -->
+        <div class="grid grid-cols-2 gap-1.5 p-1 bg-slate-100 rounded-xl">
+          <button id="mode-vector" class="py-2 px-3 rounded-lg text-xs font-semibold bg-white text-slate-900 shadow-xs transition flex items-center justify-center gap-1.5">
+            <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
+            1:1 纯矢量路径 (零字体依赖)
+          </button>
+          <button id="mode-dynamic" class="py-2 px-3 rounded-lg text-xs font-semibold text-slate-600 hover:text-slate-900 transition flex items-center justify-center gap-1.5">
+            <span class="w-2 h-2 rounded-full bg-indigo-500"></span>
+            动态多音字生成 (可改字)
+          </button>
+        </div>
+
+        <!-- 动态多音字输入区 (仅在动态模式下高亮可用，或点击直接切换到动态模式) -->
+        <div id="dynamic-inputs-panel" class="p-3.5 rounded-xl bg-slate-50 border border-slate-200/80 transition-opacity">
+          <div class="flex items-center justify-between mb-2.5">
+            <span class="text-xs font-semibold text-slate-700">自定义多音字内容</span>
+            <div class="flex items-center gap-1">
+              <span class="text-[11px] text-slate-400">预设：</span>
+              <button data-preset="阿,a,e,1,1" class="preset-btn text-[11px] px-1.5 py-0.5 bg-white border border-slate-200 rounded hover:border-slate-400 transition">阿 ā/ē</button>
+              <button data-preset="重,zhong,chong,4,2" class="preset-btn text-[11px] px-1.5 py-0.5 bg-white border border-slate-200 rounded hover:border-slate-400 transition">重</button>
+              <button data-preset="行,xing,hang,2,2" class="preset-btn text-[11px] px-1.5 py-0.5 bg-white border border-slate-200 rounded hover:border-slate-400 transition">行</button>
+              <button data-preset="乐,le,yue,4,4" class="preset-btn text-[11px] px-1.5 py-0.5 bg-white border border-slate-200 rounded hover:border-slate-400 transition">乐</button>
+            </div>
+          </div>
+          <div class="grid grid-cols-3 gap-2.5">
+            <div>
+              <label class="block text-[11px] text-slate-500 mb-1">左侧汉字</label>
+              <input type="text" id="inp-hanzi" value="阿" maxlength="1" class="w-full px-2.5 py-1.5 text-sm font-bold text-center bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-900">
+            </div>
+            <div>
+              <label class="block text-[11px] text-slate-500 mb-1">右上读音 1</label>
+              <div class="flex gap-1">
+                <input type="text" id="inp-py1" value="a" maxlength="6" class="w-full px-2 py-1.5 text-sm font-medium text-center bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-900">
+                <select id="inp-tone1" class="px-1 py-1.5 text-xs bg-white border border-slate-300 rounded-lg focus:outline-none">
+                  <option value="1" selected>一声 ¯</option>
+                  <option value="2">二声 ´</option>
+                  <option value="3">三声 ˇ</option>
+                  <option value="4">四声 `</option>
+                </select>
+              </div>
+            </div>
+            <div>
+              <label class="block text-[11px] text-slate-500 mb-1">右下读音 2</label>
+              <div class="flex gap-1">
+                <input type="text" id="inp-py2" value="e" maxlength="6" class="w-full px-2 py-1.5 text-sm font-medium text-center bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-900">
+                <select id="inp-tone2" class="px-1 py-1.5 text-xs bg-white border border-slate-300 rounded-lg focus:outline-none">
+                  <option value="1" selected>一声 ¯</option>
+                  <option value="2">二声 ´</option>
+                  <option value="3">三声 ˇ</option>
+                  <option value="4">四声 `</option>
+                </select>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 通用视觉参数控制滑块 -->
+        <div class="space-y-4">
+          <!-- 颜色选择 -->
+          <div class="flex items-center justify-between">
+            <label class="text-xs font-medium text-slate-700">图标颜色 (原图 #333333)</label>
+            <div class="flex items-center gap-2">
+              <div class="flex items-center gap-1">
+                <button data-color="#333333" class="color-swatch w-5 h-5 rounded-full bg-[#333333] ring-2 ring-offset-1 ring-slate-900"></button>
+                <button data-color="#0f172a" class="color-swatch w-5 h-5 rounded-full bg-[#0f172a] hover:scale-110 transition"></button>
+                <button data-color="#2563eb" class="color-swatch w-5 h-5 rounded-full bg-[#2563eb] hover:scale-110 transition"></button>
+                <button data-color="#d97706" class="color-swatch w-5 h-5 rounded-full bg-[#d97706] hover:scale-110 transition"></button>
+                <button data-color="#ffffff" class="color-swatch w-5 h-5 rounded-full bg-white border border-slate-300 hover:scale-110 transition"></button>
+              </div>
+              <input type="color" id="inp-color" value="#333333" class="w-7 h-7 rounded cursor-pointer border-0 bg-transparent p-0">
+              <span id="color-hex-label" class="text-xs font-mono text-slate-500 w-16 text-right">#333333</span>
+            </div>
+          </div>
+
+          <!-- 字重/笔画粗细微调 -->
+          <div>
+            <div class="flex justify-between text-xs mb-1">
+              <span class="font-medium text-slate-700">笔画粗细增幅 (Stroke / Weight)</span>
+              <span id="val-weight" class="font-mono text-slate-500">0 px (原图标准)</span>
+            </div>
+            <input type="range" id="rng-weight" min="-2" max="6" step="0.5" value="0" class="w-full accent-slate-900 cursor-pointer h-1.5 bg-slate-200 rounded-lg">
+          </div>
+
+          <!-- 左右字距微调 -->
+          <div>
+            <div class="flex justify-between text-xs mb-1">
+              <span class="font-medium text-slate-700">汉字与拼音水平间距</span>
+              <span id="val-gap" class="font-mono text-slate-500">0 px (默认对齐)</span>
+            </div>
+            <input type="range" id="rng-gap" min="-12" max="20" step="1" value="0" class="w-full accent-slate-900 cursor-pointer h-1.5 bg-slate-200 rounded-lg">
+          </div>
+
+          <!-- 声调横线粗细与高度微调 -->
+          <div>
+            <div class="flex justify-between text-xs mb-1">
+              <span class="font-medium text-slate-700">声调符号粗细 (Macron Thickness)</span>
+              <span id="val-macron" class="font-mono text-slate-500">6.5 px</span>
+            </div>
+            <input type="range" id="rng-macron" min="4" max="11" step="0.5" value="6.5" class="w-full accent-slate-900 cursor-pointer h-1.5 bg-slate-200 rounded-lg">
+          </div>
+
+          <!-- 整体内边距缩放 -->
+          <div>
+            <div class="flex justify-between text-xs mb-1">
+              <span class="font-medium text-slate-700">图标整体缩放比例 (Scale)</span>
+              <span id="val-scale" class="font-mono text-slate-500">100%</span>
+            </div>
+            <input type="range" id="rng-scale" min="75" max="115" step="1" value="100" class="w-full accent-slate-900 cursor-pointer h-1.5 bg-slate-200 rounded-lg">
+          </div>
+        </div>
+
+        <!-- 重置按钮 -->
+        <div class="pt-1 border-t border-slate-100 flex justify-end">
+          <button id="btn-reset" class="text-xs text-slate-500 hover:text-slate-900 font-medium flex items-center gap-1 transition">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+            恢复截图 1:1 初始参数
+          </button>
+        </div>
+      </div>
+
+      <!-- 实时代码检视器 (SVG & Tailwind HTML) -->
+      <div class="bg-slate-900 rounded-2xl border border-slate-800 shadow-sm overflow-hidden flex-1 flex flex-col">
+        <div class="px-4 py-2.5 bg-slate-950/60 border-b border-slate-800 flex items-center justify-between">
+          <div class="flex items-center gap-2">
+            <button id="tab-code-svg" class="text-xs font-semibold px-2.5 py-1 rounded bg-slate-800 text-white transition">纯 SVG 源码</button>
+            <button id="tab-code-tailwind" class="text-xs font-medium px-2.5 py-1 rounded text-slate-400 hover:text-white transition">HTML + Tailwind 组件</button>
+          </div>
+          <button id="btn-copy-code-panel" class="text-[11px] text-emerald-400 hover:text-emerald-300 font-mono flex items-center gap-1">
+            <span>点击复制</span>
+          </button>
+        </div>
+        <div class="p-4 overflow-auto max-h-60 flex-1">
+          <pre class="text-[11px] font-mono text-slate-300 leading-relaxed whitespace-pre-wrap break-all select-all" id="code-output"></pre>
+        </div>
+      </div>
+
+    </div>
+  </main>
+
+  <!-- 底部轻量提示 Toast -->
+  <div id="toast" class="fixed bottom-5 right-5 z-50 transform translate-y-16 opacity-0 transition-all duration-300 pointer-events-none">
+    <div class="bg-slate-900 text-white px-4 py-2.5 rounded-xl shadow-lg border border-slate-700 flex items-center gap-2 text-xs font-medium">
+      <svg class="w-4 h-4 text-emerald-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+      <span id="toast-msg">已复制到剪贴板</span>
+    </div>
+  </div>
+
+  <!-- 核心渲染与交互逻辑 -->
+  <script>
+    // 状态管理
+    const state = {
+      mode: 'vector',       // 'vector' (1:1 矢量路径还原) | 'dynamic' (动态字体生成)
+      color: '#333333',     // 默认原图深炭灰
+      weightOffset: 0,      // 笔画粗细微调 (-2 ~ +6)
+      gapOffset: 0,         // 左右间距微调
+      macronHeight: 6.5,    // 声调矩形条高度
+      scale: 100,           // 整体缩放百分比
+      bgMode: 'white',      // 'white' | 'checker' | 'dark'
+      codeTab: 'svg',       // 'svg' | 'tailwind'
+      // 动态模式字段
+      hanzi: '阿',
+      py1: 'a',
+      tone1: '1',
+      py2: 'e',
+      tone2: '1'
+    };
+
+    /**
+     * 生成声调 SVG 路径 (支持 1/2/3/4 声，针对小尺寸图标做加粗清晰化设计)
+     * cx: 中心 X 坐标, topY: 声调基準顶部 Y, h: 粗细高度
+     */
+    function buildToneMarkPath(tone, cx, topY, h) {
+      const halfW = 14.5; // 声调半宽 (总宽 29，与原图 ā/ē 顶部横线一致)
+      if (tone === '1') {
+        // 一声（阴平）：平直矩形短横线，原图核心特征
+        return `<rect x="${(cx - halfW).toFixed(1)}" y="${topY.toFixed(1)}" width="${(halfW * 2).toFixed(1)}" height="${h.toFixed(1)}" fill="currentColor" />`;
+      } else if (tone === '2') {
+        // 二声（阳平）：左下到右上斜线
+        return `<path d="M ${(cx - halfW).toFixed(1)} ${(topY + 8).toFixed(1)} L ${(cx + halfW).toFixed(1)} ${(topY - 2).toFixed(1)}" stroke="currentColor" stroke-width="${h.toFixed(1)}" stroke-linecap="butt" />`;
+      } else if (tone === '3') {
+        // 三声（上声）：V 字折线
+        return `<path d="M ${(cx - halfW).toFixed(1)} ${(topY - 1).toFixed(1)} L ${cx.toFixed(1)} ${(topY + 8).toFixed(1)} L ${(cx + halfW).toFixed(1)} ${(topY - 1).toFixed(1)}" fill="none" stroke="currentColor" stroke-width="${(h * 0.9).toFixed(1)}" stroke-linecap=" square" stroke-linejoin="miter" />`;
+      } else if (tone === '4') {
+        // 四声（去声）：左上到右下斜线
+        return `<path d="M ${(cx - halfW).toFixed(1)} ${(topY - 2).toFixed(1)} L ${(cx + halfW).toFixed(1)} ${(topY + 8).toFixed(1)}" stroke="currentColor" stroke-width="${h.toFixed(1)}" stroke-linecap="butt" />`;
+      }
+      return '';
+    }
+
+    /**
+     * 核心生成函数：输出纯净、可独立使用的 SVG 字符串
+     * viewBox 固定为 0 0 200 200，完全对齐原图比例
+     */
+    function generateSVGString(customSize = null) {
+      const { mode, color, weightOffset, gapOffset, macronHeight, scale, hanzi, py1, tone1, py2, tone2 } = state;
+      const sizeAttr = customSize ? `width="${customSize}" height="${customSize}"` : `width="100%" height="100%"`;
+      const scaleFactor = scale / 100;
+      const strokeAttr = weightOffset !== 0
+        ? `stroke="currentColor" stroke-width="${Math.abs(weightOffset)}" stroke-linejoin="round"`
+        : '';
+
+      // 整体缩放变换中心 (100, 100)
+      const rootTransform = scaleFactor !== 1
+        ? ` transform="translate(100 100) scale(${scaleFactor.toFixed(3)}) translate(-100 -100)"`
+        : '';
+
+      if (mode === 'vector') {
+        /**
+         * 【模式 1：1:1 纯矢量路径还原】
+         * 严格按照上传截图测绘：
+         * 1. 左侧“阿”字由纯几何路径绘制（阝 + 可），不依赖任何本地或网络字体，任何设备打开 100% 一致。
+         * 2. 右侧“ā”与“ē”同样采用精密贝塞尔曲线还原几何无衬线字母造型 + 顶部矩形横线。
+         */
+        const rightShift = gapOffset;
+        const leftShift = -gapOffset * 0.4;
+
+        return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" ${sizeAttr} fill="none" style="color: ${color};">
+  <g${rootTransform} ${strokeAttr}>
+    <!-- 左侧汉字：“阿” (1:1 精密矢量几何路径) -->
+    <g transform="translate(${leftShift.toFixed(1)} 0)">
+      <!-- 1. 左耳旁 (阝)：左竖 + 横折弯钩 -->
+      <path fill="currentColor" d="M 22 43 H 64.5 V 53.5 L 50 93.5 C 59.5 106.5 64 119 64 131.5 C 64 146.5 55.5 153 41 153 H 36.5 L 34 142 H 40 C 48.5 142 53 138 53 130 C 53 119.5 48.5 107.5 38.5 94.5 L 52.5 54 H 33 V 170 H 22 V 43 Z" />
+      <!-- 2. 右部“可”：顶部大横 + 右侧长竖钩 -->
+      <path fill="currentColor" d="M 70 45 H 148 V 56 H 138 V 156 C 138 166.5 133 170 119 170 H 104.5 L 102 158.5 H 116.5 C 124.5 158.5 126.5 156.5 126.5 151.5 V 56 H 70 V 45 Z" />
+      <!-- 3. 右部“口”：高宽比均衡的方框 (带内部镂空 fill-rule="evenodd") -->
+      <path fill="currentColor" fill-rule="evenodd" clip-rule="evenodd" d="M 73.5 76 H 113.5 V 131.5 H 73.5 V 76 Z M 84 86.5 V 121 H 103 V 86.5 H 84 Z" />
+    </g>
+
+    <!-- 右侧上下叠放韵母：“ā” 与 “ē” (1:1 矢量轮廓 + 定制加粗声调横线) -->
+    <g transform="translate(${rightShift.toFixed(1)} 0)">
+      <!-- 顶部 ā 的一声矩形横线 -->
+      <rect x="165.5" y="36.5" width="27" height="${macronHeight}" fill="currentColor" />
+      <!-- 顶部字母 a (双层结构无衬线矢量路径) -->
+      <path fill="currentColor" fill-rule="evenodd" clip-rule="evenodd" d="M 178.5 51.5 C 190 51.5 196.5 56.8 196.5 67.5 V 97 H 187.5 V 90.5 C 184.2 95.3 178.8 98 172.2 98 C 163.2 98 157 92.6 157 84.2 C 157 75.2 164 70.2 177.5 69.2 L 187 68.5 V 66.8 C 187 61.2 183.5 58.5 177.5 58.5 C 172 58.5 168.5 60.8 167.2 64.8 L 158.2 63.2 C 160.2 55.5 167.2 51.5 178.5 51.5 Z M 174.5 91 C 181.5 91 187 86.5 187 79.8 V 75 L 178.2 75.7 C 169.8 76.4 166.2 79 166.2 83.8 C 166.2 88.3 169.5 91 174.5 91 Z" />
+
+      <!-- 底部 ē 的一声矩形横线 -->
+      <rect x="165.5" y="114.5" width="27" height="${macronHeight}" fill="currentColor" />
+      <!-- 底部字母 e (几何无衬线矢量路径) -->
+      <path fill="currentColor" fill-rule="evenodd" clip-rule="evenodd" d="M 178.5 129.5 C 191.5 129.5 199.5 138.5 199.5 152.5 V 155.5 H 166.2 C 166.8 164.2 171.8 169.2 179.5 169.2 C 185.2 169.2 189.2 166.5 191.2 162 L 199.5 164.8 C 196.2 172.5 189 176.8 179.2 176.8 C 165.5 176.8 156.8 167.5 156.8 153 C 156.8 138.5 165.5 129.5 178.5 129.5 Z M 166.5 148.5 H 190.2 C 189.5 141.2 185 136.8 178.5 136.8 C 172 136.8 167.5 141.2 166.5 148.5 Z" />
+    </g>
+  </g>
+</svg>`;
+      } else {
+        /**
+         * 【模式 2：动态多音字生成模式】
+         * 允许输入任意汉字和两个拼音，自动调整字号并绘制清晰的独立声调符号
+         */
+        const rightShift = gapOffset;
+        const leftShift = -gapOffset * 0.4;
+        const fontWeight = Math.min(700, Math.max(400, 450 + weightOffset * 45));
+        // 根据拼音长度自适应字号
+        const py1FontSize = py1.length > 2 ? (py1.length > 4 ? 26 : 34) : 60;
+        const py2FontSize = py2.length > 2 ? (py2.length > 4 ? 26 : 34) : 60;
+
+        const tone1Svg = buildToneMarkPath(tone1, 178, 36.5, macronHeight);
+        const tone2Svg = buildToneMarkPath(tone2, 178, 114.5, macronHeight);
+
+        return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" ${sizeAttr} fill="none" style="color: ${color};">
+  <g${rootTransform}>
+    <!-- 左侧动态汉字 -->
+    <text x="${(83 + leftShift).toFixed(1)}" y="158" text-anchor="middle" fill="currentColor" font-family="'Noto Sans SC', 'PingFang SC', 'Microsoft YaHei', sans-serif" font-size="136" font-weight="${fontWeight}">${escapeXml(hanzi || '阿')}</text>
+    <!-- 右侧动态双行拼音 + 独立强化声调 -->
+    <g transform="translate(${rightShift.toFixed(1)} 0)">
+      ${tone1Svg}
+      <text x="178" y="96" text-anchor="middle" fill="currentColor" font-family="'Inter', -apple-system, sans-serif" font-size="${py1FontSize}" font-weight="${fontWeight}">${escapeXml(py1 || 'a')}</text>
+      ${tone2Svg}
+      <text x="178" y="174" text-anchor="middle" fill="currentColor" font-family="'Inter', -apple-system, sans-serif" font-size="${py2FontSize}" font-weight="${fontWeight}">${escapeXml(py2 || 'e')}</text>
+    </g>
+  </g>
+</svg>`;
+      }
+    }
+
+    /**
+     * 生成 HTML + Tailwind CSS 组件代码（供前端直接嵌入项目使用）
+     */
+    function generateTailwindSnippet() {
+      const svgCode = generateSVGString()
+        .replace(/\n\s*/g, ' ')
+        .replace(/>\s+</g, '><')
+        .trim();
+
+      return `<!-- 多音字 (阿 ā/ē) 图标按钮组件 - 使用 Tailwind CSS -->
+<button type="button" class="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white hover:bg-neutral-100 text-[#333333] border border-neutral-200 shadow-xs transition active:scale-95" title="多音字标注 (阿 ā / ē)">
+  <span class="w-6 h-6 flex items-center justify-center shrink-0">
+    ${svgCode}
+  </span>
+  <span class="text-sm font-medium">多音字</span>
+</button>`;
+    }
+
+    function escapeXml(unsafe) {
+      return unsafe.replace(/[<>&'"]/g, c => {
+        switch (c) {
+          case '<': return '&lt;';
+          case '>': return '&gt;';
+          case '&': return '&amp;';
+          case '\'': return '&apos;';
+          case '"': return '&quot;';
+        }
+      });
+    }
+
+    // 渲染更新所有视图
+    function renderAll() {
+      const svgMain = generateSVGString();
+      document.getElementById('main-svg-container').innerHTML = svgMain;
+      document.getElementById('header-mini-icon').innerHTML = generateSVGString(24);
+
+      // 更新所有多尺寸预览槽位
+      document.querySelectorAll('.preview-slot').forEach(slot => {
+        const size = slot.getAttribute('data-size') || 24;
+        slot.innerHTML = generateSVGString(size);
+      });
+
+      // 更新模式徽章与面板状态
+      const badge = document.getElementById('badge-mode');
+      const btnVec = document.getElementById('mode-vector');
+      const btnDyn = document.getElementById('mode-dynamic');
+      const dynPanel = document.getElementById('dynamic-inputs-panel');
+
+      if (state.mode === 'vector') {
+        badge.textContent = '1:1 纯矢量路径模式';
+        badge.className = 'text-[11px] font-medium px-2 py-0.5 rounded bg-emerald-100 text-emerald-800';
+        btnVec.className = 'py-2 px-3 rounded-lg text-xs font-semibold bg-white text-slate-900 shadow-xs transition flex items-center justify-center gap-1.5';
+        btnDyn.className = 'py-2 px-3 rounded-lg text-xs font-semibold text-slate-600 hover:text-slate-900 transition flex items-center justify-center gap-1.5';
+        dynPanel.classList.add('opacity-60');
+      } else {
+        badge.textContent = '动态字形生成模式';
+        badge.className = 'text-[11px] font-medium px-2 py-0.5 rounded bg-indigo-100 text-indigo-800';
+        btnDyn.className = 'py-2 px-3 rounded-lg text-xs font-semibold bg-white text-slate-900 shadow-xs transition flex items-center justify-center gap-1.5';
+        btnVec.className = 'py-2 px-3 rounded-lg text-xs font-semibold text-slate-600 hover:text-slate-900 transition flex items-center justify-center gap-1.5';
+        dynPanel.classList.remove('opacity-60');
+      }
+
+      // 更新数值标签
+      document.getElementById('color-hex-label').textContent = state.color.toUpperCase();
+      document.getElementById('val-weight').textContent = `${state.weightOffset > 0 ? '+' : ''}${state.weightOffset} px`;
+      document.getElementById('val-gap').textContent = `${state.gapOffset > 0 ? '+' : ''}${state.gapOffset} px`;
+      document.getElementById('val-macron').textContent = `${state.macronHeight} px`;
+      document.getElementById('val-scale').textContent = `${state.scale}%`;
+
+      // 更新代码展示框
+      const codeOut = document.getElementById('code-output');
+      codeOut.textContent = state.codeTab === 'svg' ? svgMain : generateTailwindSnippet();
+    }
+
+    // 显示底部通知 Toast
+    let toastTimer = null;
+    function showToast(msg) {
+      const toast = document.getElementById('toast');
+      document.getElementById('toast-msg').textContent = msg;
+      toast.classList.remove('translate-y-16', 'opacity-0');
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => {
+        toast.classList.add('translate-y-16', 'opacity-0');
+      }, 2200);
+    }
+
+    // 复制文本工具函数 (兼容 iFrame 环境)
+    function copyText(text, successMsg) {
+      const textarea = document.createElement('textarea');
+      textarea.value = text;
+      textarea.style.position = 'fixed';
+      textarea.style.opacity = '0';
+      document.body.appendChild(textarea);
+      textarea.select();
+      try {
+        document.execCommand('copy');
+        showToast(successMsg);
+      } catch (err) {
+        showToast('复制失败，请手动全选代码复制');
+      }
+      document.body.removeChild(textarea);
+    }
+
+    // 绑定所有交互事件
+    window.addEventListener('DOMContentLoaded', () => {
+      // 模式切换
+      document.getElementById('mode-vector').addEventListener('click', () => {
+        state.mode = 'vector';
+        renderAll();
+      });
+      document.getElementById('mode-dynamic').addEventListener('click', () => {
+        state.mode = 'dynamic';
+        renderAll();
+      });
+
+      // 当用户编辑动态输入框时，自动切换到动态模式
+      ['inp-hanzi', 'inp-py1', 'inp-tone1', 'inp-py2', 'inp-tone2'].forEach(id => {
+        document.getElementById(id).addEventListener('input', (e) => {
+          state.mode = 'dynamic';
+          state.hanzi = document.getElementById('inp-hanzi').value;
+          state.py1 = document.getElementById('inp-py1').value;
+          state.tone1 = document.getElementById('inp-tone1').value;
+          state.py2 = document.getElementById('inp-py2').value;
+          state.tone2 = document.getElementById('inp-tone2').value;
+          renderAll();
+        });
+      });
+
+      // 多音字预设按钮
+      document.querySelectorAll('.preset-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const [hz, p1, p2, t1, t2] = btn.getAttribute('data-preset').split(',');
+          document.getElementById('inp-hanzi').value = hz;
+          document.getElementById('inp-py1').value = p1;
+          document.getElementById('inp-py2').value = p2;
+          document.getElementById('inp-tone1').value = t1;
+          document.getElementById('inp-tone2').value = t2;
+          state.hanzi = hz;
+          state.py1 = p1;
+          state.py2 = p2;
+          state.tone1 = t1;
+          state.tone2 = t2;
+          // 如果点击的是“阿 ā/ē”，切回 1:1 矢量模式，否则切到动态模式
+          state.mode = (hz === '阿' && p1 === 'a' && p2 === 'e') ? 'vector' : 'dynamic';
+          renderAll();
+        });
+      });
+
+      // 颜色选择
+      const inpColor = document.getElementById('inp-color');
+      inpColor.addEventListener('input', (e) => {
+        state.color = e.target.value;
+        renderAll();
+      });
+      document.querySelectorAll('.color-swatch').forEach(swatch => {
+        swatch.addEventListener('click', () => {
+          const c = swatch.getAttribute('data-color');
+          state.color = c;
+          inpColor.value = c;
+          // 如果选了纯白图标，自动把画布切到深色背景方便看清
+          if (c.toLowerCase() === '#ffffff' && state.bgMode === 'white') {
+            setCanvasBg('dark');
+          }
+          renderAll();
+        });
+      });
+
+      // 滑块控制
+      document.getElementById('rng-weight').addEventListener('input', e => {
+        state.weightOffset = parseFloat(e.target.value);
+        renderAll();
+      });
+      document.getElementById('rng-gap').addEventListener('input', e => {
+        state.gapOffset = parseFloat(e.target.value);
+        renderAll();
+      });
+      document.getElementById('rng-macron').addEventListener('input', e => {
+        state.macronHeight = parseFloat(e.target.value);
+        renderAll();
+      });
+      document.getElementById('rng-scale').addEventListener('input', e => {
+        state.scale = parseInt(e.target.value, 10);
+        renderAll();
+      });
+
+      // 辅助参考线开关
+      document.getElementById('toggle-guides').addEventListener('change', e => {
+        const overlay = document.getElementById('guides-overlay');
+        overlay.style.opacity = e.target.checked ? '1' : '0';
+      });
+
+      // 画布背景切换
+      function setCanvasBg(bgType) {
+        state.bgMode = bgType;
+        const stage = document.getElementById('canvas-stage');
+        stage.className = 'relative h-80 sm:h-96 flex items-center justify-center transition-colors duration-200 select-none overflow-hidden ';
+        if (bgType === 'white') stage.classList.add('bg-white');
+        if (bgType === 'checker') stage.classList.add('bg-checkerboard');
+        if (bgType === 'dark') stage.classList.add('bg-checkerboard-dark');
+
+        document.querySelectorAll('.bg-btn').forEach(b => {
+          if (b.getAttribute('data-bg') === bgType) {
+            b.className = 'bg-btn px-2 py-1 rounded-md font-medium bg-white text-slate-800 shadow-sm transition';
+          } else {
+            b.className = 'bg-btn px-2 py-1 rounded-md font-medium text-slate-600 hover:text-slate-900 transition';
+          }
+        });
+      }
+
+      document.querySelectorAll('.bg-btn').forEach(btn => {
+        btn.addEventListener('click', () => setCanvasBg(btn.getAttribute('data-bg')));
+      });
+
+      // 重置参数
+      document.getElementById('btn-reset').addEventListener('click', () => {
+        state.mode = 'vector';
+        state.color = '#333333';
+        state.weightOffset = 0;
+        state.gapOffset = 0;
+        state.macronHeight = 6.5;
+        state.scale = 100;
+        state.hanzi = '阿';
+        state.py1 = 'a';
+        state.tone1 = '1';
+        state.py2 = 'e';
+        state.tone2 = '1';
+
+        document.getElementById('inp-color').value = '#333333';
+        document.getElementById('rng-weight').value = 0;
+        document.getElementById('rng-gap').value = 0;
+        document.getElementById('rng-macron').value = 6.5;
+        document.getElementById('rng-scale').value = 100;
+        document.getElementById('inp-hanzi').value = '阿';
+        document.getElementById('inp-py1').value = 'a';
+        document.getElementById('inp-py2').value = 'e';
+        setCanvasBg('white');
+        renderAll();
+        showToast('已恢复 1:1 截图初始参数');
+      });
+
+      // 代码 Tab 切换
+      const tabSvg = document.getElementById('tab-code-svg');
+      const tabTw = document.getElementById('tab-code-tailwind');
+      tabSvg.addEventListener('click', () => {
+        state.codeTab = 'svg';
+        tabSvg.className = 'text-xs font-semibold px-2.5 py-1 rounded bg-slate-800 text-white transition';
+        tabTw.className = 'text-xs font-medium px-2.5 py-1 rounded text-slate-400 hover:text-white transition';
+        renderAll();
+      });
+      tabTw.addEventListener('click', () => {
+        state.codeTab = 'tailwind';
+        tabTw.className = 'text-xs font-semibold px-2.5 py-1 rounded bg-slate-800 text-white transition';
+        tabSvg.className = 'text-xs font-medium px-2.5 py-1 rounded text-slate-400 hover:text-white transition';
+        renderAll();
+      });
+
+      // 复制与下载功能
+      document.getElementById('btn-copy-svg').addEventListener('click', () => {
+        copyText(generateSVGString(200), 'SVG 源码已复制到剪贴板！');
+      });
+      document.getElementById('btn-copy-code-panel').addEventListener('click', () => {
+        const content = document.getElementById('code-output').textContent;
+        copyText(content, state.codeTab === 'svg' ? 'SVG 代码已复制！' : 'Tailwind 组件代码已复制！');
+      });
+
+      // 下载 .SVG 文件
+      document.getElementById('btn-download-svg').addEventListener('click', () => {
+        const svgContent = generateSVGString(512);
+        const blob = new Blob([svgContent], { type: 'image/svg+xml;charset=utf-8' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `polyphone-icon-${state.hanzi || 'a-e'}.svg`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        showToast('SVG 矢量文件已开始下载');
+      });
+
+      // 导出高清 1024x1024 PNG
+      document.getElementById('btn-download-png').addEventListener('click', () => {
+        const exportSize = 1024;
+        const svgContent = generateSVGString(exportSize);
+        const img = new Image();
+        const svgBlob = new Blob([svgContent], { type: 'image/svg+xml;charset=utf-8' });
+        const url = URL.createObjectURL(svgBlob);
+
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          canvas.width = exportSize;
+          canvas.height = exportSize;
+          const ctx = canvas.getContext('2d');
+
+          // 如果当前选择了纯白背景模式，则填充白底；如果选了透明网格，则导出透明底 PNG
+          if (state.bgMode === 'white') {
+            ctx.fillStyle = '#FFFFFF';
+            ctx.fillRect(0, 0, exportSize, exportSize);
+          } else if (state.bgMode === 'dark') {
+            ctx.fillStyle = '#1E293B';
+            ctx.fillRect(0, 0, exportSize, exportSize);
+          }
+
+          ctx.drawImage(img, 0, 0, exportSize, exportSize);
+          URL.revokeObjectURL(url);
+
+          canvas.toBlob(pngBlob => {
+            const pngUrl = URL.createObjectURL(pngBlob);
+            const a = document.createElement('a');
+            a.href = pngUrl;
+            a.download = `polyphone-icon-${state.hanzi || 'a-e'}-1024px.png`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(pngUrl);
+            showToast('1024×1024 高清 PNG 导出成功！');
+          }, 'image/png');
+        };
+        img.src = url;
+      });
+
+      // 初始渲染
+      renderAll();
+    });
+  </script>
+</body>
+</html>

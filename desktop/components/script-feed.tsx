@@ -11,10 +11,20 @@ import {
   Undo2,
   Zap,
 } from "lucide-react";
-import { Fragment, useState, type DragEvent } from "react";
+import { Fragment, useState, type CSSProperties, type DragEvent } from "react";
 import { useToast } from "@/components/toast";
 import { inkScrollbar } from "@/lib/scrollbar";
-import { studioClock, type CastOption, type HubTone, type StudioParagraph } from "@/lib/projects";
+import {
+  prosodyLabel,
+  studioClock,
+  type CastOption,
+  type HubTone,
+  type PolyphoneMark,
+  type ProsodyKind,
+  type ProsodyMark,
+  type StudioParagraph,
+  type TextSelection,
+} from "@/lib/projects";
 
 export type FeedItem = {
   paragraph: StudioParagraph;
@@ -73,8 +83,8 @@ const orderButton =
 const moveButton =
   "rounded-md p-1.5 text-white/40 transition-colors hover:bg-white/5 hover:text-white disabled:cursor-not-allowed disabled:opacity-30";
 
-/** 按下处若是按钮/下拉/可编辑正文，临时关闭整卡拖拽以保留其原生交互 */
-const interactiveSelector = "button, select, input, a, [contenteditable]";
+/** 按下处若是按钮/下拉/可编辑正文/正文本身，临时关闭整卡拖拽以保留其原生交互 */
+const interactiveSelector = "button, select, input, a, [contenteditable], [data-text]";
 
 function MarkLine({ side }: { side: "before" | "after" }) {
   return (
@@ -86,30 +96,142 @@ function MarkLine({ side }: { side: "before" | "after" }) {
   );
 }
 
-/** 多音字校对：命中短语首字加虚线并注读音 */
-function renderText(paragraph: StudioParagraph) {
-  const { polyphone } = paragraph;
-  if (!polyphone) return paragraph.text;
+/** 标注字在正文里的下标：按 UTF-16 长度累计，跳过注音上标以免偏移 */
+function textIndexOf(container: HTMLElement, startNode: Node, startOffset: number) {
+  const walker = document.createTreeWalker(container, NodeFilter.SHOW_TEXT);
+  let count = 0;
+  for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+    if (node.parentElement?.closest("[data-reading]")) continue;
+    if (node === startNode) return count + startOffset;
+    count += node.textContent?.length ?? 0;
+  }
+  return -1;
+}
 
-  const at = paragraph.text.indexOf(polyphone.phrase);
-  if (at < 0) return paragraph.text;
+/** 逐字叠三层样式：语气标注定加粗与符号，选区铺底色，多音字在字旁注拼音 */
+type CharStyle = { prosody?: ProsodyMark; selected: boolean; poly?: PolyphoneMark };
 
-  return (
-    <>
-      {paragraph.text.slice(0, at)}
-      <span
-        title={`多音字校对为：${polyphone.reading}`}
-        className="border-b border-dotted border-amber-400/70 text-amber-200"
-      >
-        {polyphone.phrase.slice(0, 1)}
-        <span className="align-super font-mono text-[9.5px] text-amber-400/90">
-          ({polyphone.reading})
+/** 提亮一档并加粗：与正文的 white/75 拉开对比，一眼看出这是被标过的字 */
+function prosodyClass(kind: ProsodyKind) {
+  return [
+    kind === "drawl" ? "text-white" : "font-semibold text-white",
+    kind === "stress"
+      ? ""
+      : `underline decoration-wavy decoration-[2px] decoration-emerald-400 ${
+          kind === "both" ? "underline-offset-[10px]" : "underline-offset-[6px]"
+        }`,
+  ]
+    .filter(Boolean)
+    .join(" ");
+}
+
+/**
+ * 重读用中文着重号（text-emphasis）表达：圆点由字体逐字排在自己的正下方。
+ * 取 filled circle 而非 dot——dot 在 14px 正文里小到看不清，filled circle 才够醒目。
+ */
+function prosodyStyle(kind: ProsodyKind): CSSProperties | undefined {
+  if (kind === "drawl") return undefined;
+  return {
+    textEmphasisStyle: "filled circle",
+    textEmphasisColor: "rgb(52 211 153)",
+    textEmphasisPosition: "under",
+  };
+}
+
+/**
+ * 正文按样式分组渲染，同一样式的连续字合成一个 span。
+ * 选区那一组带 `sel-{段落 id}-{起点}` 锚点，右侧 dock 的两个弹窗都按它定位。
+ */
+function renderText(
+  text: string,
+  paragraphId: string,
+  {
+    polyphones,
+    prosodies,
+    selection,
+  }: { polyphones: PolyphoneMark[]; prosodies: ProsodyMark[]; selection: TextSelection | null },
+  onSelect: (start: number, end: number) => void,
+) {
+  if (!polyphones.length && !prosodies.length && !selection) return text;
+
+  const polyByIndex = new Map(polyphones.map((mark) => [mark.index, mark]));
+  const styleAt = (index: number): CharStyle => ({
+    prosody: prosodies.find((mark) => index >= mark.start && index < mark.end),
+    selected: !!selection && index >= selection.start && index < selection.end,
+    poly: polyByIndex.get(index),
+  });
+
+  const nodes = [];
+  let index = 0;
+
+  while (index < text.length) {
+    const style = styleAt(index);
+    let end = index + 1;
+    while (end < text.length) {
+      const next = styleAt(end);
+      if (
+        next.prosody !== style.prosody ||
+        next.selected !== style.selected ||
+        next.poly !== style.poly
+      ) {
+        break;
+      }
+      end += 1;
+    }
+
+    let content = <>{text.slice(index, end)}</>;
+
+    if (style.poly) {
+      content = (
+        <span
+          title={`多音字读音：${style.poly.reading}，点击可重选`}
+          onClick={() => onSelect(index, index + 1)}
+          className="cursor-pointer"
+        >
+          {/* 底色只裹这个字，拼音挂在色块外侧的上标位，免得把拼音包进框里 */}
+          <span className="rounded-[3px] bg-emerald-400/18 px-[1.5px] text-emerald-100">
+            {text.slice(index, end)}
+          </span>
+          <sup
+            data-reading="1"
+            className="ml-px align-super font-mono text-[10px] leading-none text-emerald-300/90"
+          >
+            {style.poly.reading}
+          </sup>
         </span>
-      </span>
-      {polyphone.phrase.slice(1)}
-      {paragraph.text.slice(at + polyphone.phrase.length)}
-    </>
-  );
+      );
+    }
+
+    if (style.selected) {
+      content = (
+        <span
+          id={`sel-${paragraphId}-${index}`}
+          className="rounded-[3px] bg-accent/25 text-white"
+        >
+          {content}
+        </span>
+      );
+    }
+
+    if (style.prosody) {
+      const mark = style.prosody;
+      content = (
+        <span
+          style={prosodyStyle(mark.kind)}
+          title={`${prosodyLabel(mark.kind)}标注 · 点击可修改或移除`}
+          onClick={() => onSelect(mark.start, mark.end)}
+          className={`cursor-pointer ${prosodyClass(mark.kind)}`}
+        >
+          {content}
+        </span>
+      );
+    }
+
+    nodes.push(<Fragment key={index}>{content}</Fragment>);
+    index = end;
+  }
+
+  return nodes;
 }
 
 export function ScriptFeed({
@@ -117,6 +239,9 @@ export function ScriptFeed({
   activeId,
   keyword,
   orderLabel,
+  polyphones,
+  prosodies,
+  selection,
   canUndo,
   canRedo,
   canReset,
@@ -128,11 +253,18 @@ export function ScriptFeed({
   onActivate,
   onReassign,
   onAudition,
+  onSelectText,
 }: {
   items: FeedItem[];
   activeId: string;
   keyword: string;
   orderLabel: string;
+  /** 按段落 id 归组的多音字注音 */
+  polyphones: Record<string, PolyphoneMark[]>;
+  /** 按段落 id 归组的语气标注（重读/拖音） */
+  prosodies: Record<string, ProsodyMark[]>;
+  /** 当前那段划选：正文里铺底色，也是两个弹窗的定位锚点 */
+  selection: TextSelection | null;
   canUndo: boolean;
   canRedo: boolean;
   canReset: boolean;
@@ -144,6 +276,7 @@ export function ScriptFeed({
   onActivate: (id: string) => void;
   onReassign: (id: string, option: CastOption) => void;
   onAudition: (hz: number, seconds: number, label?: string) => void;
+  onSelectText: (paragraphId: string, start: number, end: number) => void;
 }) {
   const [dragId, setDragId] = useState<string | null>(null);
   const [mark, setMark] = useState<{ id: string; side: "before" | "after" } | null>(null);
@@ -207,6 +340,11 @@ export function ScriptFeed({
                 active={item.paragraph.id === activeId}
                 dragging={dragId === item.paragraph.id}
                 markSide={mark?.id === item.paragraph.id ? mark.side : null}
+                polyphones={polyphones[item.paragraph.id] ?? []}
+                prosodies={prosodies[item.paragraph.id] ?? []}
+                selection={
+                  selection?.paragraphId === item.paragraph.id ? selection : null
+                }
                 onDragStart={dragStart}
                 onDragOver={dragOver}
                 onDrop={drop}
@@ -218,6 +356,7 @@ export function ScriptFeed({
                 onMove={onMove}
                 onReassign={onReassign}
                 onAudition={onAudition}
+                onSelectText={onSelectText}
               />
 
               {showCues && item.paragraph.cue && (
@@ -260,6 +399,9 @@ function ParagraphCard({
   active,
   dragging,
   markSide,
+  polyphones,
+  prosodies,
+  selection,
   onDragStart,
   onDragOver,
   onDrop,
@@ -268,11 +410,15 @@ function ParagraphCard({
   onMove,
   onReassign,
   onAudition,
+  onSelectText,
 }: {
   item: FeedItem;
   active: boolean;
   dragging: boolean;
   markSide: "before" | "after" | null;
+  polyphones: PolyphoneMark[];
+  prosodies: ProsodyMark[];
+  selection: TextSelection | null;
   onDragStart: (e: DragEvent<HTMLElement>, id: string) => void;
   onDragOver: (e: DragEvent<HTMLElement>, id: string) => void;
   onDrop: (e: DragEvent<HTMLElement>) => void;
@@ -281,10 +427,29 @@ function ParagraphCard({
   onMove: (id: string, delta: number) => void;
   onReassign: (id: string, option: CastOption) => void;
   onAudition: (hz: number, seconds: number, label?: string) => void;
+  onSelectText: (paragraphId: string, start: number, end: number) => void;
 }) {
   const { show } = useToast();
   const [draggable, setDraggable] = useState(false);
   const paragraph = item.paragraph;
+
+  /** 划选即把区间报上去（单个字或多个字都要），原生高亮收掉改由正文底色接管 */
+  function captureSelection(container: HTMLElement) {
+    const domSelection = window.getSelection();
+    if (!domSelection || domSelection.isCollapsed) return;
+
+    const range = domSelection.rangeCount ? domSelection.getRangeAt(0) : null;
+    if (!range || !container.contains(range.startContainer) || !container.contains(range.endContainer)) {
+      return;
+    }
+
+    const start = textIndexOf(container, range.startContainer, range.startOffset);
+    const end = textIndexOf(container, range.endContainer, range.endOffset);
+    if (start < 0 || end <= start) return;
+
+    domSelection.removeAllRanges();
+    onSelectText(paragraph.id, start, end);
+  }
 
   return (
     <section
@@ -383,13 +548,22 @@ function ParagraphCard({
             const value = e.currentTarget.textContent?.trim() ?? "";
             if (value && value !== paragraph.text) show("文案已更新，后续合成使用新文案", "success");
           }}
-          className="mt-3 cursor-text rounded-xl border border-hairline bg-ink-900 px-3.5 py-2.5 text-[13px] leading-relaxed text-white focus:underline focus:[text-decoration-style:dotted] focus:[text-decoration-color:rgb(255_255_255/0.35)] focus:[text-underline-offset:3px] focus:outline-none"
+          className="mt-3 cursor-text rounded-xl border border-hairline bg-ink-900 px-3.5 py-2.5 text-[14px] leading-relaxed text-white focus:underline focus:[text-decoration-style:dotted] focus:[text-decoration-color:rgb(255_255_255/0.35)] focus:[text-underline-offset:3px] focus:outline-none"
         >
           {paragraph.text}
         </div>
       ) : (
-        <div className="mt-3 text-[13px] leading-relaxed text-white/75">
-          {renderText(paragraph)}
+        <div
+          data-text="1"
+          onMouseUp={(event) => captureSelection(event.currentTarget)}
+          className="mt-3 cursor-text text-[14px] leading-relaxed text-white/75"
+        >
+          {renderText(
+            paragraph.text,
+            paragraph.id,
+            { polyphones, prosodies, selection },
+            (start, end) => onSelectText(paragraph.id, start, end),
+          )}
         </div>
       )}
 

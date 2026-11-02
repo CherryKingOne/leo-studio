@@ -4,26 +4,32 @@ import { ListOrdered, Search, Star, Users, type LucideIcon } from "lucide-react"
 import { useState } from "react";
 import { CastMatrix } from "@/components/cast-matrix";
 import { ChapterPipeline } from "@/components/chapter-pipeline";
-import type { CastMember, HubChapter } from "@/lib/projects";
+import { useHubChapters } from "@/components/hub-chapters";
+import type { CastMember } from "@/lib/projects";
 
 type HubTab = "pipeline" | "cast";
 
 export function ProjectHub({
   projectId,
-  chapters,
   cast,
+  appendReady,
 }: {
   projectId: string;
-  chapters: HubChapter[];
   cast: CastMember[];
+  /** 只有后端剧目能追更上传，原型剧目没有对应记录 */
+  appendReady: boolean;
 }) {
+  const { chapters } = useHubChapters();
   const [tab, setTab] = useState<HubTab>("pipeline");
   const [keyword, setKeyword] = useState("");
   const [readyOnly, setReadyOnly] = useState(false);
 
   const tabs: { key: HubTab; label: string; Icon: LucideIcon }[] = [
     { key: "pipeline", label: `章节生产流水线 (${chapters.length})`, Icon: ListOrdered },
-    { key: "cast", label: `全书角色阵容与选角 (${cast.length})`, Icon: Users },
+    // 后端还没有角色台账接口，无数据时不展示选角 tab
+    ...(cast.length
+      ? [{ key: "cast" as HubTab, label: `全书角色阵容与选角 (${cast.length})`, Icon: Users }]
+      : []),
   ];
 
   function switchTab(next: HubTab) {
@@ -33,7 +39,7 @@ export function ProjectHub({
 
   return (
     <>
-      <div className="mt-7 flex flex-wrap items-center justify-between gap-4 border-b border-hairline pb-2">
+      <div className="mt-7 flex flex-wrap items-center justify-between gap-4">
         <div className="flex items-center gap-1">
           {tabs.map(({ key, label, Icon }) => (
             <button
@@ -82,7 +88,7 @@ export function ProjectHub({
       {tab === "pipeline" ? (
         <ChapterPipeline
           projectId={projectId}
-          chapters={chapters}
+          appendReady={appendReady}
           keyword={keyword}
           readyOnly={readyOnly}
           onGoToCast={() => setTab("cast")}

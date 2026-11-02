@@ -1,6 +1,6 @@
 "use client";
 
-import { CircleCheck, Info } from "lucide-react";
+import { CircleAlert, CircleCheck, Info } from "lucide-react";
 import {
   createContext,
   useCallback,
@@ -10,12 +10,12 @@ import {
   type ReactNode,
 } from "react";
 
-type ToastTone = "info" | "success";
-type ToastItem = { id: number; message: string; tone: ToastTone };
+type ToastTone = "info" | "success" | "warn";
+type ToastItem = { id: number; message: ReactNode; tone: ToastTone };
 
-const ToastContext = createContext<{ show: (message: string, tone?: ToastTone) => void } | null>(
-  null,
-);
+const ToastContext = createContext<{
+  show: (message: ReactNode, tone?: ToastTone, duration?: number) => void;
+} | null>(null);
 
 export function useToast() {
   const value = useContext(ToastContext);
@@ -29,13 +29,13 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   const [toasts, setToasts] = useState<ToastItem[]>([]);
   const seq = useRef(0);
 
-  const show = useCallback((message: string, tone: ToastTone = "info") => {
+  const show = useCallback((message: ReactNode, tone: ToastTone = "info", duration = 2500) => {
     seq.current += 1;
     const id = seq.current;
     setToasts((prev) => [...prev, { id, message, tone }]);
     setTimeout(() => {
       setToasts((prev) => prev.filter((item) => item.id !== id));
-    }, 2500);
+    }, duration);
   }, []);
 
   return (
@@ -44,7 +44,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
 
       <div className="pointer-events-none fixed bottom-6 right-6 z-50 flex flex-col gap-2">
         {toasts.map(({ id, message, tone }) => {
-          const Icon = tone === "success" ? CircleCheck : Info;
+          const Icon = tone === "success" ? CircleCheck : tone === "warn" ? CircleAlert : Info;
           return (
             <div
               key={id}
@@ -52,7 +52,11 @@ export function ToastProvider({ children }: { children: ReactNode }) {
             >
               <Icon
                 className={`h-4 w-4 shrink-0 ${
-                  tone === "success" ? "text-emerald-400" : "text-accent-400"
+                  tone === "success"
+                    ? "text-emerald-400"
+                    : tone === "warn"
+                      ? "text-amber-400"
+                      : "text-accent-400"
                 }`}
               />
               <span>{message}</span>

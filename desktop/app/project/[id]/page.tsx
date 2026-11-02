@@ -1,57 +1,108 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { CloneVoiceModalProvider } from "@/components/clone-voice-modal";
+import { HubChaptersProvider } from "@/components/hub-chapters";
 import { HubHeader } from "@/components/hub-header";
 import { ProjectHub } from "@/components/project-hub";
 import { ToastProvider } from "@/components/toast";
-import { hubFor, initialEntries, type ProjectEntry } from "@/lib/projects";
+import { getProject, listChapters } from "@/lib/api";
+import {
+  chapterFromOutline,
+  hubFor,
+  hubSubtitle,
+  initialProjects,
+  relativeTime,
+  wordsLabel,
+  type CastMember,
+  type HubChapter,
+  type HubIdentity,
+} from "@/lib/projects";
 
 // 页面内容按 params 选剧目，属于阻塞式路由
 export const instant = false;
 
-function findProject(id: string) {
-  return initialEntries.find(
-    (entry): entry is ProjectEntry => entry.kind === "project" && entry.id === id,
-  );
+type HubData = {
+  identity: HubIdentity;
+  chapters: HubChapter[];
+  cast: CastMember[];
+  /** 后端剧目才有 project_id 对应记录，原型剧目的改名与追更都不能落库 */
+  remote: boolean;
+};
+
+/**
+ * 迁移期两数据源：原型剧目走 `lib/projects.ts` 的 mock（带角色台账与工作台剧本），
+ * 其余剧目走后端项目详情与章节大纲，后端暂无生产状态与角色接口。
+ */
+async function loadHub(id: string): Promise<HubData | null> {
+  const mock = initialProjects.find((project) => project.id === id);
+  if (mock) {
+    const hub = hubFor(mock);
+    return {
+      identity: {
+        title: mock.title,
+        subtitle: hubSubtitle(mock, hub.chapters),
+        progress: mock.progress,
+      },
+      chapters: hub.chapters,
+      cast: hub.cast,
+      remote: false,
+    };
+  }
+
+  const project = await getProject(id);
+  if (!project) return null;
+
+  const outline = await listChapters(id);
+  return {
+    identity: {
+      title: project.title,
+      subtitle: [
+        project.filename,
+        wordsLabel(project.totalWords),
+        relativeTime(project.editedHoursAgo),
+      ].join(" · "),
+    },
+    chapters: outline.map(chapterFromOutline),
+    cast: [],
+    remote: true,
+  };
 }
 
 export function generateStaticParams() {
-  return initialEntries
-    .filter((entry) => entry.kind === "project")
-    .map((entry) => ({ id: entry.id }));
+  return initialProjects.map((project) => ({ id: project.id }));
 }
 
 export async function generateMetadata(
   props: PageProps<"/project/[id]">,
 ): Promise<Metadata> {
   const { id } = await props.params;
-  const project = findProject(id);
+  const hub = await loadHub(id);
   return {
-    title: project ? `${project.title} · 剧目看板` : "剧目看板",
+    title: hub ? `${hub.identity.title} · 剧目看板` : "剧目看板",
   };
 }
 
 export default async function ProjectHubPage(props: PageProps<"/project/[id]">) {
   const { id } = await props.params;
-  const project = findProject(id);
-  if (!project) notFound();
-
-  const hub = hubFor(project);
+  const hub = await loadHub(id);
+  if (!hub) notFound();
 
   return (
     <ToastProvider>
       <CloneVoiceModalProvider>
-        <div className="flex min-h-screen flex-col">
-          <HubHeader project={project} chapters={hub.chapters} />
+        <HubChaptersProvider
+          key={hub.chapters.map((chapter) => chapter.id).join(",")}
+          projectId={id}
+          initialChapters={hub.chapters}
+        >
+          <div className="flex min-h-screen flex-col">
+            <HubHeader projectId={id} identity={hub.identity} remote={hub.remote} />
 
-          <main className="mx-auto w-full max-w-6xl flex-1 px-5 pb-16 pt-8 sm:px-8">
-            <ProjectHub
-              projectId={project.id}
-              chapters={hub.chapters}
-              cast={hub.cast}
-            />
-          </main>
-        </div>
+            <main className="mx-auto w-full max-w-6xl flex-1 px-5 pb-16 pt-8 sm:px-8">
+              <ProjectHub projectId={id} cast={hub.cast} appendReady={hub.remote} />
+            </main>
+          </div>
+        </HubChaptersProvider>
       </CloneVoiceModalProvider>
     </ToastProvider>
   );

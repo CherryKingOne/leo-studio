@@ -198,4 +198,113 @@ app/modules/image_files/
 
 ---
 
-本规则由 `.cline/skills/no-underscore-prefix/SKILL.md` 与 `scripts/check_no_underscore_prefix.py` 共同维护。
+## 导入规范：禁止相对导入，必须使用绝对导入
+
+**规则级别：强制（MUST NOT）**
+
+项目内所有 Python 后端代码中，**禁止任何形式的相对导入**，即模块名中出现 `.` / `..` 前缀的写法。所有导包必须使用**绝对导入**——从项目根即可完整解析的模块路径。
+
+### 具体禁止的写法
+
+以下写法在项目中属于**违规**：
+
+```python
+# fmt: off
+# ❌ 单点相对导入（当前包）
+from . import router
+from .service import TextFileStorageService
+
+# ❌ 多点相对导入（上级包）
+from ..shared.response import success
+from ..config import settings
+
+# ❌ 更深层级相对导入
+from ...modules.projects.models import Project
+
+# ❌ 只引用上级包本身
+from .. import shared
+# fmt: on
+```
+
+### 正确写法
+
+以下写法是**推荐 / 允许**的：
+
+```python
+# fmt: off
+# ✅ 以 app. 起始的绝对导入
+from app.modules.text_files.service import TextFileStorageService
+from app.shared.response import success
+from app.shared.config import settings
+
+# ✅ 绝对导入 + 别名
+from app.modules.projects import router as projects_router
+
+# ✅ 第三方库与标准库导入
+from fastapi import APIRouter
+from pathlib import Path
+
+# ✅ from __future__ import annotations 不属于相对导入
+from __future__ import annotations
+
+# ✅ tests/ 中通过 sys.path 引入 scripts 顶层模块（绝对模块名，无 . 前缀）
+from check_no_underscore_prefix import scan
+# fmt: on
+```
+
+### 为什么强制绝对导入
+
+1. **避免同一模块被双重加载**：相对导入会让 `app.modules.x.service` 与 `modules.x.service`（或 `x.service`）以不同模块名分别驻留在 `sys.modules` 中，导致单例失效、`isinstance` 判定失败、FastAPI 依赖注入与 Pydantic 模型引用错乱。
+2. **保证导入可追溯**：绝对路径直接表明「代码属于哪个模块」，跨目录移动文件时不会出现难以排查的相对层级失效。
+3. **兼容多种启动方式**：`uvicorn app.main:app`、`python -m app.main`、`pytest` 等入口的工作目录与包根不同，只有绝对导入能稳定生效。
+4. **与目录结构规范一致**：见上文「按功能模块化拆分」，模块间引用必须显式写明完整路径，才能保持模块边界清晰。
+
+### 适用范围
+
+| 范围 | 是否强制 |
+| --- | --- |
+| `app/` 下的所有 Python 文件（含 `__init__.py`、`router.py` 等） | ✅ 是 |
+| `tests/` 下的所有 Python 文件 | ✅ 是 |
+| `scripts/` 下的所有 Python 文件 | ✅ 是 |
+| `desktop/`（Next.js / TypeScript 代码） | ❌ 不适用本规则 |
+| 文件系统路径拼接（如 `Path(__file__).resolve().parent.parent`） | ❌ 不属于导包，不在本规则约束范围 |
+
+### 无豁免
+
+本规则**不设豁免条件**。`from __future__ import annotations`、标准库与第三方库导入本身不是相对导入，不受限制；只要 `import` / `from` 的子句中出现以 `.` 起始的模块路径即视为违规。
+
+### 检查方式
+
+使用以下命令扫描违规的相对导入（无输出即为符合规范）：
+
+```bash
+grep -rnE '^[[:space:]]*(from|import)[[:space:]]+\.' app tests scripts --include='*.py'
+```
+
+无输出即表示项目内不存在相对导入；每一行输出都需要按下方「修复方式」改为绝对导入。
+
+### 修复方式
+
+将相对模块路径补全为从项目根开始的绝对路径：
+
+| 违规写法 | 修复写法 |
+| --- | --- |
+| `from . import service` | `from app.modules.xxx import service` |
+| `from .service import Service` | `from app.modules.xxx.service import Service` |
+| `from ..shared.response import success` | `from app.shared.response import success` |
+| `from ..config import settings` | `from app.shared.config import settings` |
+| `from ...modules.projects.models import Project` | `from app.modules.projects.models import Project` |
+
+修改时以**当前文件在 `app/` 下的真实目录层级**推导完整路径，不要凭包内层级猜测；若发现需要跨模块引用内部文件，优先改为引用 `app/shared/` 中的公共代码。
+
+---
+
+## 规则维护方式
+
+| 规则 | 自动化检查 | 备注 |
+| --- | --- | --- |
+| 禁止下划线开头的命名 | `scripts/check_no_underscore_prefix.py`、`tests/test_naming_convention.py` | 已接入测试 |
+| 目录结构按功能模块化拆分 | 无 | 代码评审时人工核查 |
+| 禁止相对导入 | 无 | 使用本文「检查方式」中的 grep 命令核查；如需长期固化，可在 `scripts/` 下新增扫描脚本并配套测试 |
+
+其中「禁止下划线开头的命名」由 `.cline/skills/no-underscore-prefix/SKILL.md` 与 `scripts/check_no_underscore_prefix.py` 共同维护。
