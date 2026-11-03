@@ -5,6 +5,7 @@
 | 属性 | 值 |
 | --- | --- |
 | **所属模块** | 剧目与项目管理（`app/modules/projects/`） |
+| **使用页面** | 章节制作工作台 `desktop/app/project/[id]/chapter/[chapterId]`：划选单个汉字 → dock「校对多音字」注音；点已标注的字直接重开候选，悬停其右上角 × 或弹窗「移除本字注音」删单处，「清空本句注音」走 DELETE |
 | **持久化表** | `.leo-studio/novel_polyphones.csv`（小说多音字表，对应 小说_多音字.csv） |
 | **关联方式** | 通过 `sentence_id` 关联至 `novel_sentences.csv` |
 | **响应格式** | `application/json` |
@@ -104,3 +105,23 @@
 | `sentence_id` | `string` | 所属句子 ID (UUID4) |
 | `deleted_count` | `integer` | 被删除的标注数量 |
 | `deleted` | `boolean` | 是否删除成功 (`true`) |
+
+---
+
+## 前端接入（章节制作工作台）
+
+工作台一句一张剧本卡片，卡片 id 即本接口的 `sentence_id`，三条路径分别对上三个接口：
+
+| 页面动作 | 调用 |
+| --- | --- |
+| 进页面 | `GET /api/v1/projects/{project_id}/chapters/{chapter_id}` 的 `sentences[].polyphones` 已带整章注音，不再逐句查询 |
+| 选读音 / 移除本字 | `PUT`（`lib/api.ts` 的 `saveSentencePolyphones`）全量覆盖该句剩余标注 |
+| 清空本句 | `DELETE`（`lib/api.ts` 的 `clearSentencePolyphones`） |
+
+对接约定：
+
+1. 请求只发 `char_index`、`character`、`pinyin` 三个必填字段，`pinyin_base`、`tone`、`tts_pinyin` 交给后端从 `pinyin` 推导。
+2. `char_index` 按 Unicode 码点计数，前端标注下标按 UTF-16 长度算（正文含 emoji、扩展 B 汉字时两者错开），换算用 `lib/projects.ts` 的 `utf16IndexToCharIndex` / `charIndexToUtf16Index`。
+3. 浏览器不直连后端：写操作走 `lib/actions.ts` 的服务端动作，成功后只 `updateTag("projects")` 作废服务端缓存、不 `refresh`，避免打断连续标注。
+4. 标注先改本地再同步，接口失败即回滚该句标注并提示；保存中不阻塞下一次划选。
+5. 只有 32 位十六进制的句子 id 才打接口（`isSentenceId`）；原型剧目与「章节无正文」兜底合成的段落 id 只在内存里标注。

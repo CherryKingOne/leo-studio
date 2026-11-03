@@ -1,11 +1,13 @@
 import { cacheLife, cacheTag } from "next/cache";
 import type {
   ChapterContent,
+  PolyphoneMark,
   ProjectChapter,
   ProjectStatus,
   ProjectSummary,
   TrashedProject,
 } from "@/lib/projects";
+import { charIndexToUtf16Index, utf16IndexToCharIndex } from "@/lib/projects";
 
 type ApiEnvelope<T> = {
   code: number;
@@ -43,6 +45,15 @@ type ApiChapterOutline = {
   word_count: number;
 };
 
+/** 对齐 SentencePolyphoneItem，pinyin_base/tone/tts_pinyin 由后端从 pinyin 推导，前端只用得上展示三要素 */
+type ApiPolyphoneItem = {
+  polyphone_id: string;
+  sentence_id: string;
+  char_index: number;
+  character: string;
+  pinyin: string;
+};
+
 type ApiChapterContent = {
   project_id: string;
   chapter_id: string;
@@ -55,6 +66,7 @@ type ApiChapterContent = {
     sentence_index: number;
     content: string;
     word_count: number;
+    polyphones: ApiPolyphoneItem[];
   }[];
 };
 
@@ -132,14 +144,14 @@ async function apiPostForm<T>(path: string, form: FormData): Promise<T> {
 
 /**
  * JSON 写接口：404 也按失败抛出。
- * 改名这类操作的目标剧目不存在就是异常（回收站里的剧目不可更新），不能像 GET 那样静默返回 null。
+ * 改名这类操作的目标剧目不存在就是异常（回收站里的剧目不可更新、注音接口的句子必须归属该剧目），不能像 GET 那样静默返回 null。
  */
-async function apiPatchJson<T>(path: string, payload: unknown): Promise<T> {
+async function apiJson<T>(method: "PATCH" | "PUT", path: string, payload: unknown): Promise<T> {
   const base = backendUrl();
   let res: Response;
   try {
     res = await fetch(`${base}${path}`, {
-      method: "PATCH",
+      method,
       headers: { "Content-Type": "application/json", Accept: "application/json" },
       body: JSON.stringify(payload),
     });
@@ -257,7 +269,7 @@ export async function getProject(id: string): Promise<ProjectSummary | null> {
 
 /** 剧目重命名：PATCH /api/v1/projects/{id}，仅改 name，回收站中的剧目会被后端拒绝 */
 export async function renameProject(id: string, name: string): Promise<void> {
-  await apiPatchJson<ApiProject>(`/api/v1/projects/${id}`, { name });
+  await apiJson<ApiProject>("PATCH", `/api/v1/projects/${id}`, { name });
 }
 
 /** 章节大纲：GET /api/v1/projects/{id}/chapters，按章节序号升序 */
@@ -306,8 +318,49 @@ export async function getChapterContent(
       index: item.sentence_index,
       text: item.content,
       words: item.word_count,
+      polyphones: item.polyphones.map((poly) => ({
+        index: charIndexToUtf16Index(item.content, poly.char_index),
+        char: poly.character,
+        reading: poly.pinyin,
+      })),
     })),
   };
+}
+
+/**
+ * 句子多音字标注全量覆盖：PUT /api/v1/projects/{project_id}/sentences/{sentence_id}/polyphones
+ * 后端按 char_index 校验字符是否对得上正文，所以整句的标注要一次发全。
+ */
+export async function saveSentencePolyphones(
+  projectId: string,
+  sentenceId: string,
+  text: string,
+  marks: PolyphoneMark[],
+): Promise<void> {
+  await apiJson<unknown>(
+    "PUT",
+    `/api/v1/projects/${projectId}/sentences/${sentenceId}/polyphones`,
+    {
+      annotations: marks.map((mark) => ({
+        char_index: utf16IndexToCharIndex(text, mark.index),
+        character: mark.char,
+        pinyin: mark.reading,
+      })),
+    },
+  );
+}
+
+/** 清空整句多音字标注：DELETE /api/v1/projects/{project_id}/sentences/{sentence_id}/polyphones */
+export async function clearSentencePolyphones(
+  projectId: string,
+  sentenceId: string,
+): Promise<void> {
+  const data = await apiSend<{ sentence_id: string; deleted_count: number; deleted: boolean }>(
+    "DELETE",
+    `/api/v1/projects/${projectId}/sentences/${sentenceId}/polyphones`,
+  );
+  // DELETE 接口把 404 静默成 null：句子多半是重新导入后换了 id，要当失败报出去
+  if (!data) throw new Error(`后端没有这个句子：${sentenceId}`);
 }
 
 /** 回收站列表：GET /api/v1/projects/recycle-bin，按删除时间倒序 */

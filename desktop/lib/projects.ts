@@ -15,6 +15,8 @@ export type ChapterSentence = {
   index: number;
   text: string;
   words: number;
+  /** 该句已落库的多音字注音，随章节正文接口一并下发 */
+  polyphones: PolyphoneMark[];
 };
 
 /** GET /api/v1/projects/{project_id}/chapters/{chapter_id} 的章节正文 */
@@ -677,6 +679,23 @@ export type StudioSourceBlock = { text: string; paragraphId: string };
 /** 多音字标注：正文第 index 个字改读为 reading */
 export type PolyphoneMark = { index: number; char: string; reading: string };
 
+/**
+ * 前端 index 按 UTF-16 长度算，后端 char_index 按 Unicode 码点算。
+ * 正文里有代理对（emoji、扩展 B 汉字）时两者会错开，进出接口都要换算。
+ */
+export function utf16IndexToCharIndex(text: string, index: number) {
+  return [...text.slice(0, index)].length;
+}
+
+export function charIndexToUtf16Index(text: string, charIndex: number) {
+  return [...text].slice(0, charIndex).join("").length;
+}
+
+/** 后端 sentence_id 是 32 位十六进制；原型剧目和「无正文」兜底合成的段落 id 不是，不能拿去打多音字接口 */
+export function isSentenceId(id: string) {
+  return /^[0-9a-f]{32}$/i.test(id);
+}
+
 /** 语气标注类型：重读、拖音，或两者叠加 */
 export type ProsodyKind = "stress" | "drawl" | "both";
 
@@ -702,6 +721,8 @@ export type ChapterStudio = {
   speakerOptions: string[];
   modelOptions: string[];
   reverbOptions: string[];
+  /** 后端剧目带下来的已落库注音，按句子 id 归组；原型剧目没有 */
+  polyphones?: Record<string, PolyphoneMark[]>;
 };
 
 /** 工作台「目录」pane 的一行，来自章节目录接口 */
@@ -926,23 +947,32 @@ export function studioTocFor(chapters: ProjectChapter[], currentId: string): Stu
  * 说话人归属、情绪标定与段时长后端还没有接口，全部按旁白 + 4 字/秒估算呈现。
  */
 export function studioFromContent(chapter: HubChapter, content: ChapterContent): ChapterStudio {
-  const lines: { id: string; text: string; words: number }[] = content.sentences.length
-    ? content.sentences.map((item) => ({ id: item.id, text: item.text, words: item.words }))
-    : content.content
-        .split(/\n+/)
-        .map((text) => text.trim())
-        .filter(Boolean)
-        .map((text, index) => ({
-          id: `${chapter.id}-l${String(index + 1).padStart(3, "0")}`,
-          text,
-          words: [...text].length,
-        }));
+  const lines: { id: string; text: string; words: number; polyphones: PolyphoneMark[] }[] =
+    content.sentences.length
+      ? content.sentences.map((item) => ({
+          id: item.id,
+          text: item.text,
+          words: item.words,
+          // 服务端缓存里可能还是补 polyphones 字段之前的 payload，缺字段就按没有标注处理
+          polyphones: item.polyphones ?? [],
+        }))
+      : content.content
+          .split(/\n+/)
+          .map((text) => text.trim())
+          .filter(Boolean)
+          .map((text, index) => ({
+            id: `${chapter.id}-l${String(index + 1).padStart(3, "0")}`,
+            text,
+            words: [...text].length,
+            polyphones: [],
+          }));
 
   if (!lines.length) {
     lines.push({
       id: `${chapter.id}-empty`,
       text: "后端还没有该章正文，重新上传后可在此对照。",
       words: 0,
+      polyphones: [],
     });
   }
 
@@ -973,6 +1003,9 @@ export function studioFromContent(chapter: HubChapter, content: ChapterContent):
     speakerOptions: ["旁白"],
     modelOptions: studioModelOptions,
     reverbOptions: studioReverbOptions,
+    polyphones: Object.fromEntries(
+      lines.filter((line) => line.polyphones.length).map((line) => [line.id, line.polyphones]),
+    ),
   };
 }
 

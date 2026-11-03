@@ -9,6 +9,7 @@ import {
   Redo2,
   RotateCcw,
   Undo2,
+  X,
   Zap,
 } from "lucide-react";
 import { Fragment, useState, type CSSProperties, type DragEvent } from "react";
@@ -150,7 +151,8 @@ function renderText(
     prosodies,
     selection,
   }: { polyphones: PolyphoneMark[]; prosodies: ProsodyMark[]; selection: TextSelection | null },
-  onSelect: (start: number, end: number) => void,
+  onSelect: (start: number, end: number, target?: HTMLElement) => void,
+  onRemoveMark: (mark: PolyphoneMark) => void,
 ) {
   if (!polyphones.length && !prosodies.length && !selection) return text;
 
@@ -165,8 +167,10 @@ function renderText(
   let index = 0;
 
   while (index < text.length) {
-    const style = styleAt(index);
-    let end = index + 1;
+    // 这一组的起点要单独存：onClick 是闭包，引用循环变量的话全部读到循环结束后的最后一个值
+    const start = index;
+    const style = styleAt(start);
+    let end = start + 1;
     while (end < text.length) {
       const next = styleAt(end);
       if (
@@ -179,24 +183,42 @@ function renderText(
       end += 1;
     }
 
-    let content = <>{text.slice(index, end)}</>;
+    let content = <>{text.slice(start, end)}</>;
 
     if (style.poly) {
+      const poly = style.poly;
       content = (
         <span
-          title={`多音字读音：${style.poly.reading}，点击可重选`}
-          onClick={() => onSelect(index, index + 1)}
-          className="cursor-pointer"
+          title={`多音字读音：${poly.reading}，点击可重选`}
+          onClick={(event) => onSelect(start, start + 1, event.currentTarget)}
+          className="group cursor-pointer"
         >
           {/* 底色只裹这个字，拼音挂在色块外侧的上标位，免得把拼音包进框里 */}
           <span className="rounded-[3px] bg-emerald-400/18 px-[1.5px] text-emerald-100">
-            {text.slice(index, end)}
+            {text.slice(start, end)}
           </span>
           <sup
             data-reading="1"
             className="ml-px align-super font-mono text-[10px] leading-none text-emerald-300/90"
           >
-            {style.poly.reading}
+            {poly.reading}
+            {/*
+              删除钮跟着读音一起上标，才落在标注的右上角；且必须留在正文流里——
+              绝对定位浮出这一组的命中框后，指针移到它身上就不算 hover 这一组，
+              group-hover 不触发，钮既显不出来也点不到（只剩卡片的抓取手型）。
+            */}
+            <button
+              type="button"
+              title={`移除「${poly.char}」的注音`}
+              aria-label={`移除「${poly.char}」的注音`}
+              onClick={(event) => {
+                event.stopPropagation();
+                onRemoveMark(poly);
+              }}
+              className="pointer-events-none ml-[1px] inline-flex cursor-pointer items-center align-top text-emerald-300/70 opacity-0 transition-opacity group-hover:pointer-events-auto group-hover:opacity-100 hover:text-white"
+            >
+              <X className="h-2 w-2" />
+            </button>
           </sup>
         </span>
       );
@@ -205,7 +227,7 @@ function renderText(
     if (style.selected) {
       content = (
         <span
-          id={`sel-${paragraphId}-${index}`}
+          id={`sel-${paragraphId}-${start}`}
           className="rounded-[3px] bg-accent/25 text-white"
         >
           {content}
@@ -227,7 +249,7 @@ function renderText(
       );
     }
 
-    nodes.push(<Fragment key={index}>{content}</Fragment>);
+    nodes.push(<Fragment key={start}>{content}</Fragment>);
     index = end;
   }
 
@@ -254,6 +276,7 @@ export function ScriptFeed({
   onReassign,
   onAudition,
   onSelectText,
+  onRemovePolyphone,
 }: {
   items: FeedItem[];
   activeId: string;
@@ -276,7 +299,9 @@ export function ScriptFeed({
   onActivate: (id: string) => void;
   onReassign: (id: string, option: CastOption) => void;
   onAudition: (hz: number, seconds: number, label?: string) => void;
-  onSelectText: (paragraphId: string, start: number, end: number) => void;
+  onSelectText: (paragraphId: string, start: number, end: number, target?: HTMLElement) => void;
+  /** 点正文里那个 × 直接删掉这一处的注音 */
+  onRemovePolyphone: (paragraphId: string, mark: PolyphoneMark) => void;
 }) {
   const [dragId, setDragId] = useState<string | null>(null);
   const [mark, setMark] = useState<{ id: string; side: "before" | "after" } | null>(null);
@@ -357,6 +382,7 @@ export function ScriptFeed({
                 onReassign={onReassign}
                 onAudition={onAudition}
                 onSelectText={onSelectText}
+                onRemovePolyphone={(mark) => onRemovePolyphone(item.paragraph.id, mark)}
               />
 
               {showCues && item.paragraph.cue && (
@@ -411,6 +437,7 @@ function ParagraphCard({
   onReassign,
   onAudition,
   onSelectText,
+  onRemovePolyphone,
 }: {
   item: FeedItem;
   active: boolean;
@@ -427,7 +454,8 @@ function ParagraphCard({
   onMove: (id: string, delta: number) => void;
   onReassign: (id: string, option: CastOption) => void;
   onAudition: (hz: number, seconds: number, label?: string) => void;
-  onSelectText: (paragraphId: string, start: number, end: number) => void;
+  onSelectText: (paragraphId: string, start: number, end: number, target?: HTMLElement) => void;
+  onRemovePolyphone: (mark: PolyphoneMark) => void;
 }) {
   const { show } = useToast();
   const [draggable, setDraggable] = useState(false);
@@ -562,7 +590,8 @@ function ParagraphCard({
             paragraph.text,
             paragraph.id,
             { polyphones, prosodies, selection },
-            (start, end) => onSelectText(paragraph.id, start, end),
+            (start, end, target) => onSelectText(paragraph.id, start, end, target),
+            onRemovePolyphone,
           )}
         </div>
       )}
