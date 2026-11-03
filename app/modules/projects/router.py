@@ -125,6 +125,9 @@ def to_sentence_polyphone_item(info: SentencePolyphoneInfo) -> SentencePolyphone
         char_index=info.char_index,
         character=info.character,
         pinyin=info.pinyin,
+        pinyin_base=info.pinyin_base,
+        tone=info.tone,
+        tts_pinyin=info.tts_pinyin,
         created_at=info.created_at,
         updated_at=info.updated_at,
     )

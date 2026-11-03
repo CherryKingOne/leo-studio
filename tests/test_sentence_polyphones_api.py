@@ -83,8 +83,22 @@ class TestSentencePolyphonesApi:
 
         payload = {
             "annotations": [
-                {"char_index": 1, "character": "行", "pinyin": "xíng"},
-                {"char_index": 6, "character": "行", "pinyin": "háng"},
+                {
+                    "char_index": 1,
+                    "character": "行",
+                    "pinyin": "xíng",
+                    "pinyin_base": "xing",
+                    "tone": 2,
+                    "tts_pinyin": "xing2",
+                },
+                {
+                    "char_index": 6,
+                    "character": "行",
+                    "pinyin": "háng",
+                    "pinyin_base": "hang",
+                    "tone": 2,
+                    "tts_pinyin": "hang2",
+                },
             ]
         }
         resp = client.put(
@@ -102,9 +116,16 @@ class TestSentencePolyphonesApi:
         assert items[0]["char_index"] == 1
         assert items[0]["character"] == "行"
         assert items[0]["pinyin"] == "xíng"
+        assert items[0]["pinyin_base"] == "xing"
+        assert items[0]["tone"] == 2
+        assert items[0]["tts_pinyin"] == "xing2"
+
         assert items[1]["char_index"] == 6
         assert items[1]["character"] == "行"
         assert items[1]["pinyin"] == "háng"
+        assert items[1]["pinyin_base"] == "hang"
+        assert items[1]["tone"] == 2
+        assert items[1]["tts_pinyin"] == "hang2"
 
         # 再次 GET 验证持久化
         get_resp = client.get(
@@ -113,6 +134,31 @@ class TestSentencePolyphonesApi:
         assert get_resp.status_code == 200
         get_items = get_resp.json()["data"]["items"]
         assert len(get_items) == 2
+        assert get_items[0]["pinyin_base"] == "xing"
+        assert get_items[0]["tone"] == 2
+        assert get_items[0]["tts_pinyin"] == "xing2"
+
+    def test_save_polyphones_auto_derive_fields(self, client: TestClient) -> None:
+        """未显式传递 pinyin_base、tone、tts_pinyin 时，后端应自动根据 pinyin 解析推导。"""
+        ctx = create_test_project(client)
+        project_id = ctx["project_id"]
+        sentence_id = ctx["sentences"][0]["sentence_id"]
+
+        resp = client.put(
+            f"/api/v1/projects/{project_id}/sentences/{sentence_id}/polyphones",
+            json={
+                "annotations": [
+                    {"char_index": 1, "character": "行", "pinyin": "xíng"},
+                ]
+            },
+        )
+        assert resp.status_code == 200
+        items = resp.json()["data"]["items"]
+        assert len(items) == 1
+        assert items[0]["pinyin"] == "xíng"
+        assert items[0]["pinyin_base"] == "xing"
+        assert items[0]["tone"] == 2
+        assert items[0]["tts_pinyin"] == "xing2"
 
     def test_chapter_content_includes_polyphones(self, client: TestClient) -> None:
         """获取章节内容时，句子模型应级联返回多音字标注。"""

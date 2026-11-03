@@ -112,7 +112,25 @@ class PolyphoneAnnotation(BaseModel):
     char_index: int = Field(ge=0, description="多音字在句子中的字符偏移量（从 0 开始）")
     character: str = Field(min_length=1, max_length=1, description="被标注的汉字单字")
     pinyin: str = Field(
-        min_length=1, max_length=50, description="用户指定的拼音（如 xíng、háng 或 xing2）"
+        min_length=1,
+        max_length=50,
+        description="带声调符号的拼音（如 xíng、háng），用于 UI 渲染显示",
+    )
+    pinyin_base: str = Field(
+        default="",
+        max_length=50,
+        description="无声调纯字母拼音（如 xing、hang），未传时自动解析",
+    )
+    tone: int = Field(
+        default=0,
+        ge=0,
+        le=5,
+        description="声调数字（0: 轻声, 1~4: 一至四声），未传时自动解析",
+    )
+    tts_pinyin: str = Field(
+        default="",
+        max_length=50,
+        description="带数字声调的 TTS 语音引擎拼音（如 xing2、hang2），未传时自动解析",
     )
 
 
@@ -123,7 +141,10 @@ class SentencePolyphoneItem(BaseModel):
     sentence_id: str = Field(description="所属句子 ID (UUID)")
     char_index: int = Field(description="多音字在句子中的字符偏移量（从 0 开始）")
     character: str = Field(description="被标注的汉字")
-    pinyin: str = Field(description="用户指定的拼音")
+    pinyin: str = Field(description="带声调符号的拼音（如 xíng、háng），用于 UI 渲染显示")
+    pinyin_base: str = Field(description="无声调纯字母拼音（如 xing、hang）")
+    tone: int = Field(description="声调数字（0: 轻声, 1~4: 一至四声）")
+    tts_pinyin: str = Field(description="带数字声调的 TTS 语音引擎拼音（如 xing2、hang2）")
     created_at: datetime = Field(description="创建时间")
     updated_at: datetime = Field(description="最后更新时间")
 

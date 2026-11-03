@@ -114,6 +114,49 @@ def resolve_chapter_key(title: str) -> str:
     return clean_title
 
 
+PINYIN_TONE_MARKS_MAP: dict[str, tuple[str, int]] = {
+    "ā": ("a", 1), "á": ("a", 2), "ǎ": ("a", 3), "à": ("a", 4),
+    "ō": ("o", 1), "ó": ("o", 2), "ǒ": ("o", 3), "ò": ("o", 4),
+    "ē": ("e", 1), "é": ("e", 2), "ě": ("e", 3), "è": ("e", 4),
+    "ī": ("i", 1), "í": ("i", 2), "ǐ": ("i", 3), "ì": ("i", 4),
+    "ū": ("u", 1), "ú": ("u", 2), "ǔ": ("u", 3), "ù": ("u", 4),
+    "ǖ": ("v", 1), "ǘ": ("v", 2), "ǚ": ("v", 3), "ǜ": ("v", 4),
+    "ü": ("v", 0),
+}
+
+
+def parse_pinyin_elements(pinyin_str: str) -> tuple[str, int, str]:
+    """解析拼音的基准字母、声调数字与 TTS 拼音表示。
+
+    支持：
+    - 带 Unicode 声调符号（如 "xíng" -> ("xing", 2, "xing2")）
+    - 结尾带数字调号（如 "xing2" -> ("xing", 2, "xing2")）
+    - 轻声或无声调（如 "de" -> ("de", 0, "de")）
+    """
+    cleaned = pinyin_str.strip().lower()
+    if not cleaned:
+        return "", 0, ""
+
+    if cleaned[-1].isdigit() and cleaned[-1] in "012345":
+        tone_val = int(cleaned[-1])
+        base_val = cleaned[:-1]
+        tts_val = f"{base_val}{tone_val}" if tone_val > 0 else base_val
+        return base_val, tone_val, tts_val
+
+    detected_tone = 0
+    base_chars = []
+    for ch in cleaned:
+        if ch in PINYIN_TONE_MARKS_MAP:
+            base_char, t_num = PINYIN_TONE_MARKS_MAP[ch]
+            base_chars.append(base_char)
+            detected_tone = t_num
+        else:
+            base_chars.append(ch)
+
+    base_val = "".join(base_chars)
+    tts_val = f"{base_val}{detected_tone}" if detected_tone > 0 else base_val
+    return base_val, detected_tone, tts_val
+
 
 class ProjectService:
     """项目管理业务服务实现。"""
@@ -201,12 +244,22 @@ class ProjectService:
             datetime.fromisoformat(updated_at_raw) if updated_at_raw else created_at
         )
         poly_id = record.get("polyphone_id", "")
+        raw_pinyin = record.get("pinyin", "")
+        derived_base, derived_tone, derived_tts = parse_pinyin_elements(raw_pinyin)
+        pinyin_base = record.get("pinyin_base") or derived_base
+        tone_raw = record.get("tone")
+        tone = int(tone_raw) if tone_raw and tone_raw.isdigit() else derived_tone
+        tts_pinyin = record.get("tts_pinyin") or derived_tts
+
         return SentencePolyphoneInfo(
             polyphone_id=poly_id,
             sentence_id=record.get("sentence_id", ""),
             char_index=int(record.get("char_index", 0) or 0),
             character=record.get("character", ""),
-            pinyin=record.get("pinyin", ""),
+            pinyin=raw_pinyin,
+            pinyin_base=pinyin_base,
+            tone=tone,
+            tts_pinyin=tts_pinyin,
             created_at=created_at,
             updated_at=updated_at,
         )
@@ -781,13 +834,30 @@ class ProjectService:
         for ann in annotations:
             idx = int(ann.get("char_index", 0) or 0)
             char = str(ann.get("character", ""))
-            pinyin = str(ann.get("pinyin", "")).strip()
+            raw_pinyin = str(ann.get("pinyin", "")).strip()
 
-            if not pinyin:
+            if not raw_pinyin:
                 raise InvalidParameterError("拼音不能为空")
 
             if not char:
                 raise InvalidParameterError("标注字符不能为空")
+
+            derived_base, derived_tone, derived_tts = parse_pinyin_elements(raw_pinyin)
+            pinyin_base = str(ann.get("pinyin_base", "")).strip() or derived_base
+            tone_val = ann.get("tone")
+            is_unspecified_tone = (
+                tone_val is None
+                or tone_val == ""
+                or (isinstance(tone_val, int) and tone_val == 0 and derived_tone > 0)
+            )
+            if is_unspecified_tone:
+                tone = derived_tone
+            else:
+                try:
+                    tone = int(tone_val)
+                except (ValueError, TypeError):
+                    tone = derived_tone
+            tts_pinyin = str(ann.get("tts_pinyin", "")).strip() or derived_tts
 
             if idx < 0 or idx >= len(sentence_content):
                 raise InvalidParameterError(
@@ -809,7 +879,10 @@ class ProjectService:
                 "sentence_id": sentence_id,
                 "char_index": str(idx),
                 "character": char,
-                "pinyin": pinyin,
+                "pinyin": raw_pinyin,
+                "pinyin_base": pinyin_base,
+                "tone": str(tone),
+                "tts_pinyin": tts_pinyin,
                 "created_at": now_iso,
                 "updated_at": now_iso,
             })

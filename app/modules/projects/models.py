@@ -105,6 +105,9 @@ class SentencePolyphoneInfo:
     char_index: int
     character: str
     pinyin: str
+    pinyin_base: str
+    tone: int
+    tts_pinyin: str
     created_at: datetime
     updated_at: datetime
 

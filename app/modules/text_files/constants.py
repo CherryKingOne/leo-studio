@@ -107,6 +107,9 @@ NOVEL_POLYPHONES_COLUMNS: Final[list[str]] = [
     "char_index",
     "character",
     "pinyin",
+    "pinyin_base",
+    "tone",
+    "tts_pinyin",
     "created_at",
     "updated_at",
 ]

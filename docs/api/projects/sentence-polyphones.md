@@ -36,7 +36,10 @@
 | `sentence_id` | `string` | 所属句子 ID (UUID4) |
 | `char_index` | `integer` | 多音字在句子中的字符偏移量（从 0 开始） |
 | `character` | `string` | 被标注的汉字单字 |
-| `pinyin` | `string` | 用户指定的拼音（如 `xíng` 或 `xing2`） |
+| `pinyin` | `string` | 带声调符号的拼音（如 `xíng`、`háng`），用于 UI 渲染显示 |
+| `pinyin_base` | `string` | 无声调纯字母拼音（如 `xing`、`hang`） |
+| `tone` | `integer` | 声调数字（`0`: 轻声, `1`~`4`: 一至四声） |
+| `tts_pinyin` | `string` | 带数字声调的 TTS 语音引擎拼音（如 `xing2`、`hang2`） |
 | `created_at` | `string` | 创建时间 (ISO 8601) |
 | `updated_at` | `string` | 最后更新时间 (ISO 8601) |
 
@@ -54,16 +57,32 @@
     {
       "char_index": 1,
       "character": "行",
-      "pinyin": "xíng"
+      "pinyin": "xíng",
+      "pinyin_base": "xing",
+      "tone": 2,
+      "tts_pinyin": "xing2"
     },
     {
       "char_index": 6,
       "character": "行",
-      "pinyin": "háng"
+      "pinyin": "háng",
+      "pinyin_base": "hang",
+      "tone": 2,
+      "tts_pinyin": "hang2"
     }
   ]
 }
 ```
+
+### 请求字段说明
+| 字段 | 类型 | 必填 | 说明 |
+| --- | --- | --- | --- |
+| `char_index` | `integer` | **是** | 字符在句子中的下标（从 0 开始） |
+| `character` | `string` | **是** | 被标注的汉字单字 |
+| `pinyin` | `string` | **是** | 带声调符号的拼音（如 `xíng`） |
+| `pinyin_base` | `string` | 否 | 无声调纯字母拼音（如 `xing`），未传时后端自动解析推导 |
+| `tone` | `integer` | 否 | 声调数字（`0`~`4`），未传时后端自动解析推导 |
+| `tts_pinyin` | `string` | 否 | 带数字声调的 TTS 引擎拼音（如 `xing2`），未传时后端自动解析推导 |
 
 ### 校验规则
 1. `project_id` 和 `sentence_id` 必须存在且具备归属关系。
