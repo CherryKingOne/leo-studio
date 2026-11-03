@@ -3,15 +3,17 @@
 import { refresh, updateTag } from "next/cache";
 import {
   appendChapters,
+  clearSentencePolyphones,
   clearTrash,
   createProject,
   deleteProject,
   hardDeleteProject,
   renameProject,
   restoreProject,
+  saveSentencePolyphones,
 } from "@/lib/api";
 import type { ChapterAppendResult } from "@/lib/api";
-import type { ProjectSummary } from "@/lib/projects";
+import type { PolyphoneMark, ProjectSummary } from "@/lib/projects";
 
 export type MutationResult = { ok: true } | { ok: false; message: string };
 export type ClearTrashResult = { ok: true; count: number } | { ok: false; message: string };
@@ -141,4 +143,45 @@ export async function clearAllTrash(): Promise<ClearTrashResult> {
   } catch (error) {
     return failure(error);
   }
+}
+
+/**
+ * 多音字标注写完只作废服务端缓存：本地那份就是刚写进去的，
+ * 不必再 `refresh` 让浏览器丢掉已缓存的 RSC payload 重取整页。
+ */
+function invalidated(): void {
+  updateTag("projects");
+}
+
+/** 保存整句多音字标注：PUT 全量覆盖，后端会校验 char_index 与正文是否对得上 */
+export async function saveSentencePolyphonesAction(input: {
+  projectId: string;
+  sentenceId: string;
+  /** 该句正文，用来把前端 UTF-16 下标换算成后端码点下标 */
+  text: string;
+  marks: PolyphoneMark[];
+}): Promise<MutationResult> {
+  try {
+    await saveSentencePolyphones(input.projectId, input.sentenceId, input.text, input.marks);
+  } catch (error) {
+    return failure(error);
+  }
+
+  invalidated();
+  return { ok: true };
+}
+
+/** 清空整句多音字标注：DELETE */
+export async function clearSentencePolyphonesAction(input: {
+  projectId: string;
+  sentenceId: string;
+}): Promise<MutationResult> {
+  try {
+    await clearSentencePolyphones(input.projectId, input.sentenceId);
+  } catch (error) {
+    return failure(error);
+  }
+
+  invalidated();
+  return { ok: true };
 }

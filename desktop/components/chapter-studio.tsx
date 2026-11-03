@@ -10,9 +10,11 @@ import { ScriptFeed, type FeedItem } from "@/components/script-feed";
 import { StudioHeader } from "@/components/studio-header";
 import { TuningDock } from "@/components/tuning-dock";
 import { useToast } from "@/components/toast";
+import { clearSentencePolyphonesAction, saveSentencePolyphonesAction } from "@/lib/actions";
 import { playAudition } from "@/lib/audio";
 import { isHanChar } from "@/lib/polyphone";
 import {
+  isSentenceId,
   prosodyLabel,
   type CastOption,
   type ChapterStudio as StudioData,
@@ -28,6 +30,9 @@ import {
 
 /** 滚动意图：目标 DOM 元素 + 对齐方式，nonce 让重复点同一段也能再滚一次 */
 type ScrollIntent = { target: string; block: "center" | "nearest"; nonce: number };
+
+/** dock 多音字按钮的操作目标：正文里被划选的那单个汉字 */
+type PolyTarget = { paragraphId: string; index: number; char: string; reading?: string };
 
 /**
  * 上次看的是哪一栏记在模块里：从目录切章会让工作台子树重挂载，
@@ -78,7 +83,10 @@ export function ChapterStudio({
   const [keyword, setKeyword] = useState("");
   const [tuningOpen, setTuningOpen] = useState(false);
   const [scrollIntent, setScrollIntent] = useState<ScrollIntent | null>(null);
-  const [polyphones, setPolyphones] = useState(() => seedPolyphones(studio.paragraphs));
+  const [polyphones, setPolyphones] = useState(() => ({
+    ...seedPolyphones(studio.paragraphs),
+    ...studio.polyphones,
+  }));
   /** 正文里当前那段划选：多音字与语气标注都以它为操作目标，弹窗也按它定位 */
   const [selection, setSelection] = useState<TextSelection | null>(null);
   const [prosodies, setProsodies] = useState<Record<string, ProsodyMark[]>>({});
@@ -236,9 +244,11 @@ export function ChapterStudio({
   }
 
   /** 划选正好是一个汉字时，才有多音字可读 */
-  const polyTarget =
+  const polyTarget: PolyTarget | null =
     selection && selection.end === selection.start + 1 && isHanChar(selection.text)
       ? {
+          paragraphId: selection.paragraphId,
+          index: selection.start,
           char: selection.text,
           reading: polyphones[selection.paragraphId]?.find(
             (item) => item.index === selection.start,
@@ -253,10 +263,13 @@ export function ChapterStudio({
       )
     : undefined;
 
-  /** 划选或点标注：记下这段区间，正文给它铺底色，两个弹窗都以它为目标 */
-  function selectText(paragraphId: string, start: number, end: number) {
+  /**
+   * 划选或点标注：记下这段区间，正文给它铺底色，两个弹窗都以它为目标。
+   * `target` 只有点正文里已标注那个字时才有，直接把读音弹窗开在它下面，不用再回 dock 按一次。
+   */
+  function selectText(paragraphId: string, start: number, end: number, target?: HTMLElement) {
     setSelection({ paragraphId, start, end, text: byId.get(paragraphId)?.text.slice(start, end) ?? "" });
-    setPolyAnchor(null);
+    setPolyAnchor(target ? anchorOf(target) : null);
     setProsodyAnchor(null);
   }
 
@@ -282,19 +295,86 @@ export function ChapterStudio({
     if (!anchor) show("请先划选要标注的文字", "warn");
   }
 
+  /**
+   * 标注先改本地再整句同步后端：PUT 是全量覆盖，所以一次发该句的全部标注，
+   * 列表空了就改走 DELETE。失败退回改动前的那份，界面不会和落库数据两套。
+   */
+  async function syncPolyphones(
+    sentenceId: string,
+    next: PolyphoneMark[],
+    previous: PolyphoneMark[],
+    success: string,
+  ) {
+    // 原型剧目的段落 id 不是后端句子 id，没有可写的数据源
+    if (!isSentenceId(sentenceId)) {
+      show(success, "success");
+      return;
+    }
+
+    const result = next.length
+      ? await saveSentencePolyphonesAction({
+          projectId: project.id,
+          sentenceId,
+          text: byId.get(sentenceId)?.text ?? "",
+          marks: next,
+        })
+      : await clearSentencePolyphonesAction({ projectId: project.id, sentenceId });
+
+    if (!result.ok) {
+      // 只退回这一句的标注，别把同期改动的其它句子一起抹掉
+      setPolyphones((prev) => ({ ...prev, [sentenceId]: previous }));
+      show(`标注未保存：${result.message}`, "warn");
+      return;
+    }
+    show(success, "success");
+  }
+
   function applyReading(reading: string) {
-    if (!selection || !polyTarget) return;
-    const { paragraphId, start, text: char } = selection;
-    setPolyphones((prev) => ({
-      ...prev,
-      [paragraphId]: [
-        ...(prev[paragraphId] ?? []).filter((item) => item.index !== start),
-        { index: start, char, reading },
-      ].sort((a, b) => a.index - b.index),
-    }));
+    if (!polyTarget) return;
+    const { paragraphId, index, char } = polyTarget;
+    const previous = polyphones[paragraphId] ?? [];
+    const next: PolyphoneMark[] = [
+      ...previous.filter((item) => item.index !== index),
+      { index, char, reading },
+    ].sort((a, b) => a.index - b.index);
+
+    setPolyphones((prev) => ({ ...prev, [paragraphId]: next }));
     setPolyAnchor(null);
     setSelection(null);
-    show(`已把「${char}」标注为 ${reading}，本段重新合成时生效`, "success");
+    void syncPolyphones(
+      paragraphId,
+      next,
+      previous,
+      `已把「${char}」标注为 ${reading}，本段重新合成时生效`,
+    );
+  }
+
+  function removeReading(paragraphId: string, index: number, char: string) {
+    const previous = polyphones[paragraphId] ?? [];
+    const next = previous.filter((item) => item.index !== index);
+
+    setPolyphones((prev) => ({ ...prev, [paragraphId]: next }));
+    setPolyAnchor(null);
+    setSelection(null);
+    void syncPolyphones(paragraphId, next, previous, `已移除「${char}」的注音`);
+  }
+
+  function clearSentenceReadings(target: PolyTarget) {
+    const previous = polyphones[target.paragraphId] ?? [];
+
+    setPolyphones((prev) => {
+      const next = { ...prev };
+      delete next[target.paragraphId];
+      return next;
+    });
+    setPolyAnchor(null);
+    setSelection(null);
+    void syncPolyphones(
+      target.paragraphId,
+      [],
+      previous,
+      `已清空本句 ${previous.length} 处注音，本段重新合成时生效`,
+    );
   }
 
   function applyProsody(kind: ProsodyKind) {
@@ -377,6 +457,9 @@ export function ChapterStudio({
               onReassign={reassign}
               onAudition={audition}
               onSelectText={selectText}
+              onRemovePolyphone={(paragraphId, mark) =>
+                removeReading(paragraphId, mark.index, mark.char)
+              }
             />
           </div>
         </main>
@@ -399,6 +482,16 @@ export function ChapterStudio({
             current={polyTarget.reading}
             anchor={polyAnchor}
             onPick={applyReading}
+            onRemove={
+              polyTarget.reading
+                ? () => removeReading(polyTarget.paragraphId, polyTarget.index, polyTarget.char)
+                : undefined
+            }
+            onClear={
+              polyphones[polyTarget.paragraphId]?.length
+                ? () => clearSentenceReadings(polyTarget)
+                : undefined
+            }
             onClose={() => setPolyAnchor(null)}
           />
         )}

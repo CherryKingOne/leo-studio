@@ -19,6 +19,7 @@ from app.modules.projects.models import (
     ChapterOutlineInfo,
     ProjectChapterAppendInfo,
     ProjectInfo,
+    SentencePolyphoneInfo,
 )
 from app.modules.projects.schemas import (
     ChapterConflictItem,
@@ -35,6 +36,10 @@ from app.modules.projects.schemas import (
     ProjectResponse,
     ProjectRestoreResponse,
     ProjectUpdateRequest,
+    SentencePolyphoneDeleteResponse,
+    SentencePolyphoneItem,
+    SentencePolyphoneListResponse,
+    SentencePolyphoneSaveRequest,
 )
 from app.modules.projects.service import ProjectService
 from app.modules.text_files.dependencies import get_storage_service
@@ -52,6 +57,11 @@ ProjectIdPath = Annotated[
 ChapterIdPath = Annotated[
     str,
     Path(description="章节唯一标识，UUID (UUID4)"),
+]
+
+SentenceIdPath = Annotated[
+    str,
+    Path(description="句子唯一标识，UUID (UUID4)"),
 ]
 
 
@@ -107,6 +117,22 @@ def to_chapter_outline_item(info: ChapterOutlineInfo) -> ChapterOutlineItem:
     )
 
 
+def to_sentence_polyphone_item(info: SentencePolyphoneInfo) -> SentencePolyphoneItem:
+    """将领域模型转换为多音字标注响应项 Schema。"""
+    return SentencePolyphoneItem(
+        polyphone_id=info.polyphone_id,
+        sentence_id=info.sentence_id,
+        char_index=info.char_index,
+        character=info.character,
+        pinyin=info.pinyin,
+        pinyin_base=info.pinyin_base,
+        tone=info.tone,
+        tts_pinyin=info.tts_pinyin,
+        created_at=info.created_at,
+        updated_at=info.updated_at,
+    )
+
+
 def to_chapter_content_response(info: ChapterContentInfo) -> ChapterContentResponse:
     """将领域模型转换为章节详细内容响应 Schema。"""
     return ChapterContentResponse(
@@ -123,6 +149,7 @@ def to_chapter_content_response(info: ChapterContentInfo) -> ChapterContentRespo
                 sentence_index=s.sentence_index,
                 content=s.content,
                 word_count=s.word_count,
+                polyphones=[to_sentence_polyphone_item(p) for p in s.polyphones],
             )
             for s in info.sentences
         ],
@@ -474,6 +501,76 @@ async def append_project_chapters(
     return ApiResponse(
         data=to_chapter_append_response(info),
         message=msg,
+    )
+
+
+@router.get(
+    "/{project_id}/sentences/{sentence_id}/polyphones",
+    response_model=ApiResponse[SentencePolyphoneListResponse],
+    summary="查询句子多音字标注列表",
+    description="获取指定句子下的所有多音字标注，按字符偏移量升序排列。",
+)
+async def get_sentence_polyphones(
+    project_id: ProjectIdPath,
+    sentence_id: SentenceIdPath,
+    service: ProjectService = Depends(resolve_project_service),
+) -> ApiResponse[SentencePolyphoneListResponse]:
+    """查询指定句子的多音字标注列表。"""
+    items = service.get_sentence_polyphones(project_id, sentence_id)
+    return ApiResponse(
+        data=SentencePolyphoneListResponse(
+            sentence_id=sentence_id,
+            total=len(items),
+            items=[to_sentence_polyphone_item(item) for item in items],
+        )
+    )
+
+
+@router.put(
+    "/{project_id}/sentences/{sentence_id}/polyphones",
+    response_model=ApiResponse[SentencePolyphoneListResponse],
+    summary="保存句子多音字标注（全量覆盖）",
+    description="全量覆盖保存指定句子的多音字标注，会替换该句子下所有现有标注。",
+)
+async def save_sentence_polyphones(
+    project_id: ProjectIdPath,
+    sentence_id: SentenceIdPath,
+    payload: SentencePolyphoneSaveRequest,
+    service: ProjectService = Depends(resolve_project_service),
+) -> ApiResponse[SentencePolyphoneListResponse]:
+    """全量覆盖保存句子的多音字标注。"""
+    annotations_dict = [ann.model_dump() for ann in payload.annotations]
+    items = service.save_sentence_polyphones(project_id, sentence_id, annotations_dict)
+    return ApiResponse(
+        data=SentencePolyphoneListResponse(
+            sentence_id=sentence_id,
+            total=len(items),
+            items=[to_sentence_polyphone_item(item) for item in items],
+        ),
+        message="多音字标注保存成功",
+    )
+
+
+@router.delete(
+    "/{project_id}/sentences/{sentence_id}/polyphones",
+    response_model=ApiResponse[SentencePolyphoneDeleteResponse],
+    summary="清空句子多音字标注",
+    description="删除指定句子下的所有多音字标注数据。",
+)
+async def delete_sentence_polyphones(
+    project_id: ProjectIdPath,
+    sentence_id: SentenceIdPath,
+    service: ProjectService = Depends(resolve_project_service),
+) -> ApiResponse[SentencePolyphoneDeleteResponse]:
+    """删除指定句子的所有多音字标注。"""
+    deleted_count = service.delete_sentence_polyphones(project_id, sentence_id)
+    return ApiResponse(
+        data=SentencePolyphoneDeleteResponse(
+            sentence_id=sentence_id,
+            deleted_count=deleted_count,
+            deleted=True,
+        ),
+        message=f"已成功清空多音字标注，共删除 {deleted_count} 条",
     )
 
 

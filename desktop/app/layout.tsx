@@ -9,7 +9,9 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    <html lang="zh-CN" className={`dark ${inkScrollbar}`}>
+    // 翻译类浏览器插件会在水合前给 <html> 塞属性（如 data-immersive-translate-page-theme），
+    // 只对这个元素关水合告警，属性差异本身不影响应用状态
+    <html lang="zh-CN" className={`dark ${inkScrollbar}`} suppressHydrationWarning>
       <body className="min-h-screen bg-ink-900 font-sans text-white/70 antialiased selection:bg-accent/30 selection:text-white">
         {children}
       </body>

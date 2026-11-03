@@ -106,6 +106,84 @@ class ChapterOutlineListResponse(BaseModel):
     )
 
 
+class PolyphoneAnnotation(BaseModel):
+    """单个多音字标注项（用于保存请求）。"""
+
+    char_index: int = Field(ge=0, description="多音字在句子中的字符偏移量（从 0 开始）")
+    character: str = Field(min_length=1, max_length=1, description="被标注的汉字单字")
+    pinyin: str = Field(
+        min_length=1,
+        max_length=50,
+        description="带声调符号的拼音（如 xíng、háng），用于 UI 渲染显示",
+    )
+    pinyin_base: str = Field(
+        default="",
+        max_length=50,
+        description="无声调纯字母拼音（如 xing、hang），未传时自动解析",
+    )
+    tone: int | None = Field(
+        default=None,
+        ge=0,
+        le=5,
+        description=(
+            "声调/重音数字。中文声调：1（阴平）、2（阳平）、3（上声）、4（去声）、5（轻声）；"
+            "英文 CMUDict 元音重音：0（无重音）、1（主重音）、2（次重音）。未传时自动解析"
+        ),
+    )
+    tts_pinyin: str = Field(
+        default="",
+        max_length=50,
+        description="带数字声调的 TTS 语音引擎拼音（如 xing2、hang2），未传时自动解析",
+    )
+
+
+class SentencePolyphoneItem(BaseModel):
+    """多音字标注响应项。"""
+
+    polyphone_id: str = Field(description="多音字标注唯一标识 (UUID)")
+    sentence_id: str = Field(description="所属句子 ID (UUID)")
+    char_index: int = Field(description="多音字在句子中的字符偏移量（从 0 开始）")
+    character: str = Field(description="被标注的汉字")
+    pinyin: str = Field(description="带声调符号的拼音（如 xíng、háng），用于 UI 渲染显示")
+    pinyin_base: str = Field(description="无声调纯字母拼音（如 xing、hang）")
+    tone: int = Field(
+        description=(
+            "声调/重音数字。中文声调：1（阴平）、2（阳平）、3（上声）、4（去声）、5（轻声）；"
+            "英文 CMUDict 元音重音：0（无重音）、1（主重音）、2（次重音）"
+        )
+    )
+    tts_pinyin: str = Field(description="带数字声调的 TTS 语音引擎拼音（如 xing2、hang2）")
+    created_at: datetime = Field(description="创建时间")
+    updated_at: datetime = Field(description="最后更新时间")
+
+
+class SentencePolyphoneSaveRequest(BaseModel):
+    """保存句子多音字标注请求体（全量覆盖式）。"""
+
+    annotations: list[PolyphoneAnnotation] = Field(
+        default_factory=list,
+        description="该句子的多音字标注列表（会全量替换该句子下所有现有标注）",
+    )
+
+
+class SentencePolyphoneListResponse(BaseModel):
+    """句子多音字标注列表响应。"""
+
+    sentence_id: str = Field(description="所属句子 ID (UUID)")
+    total: int = Field(description="标注总数")
+    items: list[SentencePolyphoneItem] = Field(
+        default_factory=list, description="多音字标注列表"
+    )
+
+
+class SentencePolyphoneDeleteResponse(BaseModel):
+    """删除句子多音字标注响应。"""
+
+    sentence_id: str = Field(description="所属句子 ID (UUID)")
+    deleted_count: int = Field(description="被删除的标注数量")
+    deleted: bool = Field(default=True, description="是否删除成功")
+
+
 class ChapterSentenceItem(BaseModel):
     """章节切句项。"""
 
@@ -113,6 +191,9 @@ class ChapterSentenceItem(BaseModel):
     sentence_index: int = Field(description="句子在章节内的行索引（从 0 开始）")
     content: str = Field(description="句子正文内容")
     word_count: int = Field(default=0, description="句子字数")
+    polyphones: list[SentencePolyphoneItem] = Field(
+        default_factory=list, description="该句子的多音字标注列表"
+    )
 
 
 class ChapterContentResponse(BaseModel):

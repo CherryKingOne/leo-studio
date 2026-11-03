@@ -19,6 +19,8 @@ export function PolyphonePopover({
   current,
   anchor,
   onPick,
+  onRemove,
+  onClear,
   onClose,
 }: {
   char: string;
@@ -26,6 +28,10 @@ export function PolyphonePopover({
   current?: string;
   anchor: AnchorRect;
   onPick: (reading: string) => void;
+  /** 本字已有注音时给「移除」，对应只留其余标注的那次覆盖保存 */
+  onRemove?: () => void;
+  /** 本句已有注音时给「清空」，对应 DELETE 整句标注 */
+  onClear?: () => void;
   onClose: () => void;
 }) {
   const card = useRef<HTMLDivElement>(null);
@@ -87,6 +93,21 @@ export function PolyphonePopover({
           </button>
         )}
       </div>
+
+      {(onRemove || onClear) && (
+        <div className="mt-2.5 flex items-center gap-3 border-t border-hairline px-0.5 pt-2.5 text-[11.5px] text-white/40">
+          {onRemove && (
+            <button type="button" onClick={onRemove} className="transition-colors hover:text-white">
+              移除本字注音
+            </button>
+          )}
+          {onClear && (
+            <button type="button" onClick={onClear} className="transition-colors hover:text-white">
+              清空本句注音
+            </button>
+          )}
+        </div>
+      )}
     </div>
   );
 }
