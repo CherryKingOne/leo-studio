@@ -5,7 +5,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime
 from enum import StrEnum
 
@@ -52,6 +52,7 @@ class ChapterSentenceInfo:
     sentence_index: int
     content: str
     word_count: int
+    polyphones: list[SentencePolyphoneInfo] = field(default_factory=list)
 
 
 @dataclass(slots=True)
@@ -92,6 +93,19 @@ class ProjectChapterAppendInfo:
     total_words: int
     has_conflicts: bool
     conflicts: list[ChapterConflictInfo]
+    updated_at: datetime
+
+
+@dataclass(slots=True)
+class SentencePolyphoneInfo:
+    """句子多音字标注数据。"""
+
+    polyphone_id: str
+    sentence_id: str
+    char_index: int
+    character: str
+    pinyin: str
+    created_at: datetime
     updated_at: datetime
 
 

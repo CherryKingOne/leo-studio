@@ -49,6 +49,7 @@
 | `sentence_index` | `integer` | 章节内行级索引，从 0 开始自增 |
 | `content` | `string` | 句子正文内容 |
 | `word_count` | `integer` | 句子字数（非空白字符） |
+| `polyphones` | `SentencePolyphoneItem[]` | 句子多音字标注列表（按 `char_index` 排序） |
 
 ## 成功示例
 

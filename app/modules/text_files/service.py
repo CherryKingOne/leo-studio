@@ -24,6 +24,7 @@ from app.modules.text_files.config import TextFilesSettings, get_text_files_sett
 from app.modules.text_files.constants import (
     EXTENSION_MIME_MAP,
     NOVEL_CONTENTS_COLUMNS,
+    NOVEL_POLYPHONES_COLUMNS,
     NOVEL_SENTENCES_COLUMNS,
     NOVELS_COLUMNS,
 )
@@ -80,6 +81,10 @@ class TextFileStorageService:
         self.sentences_table = CsvTable(
             self.csv_dir / self.settings.novel_sentences_csv_filename,
             columns=NOVEL_SENTENCES_COLUMNS,
+        )
+        self.polyphones_table = CsvTable(
+            self.csv_dir / self.settings.novel_polyphones_csv_filename,
+            columns=NOVEL_POLYPHONES_COLUMNS,
         )
         self.processor = NovelDataProcessor(
             sentences_table=self.sentences_table,
@@ -362,6 +367,9 @@ class TextFileStorageService:
 
         self.novels_table.delete_by("novel_id", file_id)
         self.contents_table.delete_by("novel_id", file_id)
+        # 级联删除关联的多音字标注数据（须在删除切句之前查询 sentence_id）
+        for sentence_row in self.sentences_table.find_all(lambda r: r.get("novel_id") == file_id):
+            self.polyphones_table.delete_by("sentence_id", sentence_row.get("sentence_id", ""))
         self.sentences_table.delete_by("novel_id", file_id)
         return info
 
@@ -441,6 +449,7 @@ class TextFileStorageService:
         self.novels_table.clear()
         self.contents_table.clear()
         self.sentences_table.clear()
+        self.polyphones_table.clear()
 
     def iter_stored_names(self) -> Iterable[str]:
         """迭代所有已存储文件名。"""

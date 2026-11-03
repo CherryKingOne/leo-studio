@@ -11,7 +11,7 @@ import re
 import uuid
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import BinaryIO
+from typing import Any, BinaryIO
 
 from app.modules.projects.constants import (
     PROJECTS_COLUMNS,
@@ -25,6 +25,10 @@ from app.modules.projects.models import (
     ProjectChapterAppendInfo,
     ProjectInfo,
     ProjectStatus,
+    SentencePolyphoneInfo,
+)
+from app.modules.text_files.constants import (
+    NOVEL_POLYPHONES_COLUMNS,
 )
 from app.modules.text_files.csv_store import CsvTable
 from app.modules.text_files.dependencies import get_storage_service
@@ -122,8 +126,13 @@ class ProjectService:
         self.storage = storage_service or get_storage_service()
         if csv_dir is not None:
             self.csv_dir = Path(csv_dir)
+            self.polyphones_table = CsvTable(
+                self.csv_dir / self.storage.settings.novel_polyphones_csv_filename,
+                columns=NOVEL_POLYPHONES_COLUMNS,
+            )
         else:
             self.csv_dir = self.storage.csv_dir
+            self.polyphones_table = self.storage.polyphones_table
         self.csv_dir.mkdir(parents=True, exist_ok=True)
 
         self.projects_table = CsvTable(
@@ -179,6 +188,27 @@ class ProjectService:
             updated_at=updated_at,
             is_deleted=is_deleted,
             deleted_at=deleted_at,
+        )
+
+    def record_to_polyphone_info(self, record: dict[str, str]) -> SentencePolyphoneInfo:
+        """将 CSV 记录转换为 SentencePolyphoneInfo 领域模型。"""
+        created_at_raw = record.get("created_at")
+        updated_at_raw = record.get("updated_at")
+        created_at = (
+            datetime.fromisoformat(created_at_raw) if created_at_raw else datetime.now(UTC)
+        )
+        updated_at = (
+            datetime.fromisoformat(updated_at_raw) if updated_at_raw else created_at
+        )
+        poly_id = record.get("polyphone_id", "")
+        return SentencePolyphoneInfo(
+            polyphone_id=poly_id,
+            sentence_id=record.get("sentence_id", ""),
+            char_index=int(record.get("char_index", 0) or 0),
+            character=record.get("character", ""),
+            pinyin=record.get("pinyin", ""),
+            created_at=created_at,
+            updated_at=updated_at,
         )
 
     def create_project(
@@ -420,12 +450,24 @@ class ProjectService:
             raise FileNotFoundError(f"章节不存在：{chapter_id}")
 
         sentence_rows = self.storage.get_chapter_sentences(chapter_id)
+        sentence_ids = {s.get("sentence_id", "") for s in sentence_rows}
+        polyphone_rows = self.polyphones_table.find_all(
+            lambda r: r.get("sentence_id") in sentence_ids
+        )
+        polyphones_map: dict[str, list[SentencePolyphoneInfo]] = {}
+        for r in polyphone_rows:
+            p_info = self.record_to_polyphone_info(r)
+            polyphones_map.setdefault(p_info.sentence_id, []).append(p_info)
+        for p_list in polyphones_map.values():
+            p_list.sort(key=lambda x: x.char_index)
+
         sentences = [
             ChapterSentenceInfo(
                 sentence_id=s.get("sentence_id", ""),
                 sentence_index=int(s.get("sentence_index", 0) or 0),
                 content=s.get("content", ""),
                 word_count=int(s.get("word_count", 0) or 0),
+                polyphones=polyphones_map.get(s.get("sentence_id", ""), []),
             )
             for s in sentence_rows
         ]
@@ -603,7 +645,12 @@ class ProjectService:
                             "word_count": str(w_count),
                         },
                     )
-                    # 清理并重写切句
+                    # 清理并重写切句（同步清理原切句的多音字标注）
+                    old_sentence_rows = self.storage.sentences_table.find_all(
+                        lambda r, target_id=old_ch_id: r.get("chapter_id") == target_id
+                    )
+                    for sr in old_sentence_rows:
+                        self.polyphones_table.delete_by("sentence_id", sr.get("sentence_id", ""))
                     self.storage.sentences_table.delete_by("chapter_id", old_ch_id)
                     if ch_content:
                         overwritten_sentences = (
@@ -690,6 +737,106 @@ class ProjectService:
             conflicts=conflicts,
             updated_at=now,
         )
+
+    def get_sentence_polyphones(
+        self, project_id: str, sentence_id: str
+    ) -> list[SentencePolyphoneInfo]:
+        """获取指定句子的所有多音字标注，按字符偏移量升序排列。"""
+        project = self.get_project(project_id)
+        sentence_row = self.storage.sentences_table.find_by("sentence_id", sentence_id)
+        if sentence_row is None or sentence_row.get("novel_id") != project.file_id:
+            raise FileNotFoundError(f"句子不存在：{sentence_id}")
+
+        rows = self.polyphones_table.find_all(lambda r: r.get("sentence_id") == sentence_id)
+        items = [self.record_to_polyphone_info(r) for r in rows]
+        items.sort(key=lambda x: x.char_index)
+        return items
+
+    def save_sentence_polyphones(
+        self,
+        project_id: str,
+        sentence_id: str,
+        annotations: list[dict[str, Any]],
+    ) -> list[SentencePolyphoneInfo]:
+        """全量覆盖保存句子的多音字标注。
+
+        校验规则：
+        1. 项目与句子存在且具有归属关系；
+        2. 字符偏移量 char_index 不能超出句子内容长度范围；
+        3. 同一句子内的 char_index 不得重复；
+        4. char_index 位置的字符必须与提交的 character 一致；
+        5. pinyin 不能为空。
+        """
+        project = self.get_project(project_id)
+        sentence_row = self.storage.sentences_table.find_by("sentence_id", sentence_id)
+        if sentence_row is None or sentence_row.get("novel_id") != project.file_id:
+            raise FileNotFoundError(f"句子不存在：{sentence_id}")
+
+        sentence_content = sentence_row.get("content", "")
+        seen_indices: set[int] = set()
+        now = datetime.now(UTC)
+        now_iso = now.isoformat()
+        records: list[dict[str, str]] = []
+
+        for ann in annotations:
+            idx = int(ann.get("char_index", 0) or 0)
+            char = str(ann.get("character", ""))
+            pinyin = str(ann.get("pinyin", "")).strip()
+
+            if not pinyin:
+                raise InvalidParameterError("拼音不能为空")
+
+            if not char:
+                raise InvalidParameterError("标注字符不能为空")
+
+            if idx < 0 or idx >= len(sentence_content):
+                raise InvalidParameterError(
+                    f"字符偏移量 char_index={idx} 超出句子长度范围 (0~{len(sentence_content) - 1})"
+                )
+
+            if idx in seen_indices:
+                raise InvalidParameterError(f"字符偏移量 char_index={idx} 重复")
+            seen_indices.add(idx)
+
+            actual_char = sentence_content[idx]
+            if actual_char != char:
+                raise InvalidParameterError(
+                    f"char_index={idx} 位置的实际字符为 '{actual_char}'，与标注字符 '{char}' 不匹配"
+                )
+
+            records.append({
+                "polyphone_id": uuid.uuid4().hex,
+                "sentence_id": sentence_id,
+                "char_index": str(idx),
+                "character": char,
+                "pinyin": pinyin,
+                "created_at": now_iso,
+                "updated_at": now_iso,
+            })
+
+        # 全量覆盖：先清理该句旧标注，再批量写入新标注
+        self.polyphones_table.delete_by("sentence_id", sentence_id)
+        if records:
+            self.polyphones_table.insert_batch(records)
+
+        result = [self.record_to_polyphone_info(r) for r in records]
+        result.sort(key=lambda x: x.char_index)
+        return result
+
+    def delete_sentence_polyphones(
+        self, project_id: str, sentence_id: str
+    ) -> int:
+        """删除指定句子的所有多音字标注，返回被删除的标注数量。"""
+        project = self.get_project(project_id)
+        sentence_row = self.storage.sentences_table.find_by("sentence_id", sentence_id)
+        if sentence_row is None or sentence_row.get("novel_id") != project.file_id:
+            raise FileNotFoundError(f"句子不存在：{sentence_id}")
+
+        existing = self.polyphones_table.find_all(lambda r: r.get("sentence_id") == sentence_id)
+        deleted_count = len(existing)
+        if deleted_count > 0:
+            self.polyphones_table.delete_by("sentence_id", sentence_id)
+        return deleted_count
 
 
 

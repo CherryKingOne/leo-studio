@@ -66,6 +66,9 @@ NOVEL_CONTENTS_CSV_FILENAME: Final[str] = "novel_contents.csv"
 #: 小说章节切句表文件名
 NOVEL_SENTENCES_CSV_FILENAME: Final[str] = "novel_sentences.csv"
 
+#: 小说多音字表文件名（对应 小说_多音字.csv）
+NOVEL_POLYPHONES_CSV_FILENAME: Final[str] = "novel_polyphones.csv"
+
 #: 小说元信息表表头字段（纯小说元信息，包含格式 format，不含 author、genre、avg_words_per_chapter 及底层存储技术字段）
 NOVELS_COLUMNS: Final[list[str]] = [
     "novel_id",
@@ -95,6 +98,17 @@ NOVEL_SENTENCES_COLUMNS: Final[list[str]] = [
     "sentence_index",
     "content",
     "word_count",
+]
+
+#: 小说多音字表表头字段（通过 sentence_id 关联到 novel_sentences）
+NOVEL_POLYPHONES_COLUMNS: Final[list[str]] = [
+    "polyphone_id",
+    "sentence_id",
+    "char_index",
+    "character",
+    "pinyin",
+    "created_at",
+    "updated_at",
 ]
 
 #: 文本文件内置白名单，可通过环境变量 LEO_TEXT_FILES_ALLOWED_EXTENSIONS 覆盖。
