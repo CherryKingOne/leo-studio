@@ -121,11 +121,14 @@ class PolyphoneAnnotation(BaseModel):
         max_length=50,
         description="无声调纯字母拼音（如 xing、hang），未传时自动解析",
     )
-    tone: int = Field(
-        default=0,
+    tone: int | None = Field(
+        default=None,
         ge=0,
         le=5,
-        description="声调数字（0: 轻声, 1~4: 一至四声），未传时自动解析",
+        description=(
+            "声调/重音数字。中文声调：1（阴平）、2（阳平）、3（上声）、4（去声）、5（轻声）；"
+            "英文 CMUDict 元音重音：0（无重音）、1（主重音）、2（次重音）。未传时自动解析"
+        ),
     )
     tts_pinyin: str = Field(
         default="",
@@ -143,7 +146,12 @@ class SentencePolyphoneItem(BaseModel):
     character: str = Field(description="被标注的汉字")
     pinyin: str = Field(description="带声调符号的拼音（如 xíng、háng），用于 UI 渲染显示")
     pinyin_base: str = Field(description="无声调纯字母拼音（如 xing、hang）")
-    tone: int = Field(description="声调数字（0: 轻声, 1~4: 一至四声）")
+    tone: int = Field(
+        description=(
+            "声调/重音数字。中文声调：1（阴平）、2（阳平）、3（上声）、4（去声）、5（轻声）；"
+            "英文 CMUDict 元音重音：0（无重音）、1（主重音）、2（次重音）"
+        )
+    )
     tts_pinyin: str = Field(description="带数字声调的 TTS 语音引擎拼音（如 xing2、hang2）")
     created_at: datetime = Field(description="创建时间")
     updated_at: datetime = Field(description="最后更新时间")

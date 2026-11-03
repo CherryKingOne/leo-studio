@@ -92,13 +92,15 @@ print(f"句子总数: {len(data['sentences'])}")
         "sentence_id": "e3f4a5b6c7d8e9f0a1b2c3d4e5f6a7b8",
         "sentence_index": 0,
         "content": "痛！好痛！头好痛！狂暴的剧痛如同一柄烧红的钢铁长矛，狠狠刺入了脑海深处。",
-        "word_count": 38
+        "word_count": 38,
+        "polyphones": []
       },
       {
         "sentence_id": "f4a5b6c7d8e9f0a1b2c3d4e5f6a7b8c9",
         "sentence_index": 1,
         "content": "窗外绯红的月光正如同粘稠的血液般，静静淌在粗糙的木制书桌上。",
-        "word_count": 30
+        "word_count": 30,
+        "polyphones": []
       }
     ]
   },

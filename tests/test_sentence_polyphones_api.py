@@ -149,16 +149,69 @@ class TestSentencePolyphonesApi:
             json={
                 "annotations": [
                     {"char_index": 1, "character": "行", "pinyin": "xíng"},
+                    {"char_index": 8, "character": "子", "pinyin": "zi"},
+                ]
+            },
+        )
+        assert resp.status_code == 200
+        items = resp.json()["data"]["items"]
+        assert len(items) == 2
+        # 二声（阳平）
+        assert items[0]["char_index"] == 1
+        assert items[0]["pinyin"] == "xíng"
+        assert items[0]["pinyin_base"] == "xing"
+        assert items[0]["tone"] == 2
+        assert items[0]["tts_pinyin"] == "xing2"
+        # 无声调标记默认为 5（轻声）
+        assert items[1]["char_index"] == 8
+        assert items[1]["character"] == "子"
+        assert items[1]["pinyin"] == "zi"
+        assert items[1]["pinyin_base"] == "zi"
+        assert items[1]["tone"] == 5
+        assert items[1]["tts_pinyin"] == "zi5"
+
+    def test_tone_mapping_and_cmudict_stress(self, client: TestClient) -> None:
+        """测试中文声调 1~5 与英文 CMUDict 元音重音 0~2。"""
+        from app.modules.projects.service import parse_pinyin_elements
+
+        # 中文 1（阴平）、2（阳平）、3（上声）、4（去声）、5（轻声）
+        assert parse_pinyin_elements("mā") == ("ma", 1, "ma1")
+        assert parse_pinyin_elements("má") == ("ma", 2, "ma2")
+        assert parse_pinyin_elements("mǎ") == ("ma", 3, "ma3")
+        assert parse_pinyin_elements("mà") == ("ma", 4, "ma4")
+        assert parse_pinyin_elements("ma") == ("ma", 5, "ma5")
+        assert parse_pinyin_elements("ma5") == ("ma", 5, "ma5")
+
+        # 英文 CMUDict 元音重音：0（无重音）、1（主重音）、2（次重音）
+        assert parse_pinyin_elements("ah0") == ("ah", 0, "ah0")
+        assert parse_pinyin_elements("ah1") == ("ah", 1, "ah1")
+        assert parse_pinyin_elements("ah2") == ("ah", 2, "ah2")
+
+        # API 层面验证显式 tone=0（无重音）能够被正确持久化与返回
+        ctx = create_test_project(client)
+        project_id = ctx["project_id"]
+        sentence_id = ctx["sentences"][0]["sentence_id"]
+
+        resp = client.put(
+            f"/api/v1/projects/{project_id}/sentences/{sentence_id}/polyphones",
+            json={
+                "annotations": [
+                    {
+                        "char_index": 2,
+                        "character": "道",
+                        "pinyin": "ah0",
+                        "pinyin_base": "ah",
+                        "tone": 0,
+                        "tts_pinyin": "ah0",
+                    }
                 ]
             },
         )
         assert resp.status_code == 200
         items = resp.json()["data"]["items"]
         assert len(items) == 1
-        assert items[0]["pinyin"] == "xíng"
-        assert items[0]["pinyin_base"] == "xing"
-        assert items[0]["tone"] == 2
-        assert items[0]["tts_pinyin"] == "xing2"
+        assert items[0]["tone"] == 0
+        assert items[0]["tts_pinyin"] == "ah0"
 
     def test_chapter_content_includes_polyphones(self, client: TestClient) -> None:
         """获取章节内容时，句子模型应级联返回多音字标注。"""

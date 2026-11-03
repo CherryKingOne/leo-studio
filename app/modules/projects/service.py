@@ -121,26 +121,30 @@ PINYIN_TONE_MARKS_MAP: dict[str, tuple[str, int]] = {
     "ī": ("i", 1), "í": ("i", 2), "ǐ": ("i", 3), "ì": ("i", 4),
     "ū": ("u", 1), "ú": ("u", 2), "ǔ": ("u", 3), "ù": ("u", 4),
     "ǖ": ("v", 1), "ǘ": ("v", 2), "ǚ": ("v", 3), "ǜ": ("v", 4),
-    "ü": ("v", 0),
+    "ü": ("v", 5),
 }
 
 
 def parse_pinyin_elements(pinyin_str: str) -> tuple[str, int, str]:
     """解析拼音的基准字母、声调数字与 TTS 拼音表示。
 
+    声调与重音规则：
+    - 中文声调：1（阴平）、2（阳平）、3（上声）、4（去声）、5（轻声）
+    - 英文 CMUDict 元音重音：0（无重音）、1（主重音）、2（次重音）
+
     支持：
+    - 结尾带数字调号（如 "xing2" -> ("xing", 2, "xing2")，"ah0" -> ("ah", 0, "ah0")）
     - 带 Unicode 声调符号（如 "xíng" -> ("xing", 2, "xing2")）
-    - 结尾带数字调号（如 "xing2" -> ("xing", 2, "xing2")）
-    - 轻声或无声调（如 "de" -> ("de", 0, "de")）
+    - 无调号/轻声（如 "de" -> ("de", 5, "de5")）
     """
     cleaned = pinyin_str.strip().lower()
     if not cleaned:
-        return "", 0, ""
+        return "", 5, ""
 
     if cleaned[-1].isdigit() and cleaned[-1] in "012345":
         tone_val = int(cleaned[-1])
         base_val = cleaned[:-1]
-        tts_val = f"{base_val}{tone_val}" if tone_val > 0 else base_val
+        tts_val = f"{base_val}{tone_val}"
         return base_val, tone_val, tts_val
 
     detected_tone = 0
@@ -154,7 +158,11 @@ def parse_pinyin_elements(pinyin_str: str) -> tuple[str, int, str]:
             base_chars.append(ch)
 
     base_val = "".join(base_chars)
-    tts_val = f"{base_val}{detected_tone}" if detected_tone > 0 else base_val
+    # 若无声调符号，中文拼音默认为 5（轻声）
+    if detected_tone == 0:
+        detected_tone = 5
+
+    tts_val = f"{base_val}{detected_tone}"
     return base_val, detected_tone, tts_val
 
 
@@ -845,19 +853,17 @@ class ProjectService:
             derived_base, derived_tone, derived_tts = parse_pinyin_elements(raw_pinyin)
             pinyin_base = str(ann.get("pinyin_base", "")).strip() or derived_base
             tone_val = ann.get("tone")
-            is_unspecified_tone = (
-                tone_val is None
-                or tone_val == ""
-                or (isinstance(tone_val, int) and tone_val == 0 and derived_tone > 0)
-            )
-            if is_unspecified_tone:
+            if tone_val is None or tone_val == "":
                 tone = derived_tone
             else:
                 try:
                     tone = int(tone_val)
                 except (ValueError, TypeError):
                     tone = derived_tone
-            tts_pinyin = str(ann.get("tts_pinyin", "")).strip() or derived_tts
+
+            tts_pinyin = str(ann.get("tts_pinyin", "")).strip()
+            if not tts_pinyin:
+                tts_pinyin = f"{pinyin_base}{tone}" if pinyin_base else derived_tts
 
             if idx < 0 or idx >= len(sentence_content):
                 raise InvalidParameterError(

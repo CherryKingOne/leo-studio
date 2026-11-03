@@ -38,7 +38,7 @@
 | `character` | `string` | 被标注的汉字单字 |
 | `pinyin` | `string` | 带声调符号的拼音（如 `xíng`、`háng`），用于 UI 渲染显示 |
 | `pinyin_base` | `string` | 无声调纯字母拼音（如 `xing`、`hang`） |
-| `tone` | `integer` | 声调数字（`0`: 轻声, `1`~`4`: 一至四声） |
+| `tone` | `integer` | 声调/重音数字。中文声调：`1`（阴平）、`2`（阳平）、`3`（上声）、`4`（去声）、`5`（轻声）；英文 CMUDict 元音重音：`0`（无重音）、`1`（主重音）、`2`（次重音） |
 | `tts_pinyin` | `string` | 带数字声调的 TTS 语音引擎拼音（如 `xing2`、`hang2`） |
 | `created_at` | `string` | 创建时间 (ISO 8601) |
 | `updated_at` | `string` | 最后更新时间 (ISO 8601) |
@@ -81,7 +81,7 @@
 | `character` | `string` | **是** | 被标注的汉字单字 |
 | `pinyin` | `string` | **是** | 带声调符号的拼音（如 `xíng`） |
 | `pinyin_base` | `string` | 否 | 无声调纯字母拼音（如 `xing`），未传时后端自动解析推导 |
-| `tone` | `integer` | 否 | 声调数字（`0`~`4`），未传时后端自动解析推导 |
+| `tone` | `integer` | 否 | 声调/重音数字。中文声调：`1`（阴平）、`2`（阳平）、`3`（上声）、`4`（去声）、`5`（轻声）；英文 CMUDict 元音重音：`0`（无重音）、`1`（主重音）、`2`（次重音）。未传时后端自动解析推导 |
 | `tts_pinyin` | `string` | 否 | 带数字声调的 TTS 引擎拼音（如 `xing2`），未传时后端自动解析推导 |
 
 ### 校验规则
