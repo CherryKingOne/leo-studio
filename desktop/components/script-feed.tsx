@@ -114,16 +114,9 @@ type CharStyle = { prosody?: ProsodyMark; selected: boolean; poly?: PolyphoneMar
 
 /** 提亮一档并加粗：与正文的 white/75 拉开对比，一眼看出这是被标过的字 */
 function prosodyClass(kind: ProsodyKind) {
-  return [
-    kind === "drawl" ? "text-white" : "font-semibold text-white",
-    kind === "stress"
-      ? ""
-      : `underline decoration-wavy decoration-[2px] decoration-emerald-400 ${
-          kind === "both" ? "underline-offset-[10px]" : "underline-offset-[6px]"
-        }`,
-  ]
-    .filter(Boolean)
-    .join(" ");
+  return kind === "stress"
+    ? "font-semibold text-white"
+    : "text-white underline decoration-wavy decoration-[2px] decoration-emerald-400 underline-offset-[6px]";
 }
 
 /**

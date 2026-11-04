@@ -9,7 +9,7 @@ const row =
   "flex w-full items-center justify-between gap-6 px-3.5 py-2.5 text-left text-[13px] text-white/80 transition-colors hover:bg-white/5";
 
 /**
- * 语气标注菜单：重读 / 拖音 / 重读 + 拖音。
+ * 语气标注菜单：重读 / 拖音。
  * 当前区间已有标注时勾选项跟着走，并多出「移除」把标注撤掉。
  */
 export function ProsodyMenu({
