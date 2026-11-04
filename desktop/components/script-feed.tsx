@@ -12,17 +12,14 @@ import {
   X,
   Zap,
 } from "lucide-react";
-import { Fragment, useState, type CSSProperties, type DragEvent } from "react";
+import { Fragment, useState, type DragEvent } from "react";
 import { useToast } from "@/components/toast";
 import { inkScrollbar } from "@/lib/scrollbar";
 import {
-  prosodyLabel,
   studioClock,
   type CastOption,
   type HubTone,
   type PolyphoneMark,
-  type ProsodyKind,
-  type ProsodyMark,
   type StudioParagraph,
   type TextSelection,
 } from "@/lib/projects";
@@ -109,49 +106,24 @@ function textIndexOf(container: HTMLElement, startNode: Node, startOffset: numbe
   return -1;
 }
 
-/** 逐字叠三层样式：语气标注定加粗与符号，选区铺底色，多音字在字旁注拼音 */
-type CharStyle = { prosody?: ProsodyMark; selected: boolean; poly?: PolyphoneMark };
-
-/** 提亮一档并加粗：与正文的 white/75 拉开对比，一眼看出这是被标过的字 */
-function prosodyClass(kind: ProsodyKind) {
-  return kind === "stress"
-    ? "font-semibold text-white"
-    : "text-white underline decoration-wavy decoration-[2px] decoration-emerald-400 underline-offset-[6px]";
-}
+/** 逐字叠两层样式：选区铺底色，多音字在字旁注拼音 */
+type CharStyle = { selected: boolean; poly?: PolyphoneMark };
 
 /**
- * 重读用中文着重号（text-emphasis）表达：圆点由字体逐字排在自己的正下方。
- * 取 filled circle 而非 dot——dot 在 14px 正文里小到看不清，filled circle 才够醒目。
- */
-function prosodyStyle(kind: ProsodyKind): CSSProperties | undefined {
-  if (kind === "drawl") return undefined;
-  return {
-    textEmphasisStyle: "filled circle",
-    textEmphasisColor: "rgb(52 211 153)",
-    textEmphasisPosition: "under",
-  };
-}
-
-/**
- * 正文按样式分组渲染，同一样式的连续字合成一个 span。
- * 选区那一组带 `sel-{段落 id}-{起点}` 锚点，右侧 dock 的两个弹窗都按它定位。
+ * 正文按样式分组渲染，同样式的连续字合成一个 span。
+ * 选区那一组带 `sel-{段落 id}-{起点}` 锚点，右侧 dock 的多音字弹窗按它定位。
  */
 function renderText(
   text: string,
   paragraphId: string,
-  {
-    polyphones,
-    prosodies,
-    selection,
-  }: { polyphones: PolyphoneMark[]; prosodies: ProsodyMark[]; selection: TextSelection | null },
+  { polyphones, selection }: { polyphones: PolyphoneMark[]; selection: TextSelection | null },
   onSelect: (start: number, end: number, target?: HTMLElement) => void,
   onRemoveMark: (mark: PolyphoneMark) => void,
 ) {
-  if (!polyphones.length && !prosodies.length && !selection) return text;
+  if (!polyphones.length && !selection) return text;
 
   const polyByIndex = new Map(polyphones.map((mark) => [mark.index, mark]));
   const styleAt = (index: number): CharStyle => ({
-    prosody: prosodies.find((mark) => index >= mark.start && index < mark.end),
     selected: !!selection && index >= selection.start && index < selection.end,
     poly: polyByIndex.get(index),
   });
@@ -166,11 +138,7 @@ function renderText(
     let end = start + 1;
     while (end < text.length) {
       const next = styleAt(end);
-      if (
-        next.prosody !== style.prosody ||
-        next.selected !== style.selected ||
-        next.poly !== style.poly
-      ) {
+      if (next.selected !== style.selected || next.poly !== style.poly) {
         break;
       }
       end += 1;
@@ -228,20 +196,6 @@ function renderText(
       );
     }
 
-    if (style.prosody) {
-      const mark = style.prosody;
-      content = (
-        <span
-          style={prosodyStyle(mark.kind)}
-          title={`${prosodyLabel(mark.kind)}标注 · 点击可修改或移除`}
-          onClick={() => onSelect(mark.start, mark.end)}
-          className={`cursor-pointer ${prosodyClass(mark.kind)}`}
-        >
-          {content}
-        </span>
-      );
-    }
-
     nodes.push(<Fragment key={start}>{content}</Fragment>);
     index = end;
   }
@@ -255,7 +209,6 @@ export function ScriptFeed({
   keyword,
   orderLabel,
   polyphones,
-  prosodies,
   selection,
   canUndo,
   canRedo,
@@ -277,9 +230,7 @@ export function ScriptFeed({
   orderLabel: string;
   /** 按段落 id 归组的多音字注音 */
   polyphones: Record<string, PolyphoneMark[]>;
-  /** 按段落 id 归组的语气标注（重读/拖音） */
-  prosodies: Record<string, ProsodyMark[]>;
-  /** 当前那段划选：正文里铺底色，也是两个弹窗的定位锚点 */
+  /** 当前那段划选：正文里铺底色，也是多音字弹窗的定位锚点 */
   selection: TextSelection | null;
   canUndo: boolean;
   canRedo: boolean;
@@ -359,7 +310,6 @@ export function ScriptFeed({
                 dragging={dragId === item.paragraph.id}
                 markSide={mark?.id === item.paragraph.id ? mark.side : null}
                 polyphones={polyphones[item.paragraph.id] ?? []}
-                prosodies={prosodies[item.paragraph.id] ?? []}
                 selection={
                   selection?.paragraphId === item.paragraph.id ? selection : null
                 }
@@ -419,7 +369,6 @@ function ParagraphCard({
   dragging,
   markSide,
   polyphones,
-  prosodies,
   selection,
   onDragStart,
   onDragOver,
@@ -437,7 +386,6 @@ function ParagraphCard({
   dragging: boolean;
   markSide: "before" | "after" | null;
   polyphones: PolyphoneMark[];
-  prosodies: ProsodyMark[];
   selection: TextSelection | null;
   onDragStart: (e: DragEvent<HTMLElement>, id: string) => void;
   onDragOver: (e: DragEvent<HTMLElement>, id: string) => void;
@@ -582,7 +530,7 @@ function ParagraphCard({
           {renderText(
             paragraph.text,
             paragraph.id,
-            { polyphones, prosodies, selection },
+            { polyphones, selection },
             (start, end, target) => onSelectText(paragraph.id, start, end, target),
             onRemovePolyphone,
           )}

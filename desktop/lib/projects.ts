@@ -696,23 +696,8 @@ export function isSentenceId(id: string) {
   return /^[0-9a-f]{32}$/i.test(id);
 }
 
-/** 语气标注类型：重读或拖音 */
-export type ProsodyKind = "stress" | "drawl";
-
-/** 正文 [start, end) 区间上的语气标注，下标按 UTF-16 长度算 */
-export type ProsodyMark = { start: number; end: number; kind: ProsodyKind };
-
-/** 工作台正文里当前那段划选：多音字与语气标注都以它为操作目标 */
+/** 工作台正文里当前那段划选：多音字标注以它为操作目标 */
 export type TextSelection = { paragraphId: string; start: number; end: number; text: string };
-
-export const prosodyOptions: { kind: ProsodyKind; label: string }[] = [
-  { kind: "stress", label: "重读" },
-  { kind: "drawl", label: "拖音" },
-];
-
-export function prosodyLabel(kind: ProsodyKind) {
-  return prosodyOptions.find((option) => option.kind === kind)?.label ?? kind;
-}
 
 export type ChapterStudio = {
   paragraphs: StudioParagraph[];
