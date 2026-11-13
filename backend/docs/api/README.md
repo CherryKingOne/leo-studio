@@ -9,13 +9,35 @@ Leo Studio 后端服务的 HTTP 接口文档。后端使用 **Rust + Axum** 实�
 | --- | --- |
 | 服务名称 | Leo Studio API |
 | 基础地址 | `http://127.0.0.1:58685` |
-| 业务接口前缀 | `/api/v1` |
+| 业务接口前缀 | `/api/v1`（v2 预留，见 `v2/`） |
 | 文本文件接口前缀 | `/api/v1/text-files` |
 | 项目接口前缀 | `/api/v1/projects` |
 | 数据格式 | `application/json; charset=utf-8` |
 | 文件上传格式 | `multipart/form-data` |
 | 健康检查 | `/health`、`/api/v1/system/health` |
 | 服务索引 | `/` |
+
+## 版本文档
+
+接口文档按版本组织，每个版本下再按路由模块分文件夹，一个接口一个 Markdown 文件：
+
+```text
+docs/api/
+├── README.md          # 本文件
+├── getting-started.md # 快速开始
+├── configuration.md   # 配置说明
+├── errors.md          # 错误码说明
+├── v1/                # v1 接口文档（已实现）
+│   ├── README.md
+│   ├── system/
+│   ├── text-files/
+│   └── projects/
+└── v2/                # v2 接口文档（预留，暂无接口）
+    └── README.md
+```
+
+- **v1**：对应 `/api/v1`，覆盖系统、文本文件、项目三个模块，文档见 [v1/README.md](v1/README.md)。
+- **v2**：对应 `/api/v2`，当前后端未实现，仅保留目录结构，见 [v2/README.md](v2/README.md)。
 
 ## 统一响应结构
 
@@ -61,5 +83,5 @@ HTTP 状态码与业务错误码的映射：
 - [快速开始](getting-started.md)
 - [配置说明](configuration.md)
 - [错误码说明](errors.md)
-- [项目接口](projects/)
-- [文本文件接口](text-files/)
+- [v1 接口文档](v1/README.md)
+- [v2 接口文档（预留）](v2/README.md)
