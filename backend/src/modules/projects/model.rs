@@ -1,0 +1,92 @@
+use chrono::{DateTime, Utc};
+use serde::Serialize;
+
+/// 项目元数据。
+#[derive(Debug, Clone, Serialize)]
+pub struct ProjectInfo {
+    pub project_id: String,
+    pub name: String,
+    pub file_id: String,
+    pub filename: String,
+    pub status: String,
+    pub chapter_count: i64,
+    pub total_words: i64,
+    pub created_at: DateTime<Utc>,
+    pub updated_at: DateTime<Utc>,
+    pub is_deleted: bool,
+    pub deleted_at: Option<DateTime<Utc>>,
+}
+
+/// 章节大纲元数据。
+#[derive(Debug, Clone, Serialize)]
+pub struct ChapterOutlineInfo {
+    pub chapter_id: String,
+    pub chapter_index: i64,
+    pub chapter_title: String,
+    pub word_count: i64,
+}
+
+/// 句子切句数据。
+#[derive(Debug, Clone, Serialize)]
+pub struct ChapterSentenceInfo {
+    pub sentence_id: String,
+    pub sentence_index: i64,
+    pub content: String,
+    pub word_count: i64,
+    pub polyphones: Vec<SentencePolyphoneInfo>,
+}
+
+/// 章节详细内容与切句数据。
+#[derive(Debug, Clone, Serialize)]
+pub struct ChapterContentInfo {
+    pub project_id: String,
+    pub file_id: String,
+    pub chapter_id: String,
+    pub chapter_index: i64,
+    pub chapter_title: String,
+    pub word_count: i64,
+    pub content: String,
+    pub sentences: Vec<ChapterSentenceInfo>,
+}
+
+/// 章节冲突差异信息。
+#[derive(Debug, Clone, Serialize)]
+pub struct ChapterConflictInfo {
+    pub chapter_id: String,
+    pub chapter_index: i64,
+    pub chapter_title: String,
+    pub existing_word_count: i64,
+    pub incoming_word_count: i64,
+    pub word_diff: i64,
+}
+
+/// 追加章节后的项目统计与结果元数据。
+#[derive(Debug, Clone, Serialize)]
+pub struct ProjectChapterAppendInfo {
+    pub project_id: String,
+    pub file_id: String,
+    pub added_chapters: i64,
+    pub skipped_chapters: i64,
+    pub total_chapters: i64,
+    pub total_words: i64,
+    pub has_conflicts: bool,
+    pub conflicts: Vec<ChapterConflictInfo>,
+    pub updated_at: DateTime<Utc>,
+}
+
+/// 句子多音字标注数据。
+#[derive(Debug, Clone, Serialize)]
+pub struct SentencePolyphoneInfo {
+    pub polyphone_id: String,
+    pub sentence_id: String,
+    pub char_index: i64,
+    pub character: String,
+    pub pinyin: String,
+    pub pinyin_base: String,
+    pub tone: i64,
+    pub tts_pinyin: String,
+    pub created_at: DateTime<Utc>,
+    pub updated_at: DateTime<Utc>,
+}
+
+pub const STATUS_IN_PROGRESS: &str = "制作中";
