@@ -35,13 +35,20 @@ docs/api/
 │   ├── recycle-bin/   # 回收站
 │   ├── chapters/      # 章节
 │   └── polyphones/    # 多音字标注
-└── v2/                # v2 接口文档（预留，暂无接口）
-    └── README.md
+└── v2/                # v2 接口文档（设计契约，待实现）
+    ├── README.md
+    ├── getting-started.md
+    ├── system/        # 系统
+    ├── projects/      # 项目核心 CRUD
+    ├── recycle-bin/   # 回收站
+    ├── chapters/      # 章节
+    └── polyphones/    # 多音字标注
 ```
 
-- **v1**：对应 `/api/v1`，按子资源拆分为系统、文本文件、项目、回收站、章节、
+- **v1**：对应 `/api/v1`，已实现，按子资源拆分为系统、文本文件、项目、回收站、章节、
   多音字标注六个模块，文档见 [v1/README.md](v1/README.md)。
-- **v2**：对应 `/api/v2`，当前后端未实现，仅保留目录结构，见 [v2/README.md](v2/README.md)。
+- **v2**：对应 `/api/v2`，设计契约已就绪（文本文件能力内聚、不再单独暴露），
+  后端尚未实现路由，文档见 [v2/README.md](v2/README.md)。
 
 ## 统一响应结构
 
