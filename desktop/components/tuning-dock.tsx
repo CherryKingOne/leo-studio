@@ -64,39 +64,6 @@ function PolyphoneIcon({ className }: { className?: string }) {
   );
 }
 
-/**
- * 重读图标：A 常规字重 + B 极粗字重、B 下挂一个圆点。字形由字体绘制，
- * viewBox 按墨迹外接框裁切，才能与多音字图标同尺寸时视觉等高。
- */
-function StressIcon({ className }: { className?: string }) {
-  return (
-    <svg viewBox="122 134.5 386 386" fill="none" aria-hidden="true" className={className}>
-      <text
-        x="130"
-        y="380"
-        fill="currentColor"
-        fontFamily="Inter, -apple-system, sans-serif"
-        fontSize="280"
-        letterSpacing="-8"
-      >
-        A
-      </text>
-      <text
-        x="315"
-        y="380"
-        fill="currentColor"
-        fontFamily="Inter, -apple-system, sans-serif"
-        fontSize="280"
-        fontWeight="900"
-        letterSpacing="-8"
-      >
-        B
-      </text>
-      <circle cx="390" cy="450" r="18" fill="currentColor" />
-    </svg>
-  );
-}
-
 const dockPrimary =
   "flex h-9 w-9 items-center justify-center rounded-full bg-accent text-white transition-colors hover:bg-accent-600";
 
@@ -150,7 +117,6 @@ export function TuningDock({
   reverbOptions,
   onOpenChange,
   onPolyphone,
-  onProsody,
 }: {
   open: boolean;
   paragraph: StudioParagraph;
@@ -161,13 +127,11 @@ export function TuningDock({
   onOpenChange: (open: boolean) => void;
   /** 弹多音字读音候选，目标为正文里刚划选或点选的那个字 */
   onPolyphone: () => void;
-  /** 弹语气标注菜单（重读/拖音），目标为正文里刚划选的那段文字 */
-  onProsody: () => void;
 }) {
   const { show } = useToast();
 
   return (
-    <div className="pointer-events-none absolute inset-y-0 right-0 z-30 hidden md:block">
+    <div data-dock="1" className="pointer-events-none absolute inset-y-0 right-0 z-30 hidden md:block">
       {open ? (
         // key 让面板在切换段落时按新段落的参数重建，等价于原型的重新绑定
         <TuningPanel
@@ -193,9 +157,6 @@ export function TuningDock({
 
           <DockButton label="校对多音字" onClick={onPolyphone}>
             <PolyphoneIcon className="h-5 w-5" />
-          </DockButton>
-          <DockButton label="标记重读" onClick={onProsody}>
-            <StressIcon className="h-5 w-5" />
           </DockButton>
           <DockButton label="重新生成" onClick={() => show("已重新加入生成队列", "info")}>
             <RotateCw className="h-4 w-4" />

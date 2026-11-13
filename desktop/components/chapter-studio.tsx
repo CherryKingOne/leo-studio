@@ -5,7 +5,6 @@ import { useRouter } from "next/navigation";
 import { anchorOf, type AnchorRect } from "@/components/floating-card";
 import { ParagraphOutline, type StudioPane } from "@/components/paragraph-outline";
 import { PolyphonePopover } from "@/components/polyphone-popover";
-import { ProsodyMenu } from "@/components/prosody-menu";
 import { ScriptFeed, type FeedItem } from "@/components/script-feed";
 import { StudioHeader } from "@/components/studio-header";
 import { TuningDock } from "@/components/tuning-dock";
@@ -15,13 +14,10 @@ import { playAudition } from "@/lib/audio";
 import { isHanChar } from "@/lib/polyphone";
 import {
   isSentenceId,
-  prosodyLabel,
   type CastOption,
   type ChapterStudio as StudioData,
   type HubChapter,
   type PolyphoneMark,
-  type ProsodyKind,
-  type ProsodyMark,
   type StudioParagraph,
   type StudioProject,
   type StudioTocEntry,
@@ -39,11 +35,6 @@ type PolyTarget = { paragraphId: string; index: number; char: string; reading?: 
  * 客户端导航不换 JS runtime，所以这份记忆能跨章节保留，整页刷新才回到大纲。
  */
 let rememberedPane: StudioPane = "outline";
-
-/** 提示条里放不下整段引文 */
-function clip(text: string) {
-  return text.length > 12 ? `${text.slice(0, 12)}…` : text;
-}
 
 /** 原型数据里预置的 polyphone 短语首字，转成与划选同一套标注呈现 */
 function seedPolyphones(paragraphs: StudioParagraph[]) {
@@ -87,11 +78,9 @@ export function ChapterStudio({
     ...seedPolyphones(studio.paragraphs),
     ...studio.polyphones,
   }));
-  /** 正文里当前那段划选：多音字与语气标注都以它为操作目标，弹窗也按它定位 */
+  /** 正文里当前那段划选：多音字标注以它为操作目标，弹窗也按它定位 */
   const [selection, setSelection] = useState<TextSelection | null>(null);
-  const [prosodies, setProsodies] = useState<Record<string, ProsodyMark[]>>({});
   const [polyAnchor, setPolyAnchor] = useState<AnchorRect | null>(null);
-  const [prosodyAnchor, setProsodyAnchor] = useState<AnchorRect | null>(null);
 
   function selectPane(next: StudioPane) {
     rememberedPane = next;
@@ -154,13 +143,35 @@ export function ChapterStudio({
   }, [scrollIntent]);
 
   /**
+   * 点到正文之外就收掉划选底色，但 dock 与读音弹窗除外：
+   * 那两处都拿当前选区当操作目标，一并清掉就没法给选中的字标读音了。
+   */
+  useEffect(() => {
+    if (!selection) return;
+
+    function onMouseUp(event: MouseEvent) {
+      const target = event.target;
+      if (!(target instanceof Element)) return;
+      if (
+        target.closest("[data-text]") ||
+        target.closest("[data-dock]") ||
+        target.closest(".fixed")
+      )
+        return;
+      setSelection(null);
+    }
+
+    document.addEventListener("mouseup", onMouseUp);
+    return () => document.removeEventListener("mouseup", onMouseUp);
+  }, [selection]);
+
+  /**
    * `column` 是这次要点亮的列：剧本流卡片或左栏。
    * 左栏跟随用户当前 pane，点卡片不再把大纲换成正文；目录没有逐段锚点，只更新选中态。
    */
   function jump(id: string, column: "feed" | "pane") {
     setActiveId(id);
     setPolyAnchor(null);
-    setProsodyAnchor(null);
 
     const anchor =
       column === "feed"
@@ -256,21 +267,13 @@ export function ChapterStudio({
         }
       : null;
 
-  /** 该区间已有的语气标注：菜单据此打勾并决定是否给「移除」 */
-  const selectedProsody = selection
-    ? (prosodies[selection.paragraphId] ?? []).find(
-        (item) => item.start === selection.start && item.end === selection.end,
-      )
-    : undefined;
-
   /**
-   * 划选或点标注：记下这段区间，正文给它铺底色，两个弹窗都以它为目标。
+   * 划选或点标注：记下这段区间，正文给它铺底色，读音弹窗也以它为目标。
    * `target` 只有点正文里已标注那个字时才有，直接把读音弹窗开在它下面，不用再回 dock 按一次。
    */
   function selectText(paragraphId: string, start: number, end: number, target?: HTMLElement) {
     setSelection({ paragraphId, start, end, text: byId.get(paragraphId)?.text.slice(start, end) ?? "" });
     setPolyAnchor(target ? anchorOf(target) : null);
-    setProsodyAnchor(null);
   }
 
   /** 选区底色元素的矩形；取不到说明选区已不在当前正文里（换段、筛选或改了文案） */
@@ -282,17 +285,8 @@ export function ChapterStudio({
   /** dock 的多音字按钮：只认单个汉字 */
   function openPolyphone() {
     const anchor = polyTarget ? selectionAnchor() : null;
-    setProsodyAnchor(null);
     setPolyAnchor(anchor);
     if (!anchor) show("请滑选单个汉字", "warn");
-  }
-
-  /** dock 的重读按钮：单个字和一整段都接受 */
-  function openProsody() {
-    const anchor = selection ? selectionAnchor() : null;
-    setPolyAnchor(null);
-    setProsodyAnchor(anchor);
-    if (!anchor) show("请先划选要标注的文字", "warn");
   }
 
   /**
@@ -377,31 +371,6 @@ export function ChapterStudio({
     );
   }
 
-  function applyProsody(kind: ProsodyKind) {
-    if (!selection) return;
-    const { paragraphId, start, end, text } = selection;
-    setProsodies((prev) => ({
-      ...prev,
-      // 与新区间相交的旧标注整体让位，免得叠出认不出的符号
-      [paragraphId]: [
-        ...(prev[paragraphId] ?? []).filter((item) => item.end <= start || item.start >= end),
-        { start, end, kind },
-      ].sort((a, b) => a.start - b.start),
-    }));
-    setProsodyAnchor(null);
-    setSelection(null);
-    show(`已把「${clip(text)}」标为${prosodyLabel(kind)}`, "success");
-  }
-
-  function removeProsody(paragraphId: string, mark: ProsodyMark) {
-    setProsodies((prev) => ({
-      ...prev,
-      [paragraphId]: (prev[paragraphId] ?? []).filter((item) => item !== mark),
-    }));
-    setProsodyAnchor(null);
-    show(`已移除「${prosodyLabel(mark.kind)}」标注`, "info");
-  }
-
   return (
     <div className="flex h-screen min-h-0 flex-col overflow-hidden">
       <StudioHeader
@@ -442,7 +411,6 @@ export function ChapterStudio({
               activeId={active.id}
               keyword={keyword}
               polyphones={polyphones}
-              prosodies={prosodies}
               selection={selection}
               orderLabel={isDirty ? `自定义顺序 · 可撤销 ${undoStack.length} 步` : "原始顺序"}
               canUndo={undoStack.length > 0}
@@ -473,7 +441,6 @@ export function ChapterStudio({
           reverbOptions={studio.reverbOptions}
           onOpenChange={setTuningOpen}
           onPolyphone={openPolyphone}
-          onProsody={openProsody}
         />
 
         {polyAnchor && polyTarget && (
@@ -493,16 +460,6 @@ export function ChapterStudio({
                 : undefined
             }
             onClose={() => setPolyAnchor(null)}
-          />
-        )}
-
-        {prosodyAnchor && selection && (
-          <ProsodyMenu
-            current={selectedProsody?.kind}
-            anchor={prosodyAnchor}
-            onPick={applyProsody}
-            onRemove={() => selectedProsody && removeProsody(selection.paragraphId, selectedProsody)}
-            onClose={() => setProsodyAnchor(null)}
           />
         )}
       </div>
