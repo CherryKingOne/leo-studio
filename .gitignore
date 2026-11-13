@@ -13,7 +13,8 @@ wheels/
 .venv
 
 # 本地存储目录（上传文件与元数据索引）
-storage/
+/storage/
+/backend/storage/
 
 # 调试文件
 _dump.py

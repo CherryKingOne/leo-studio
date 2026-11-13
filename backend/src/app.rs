@@ -9,7 +9,7 @@ use tower_http::cors::{AllowOrigin, CorsLayer};
 
 use crate::config::Settings;
 use crate::middleware::request_id_middleware;
-use crate::modules::{projects, system, text_files};
+use crate::modules::{projects, system, text_files, v2};
 use crate::state::AppState;
 use crate::storage::store::Store;
 
@@ -62,6 +62,7 @@ pub fn build_router(settings: Arc<Settings>, store: Store) -> Router {
         .nest("/api/v1/text-files", text_files::router())
         .nest("/api/v1/projects", projects::router())
         .nest("/api/v1", system::router())
+        .nest("/api/v2", v2::router())
         .merge(system::root_router())
         .layer(middleware::from_fn(request_id_middleware))
         .layer(cors)

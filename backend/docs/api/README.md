@@ -9,7 +9,7 @@ Leo Studio 后端服务的 HTTP 接口文档。后端使用 **Rust + Axum** 实�
 | --- | --- |
 | 服务名称 | Leo Studio API |
 | 基础地址 | `http://127.0.0.1:58685` |
-| 业务接口前缀 | `/api/v1`（v2 预留，见 `v2/`） |
+| 业务接口前缀 | `/api/v1`、`/api/v2` |
 | 文本文件接口前缀 | `/api/v1/text-files` |
 | 项目接口前缀 | `/api/v1/projects` |
 | 数据格式 | `application/json; charset=utf-8` |
@@ -35,7 +35,7 @@ docs/api/
 │   ├── recycle-bin/   # 回收站
 │   ├── chapters/      # 章节
 │   └── polyphones/    # 多音字标注
-└── v2/                # v2 接口文档（设计契约，待实现）
+└── v2/                # v2 接口文档（已实现）
     ├── README.md
     ├── getting-started.md
     ├── system/        # 系统
@@ -47,8 +47,8 @@ docs/api/
 
 - **v1**：对应 `/api/v1`，已实现，按子资源拆分为系统、文本文件、项目、回收站、章节、
   多音字标注六个模块，文档见 [v1/README.md](v1/README.md)。
-- **v2**：对应 `/api/v2`，设计契约已就绪（文本文件能力内聚、不再单独暴露），
-  后端尚未实现路由，文档见 [v2/README.md](v2/README.md)。
+- **v2**：对应 `/api/v2`，已实现（文本文件能力内聚、不再单独暴露），
+  文档见 [v2/README.md](v2/README.md)。
 
 ## 统一响应结构
 
@@ -95,4 +95,4 @@ HTTP 状态码与业务错误码的映射：
 - [配置说明](configuration.md)
 - [错误码说明](errors.md)
 - [v1 接口文档](v1/README.md)
-- [v2 接口文档（预留）](v2/README.md)
+- [v2 接口文档](v2/README.md)

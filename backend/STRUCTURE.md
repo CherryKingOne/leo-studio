@@ -32,12 +32,15 @@ backend/
 │   │   │   ├── service.rs         # 项目生命周期、章节合并、标注校验
 │   │   │   ├── schema.rs          # 请求体与响应 DTO
 │   │   │   └── model.rs           # 领域模型（ProjectInfo / ChapterContentInfo 等）
-│   │   └── text_files/            # 文本文件上传、解析、下载、切句查询
+│   │   ├── text_files/            # 文本文件上传、解析、下载、切句查询
+│   │   │   ├── mod.rs
+│   │   │   ├── router.rs
+│   │   │   ├── service.rs
+│   │   │   ├── schema.rs
+│   │   │   └── model.rs
+│   │   └── v2/                    # v2 接口层（复用 projects 服务，不暴露 text-files）
 │   │       ├── mod.rs
-│   │       ├── router.rs
-│   │       ├── service.rs
-│   │       ├── schema.rs
-│   │       └── model.rs
+│   │       └── router.rs
 │   ├── storage/                   # 持久化层
 │   │   ├── mod.rs
 │   │   ├── csv_table.rs           # 通用 CSV 表：加载、表头迁移、原子落盘
@@ -56,7 +59,8 @@ backend/
 │   └── text-files/
 └── tests/
     ├── common/mod.rs              # 测试应用装配、multipart 请求构造
-    ├── api.rs                     # 接口集成测试（上传、项目、追加、多音字、回收站）
+    ├── api.rs                     # v1 接口集成测试（上传、项目、追加、多音字、回收站）
+    ├── v2.rs                      # v2 接口集成测试（健康、项目 CRUD、回收站、多音字）
     └── parsers.rs                 # 颜文字清洗、章节切分等纯函数测试
 ```
 
@@ -124,6 +128,21 @@ ApiResponse<T>   统一 { code, message, data, request_id }
 | POST | `/api/v1/projects/{project_id}/chapters/upload` | 追加上传章节 |
 | GET / PUT / DELETE | `/api/v1/projects/{project_id}/sentences/{sentence_id}/polyphones` | 多音字标注查询 / 覆盖保存 / 清空 |
 
+### v2 接口（`/api/v2`，复用 projects 服务）
+
+| 方法 | 路径 | 说明 |
+| --- | --- | --- |
+| GET | `/api/v2/health`、`/api/v2` | 健康检查、服务索引 |
+| POST / GET | `/api/v2/projects` | 创建项目、项目列表（分页 / 状态 / 关键字 / 排序） |
+| GET / PATCH / DELETE | `/api/v2/projects/{project_id}` | 详情、更新（name/status）、软删除 |
+| GET / DELETE | `/api/v2/projects/recycle-bin` | 回收站列表、清空 |
+| POST / DELETE | `/api/v2/projects/{project_id}/restore`、`/hard` | 恢复、物理删除 |
+| GET / POST | `/api/v2/projects/{project_id}/chapters` | 章节大纲（keyword）、追加上传 |
+| GET | `/api/v2/projects/{project_id}/chapters/{chapter_id}` | 章节内容与切句 |
+| GET / PUT / DELETE | `/api/v2/projects/{project_id}/sentences/{sentence_id}/polyphones` | 多音字查询 / 保存 / 清空 |
+
+> v2 不暴露 `text-files` 接口，文本文件能力仅作为内部函数/类被 `projects` 调用。
+
 ## 代码风格
 
 - **Rust 2024 edition**，`cargo fmt` + `cargo clippy` 约束格式与常见错误。
@@ -143,7 +162,7 @@ ApiResponse<T>   统一 { code, message, data, request_id }
 | text_files 模块 | `router` / `service` / `schema` / `model` | 约 930 |
 | 存储层 | `csv_table` / `store` | 约 420 |
 | 文本处理 | `kaomoji` / `parsers` / `processor` | 约 1170 |
-| 测试 | `api.rs` / `parsers.rs` / `common` | 约 750 |
+| 测试 | `api.rs` / `v2.rs` / `parsers.rs` / `common` | 约 800 |
 
 ## 端口与启动
 

@@ -65,6 +65,7 @@ impl TestApp {
         (status, value)
     }
 
+    #[allow(dead_code)]
     pub async fn send_raw(&self, request: Request<Body>) -> (StatusCode, String) {
         let response = self.router.clone().oneshot(request).await.unwrap();
         let status = response.status();

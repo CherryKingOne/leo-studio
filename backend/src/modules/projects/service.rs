@@ -822,6 +822,107 @@ pub fn delete_sentence_polyphones(
     Ok(deleted_count)
 }
 
+/// 按条件查询项目列表（v2）。
+#[allow(clippy::too_many_arguments)]
+pub fn query_projects(
+    store: &Store,
+    page: usize,
+    page_size: usize,
+    in_recycle_bin: bool,
+    status: Option<&str>,
+    keyword: Option<&str>,
+    sort: &str,
+    order: &str,
+) -> (Vec<ProjectInfo>, usize) {
+    let mut items: Vec<ProjectInfo> = store
+        .projects
+        .find_all()
+        .iter()
+        .map(record_to_info)
+        .collect();
+
+    items.retain(|item| item.is_deleted == in_recycle_bin);
+
+    if let Some(status) = status.map(str::trim).filter(|value| !value.is_empty()) {
+        items.retain(|item| item.status == status);
+    }
+    if let Some(keyword) = keyword.map(str::trim).filter(|value| !value.is_empty()) {
+        items.retain(|item| item.name.contains(keyword));
+    }
+
+    let ascending = order.eq_ignore_ascii_case("asc");
+    match sort {
+        "updated_at" => items.sort_by(|a, b| {
+            if ascending {
+                a.updated_at.cmp(&b.updated_at)
+            } else {
+                b.updated_at.cmp(&a.updated_at)
+            }
+        }),
+        "name" => items.sort_by(|a, b| {
+            if ascending {
+                a.name.cmp(&b.name)
+            } else {
+                b.name.cmp(&a.name)
+            }
+        }),
+        _ => items.sort_by(|a, b| {
+            if ascending {
+                a.created_at.cmp(&b.created_at)
+            } else {
+                b.created_at.cmp(&a.created_at)
+            }
+        }),
+    }
+
+    let total = items.len();
+    let start = page.saturating_sub(1).saturating_mul(page_size);
+    let items = items.into_iter().skip(start).take(page_size).collect();
+    (items, total)
+}
+
+/// 更新项目名称与/或制作状态（v2）。
+pub fn update_project_fields(
+    store: &mut Store,
+    project_id: &str,
+    name: Option<&str>,
+    status: Option<&str>,
+) -> AppResult<ProjectInfo> {
+    let mut updates: Vec<(&str, String)> = Vec::new();
+
+    if let Some(name) = name {
+        let actual_name = name.trim();
+        if actual_name.is_empty() {
+            return Err(AppError::invalid_parameter("项目名称不能为空"));
+        }
+        if actual_name.chars().count() > 255 {
+            return Err(AppError::invalid_parameter(
+                "项目名称长度不能超过 255 个字符",
+            ));
+        }
+        updates.push(("name", actual_name.to_string()));
+    }
+
+    if let Some(status) = status {
+        let actual_status = status.trim();
+        if actual_status.is_empty() {
+            return Err(AppError::invalid_parameter("制作状态不能为空"));
+        }
+        updates.push(("status", actual_status.to_string()));
+    }
+
+    if updates.is_empty() {
+        return Err(AppError::invalid_parameter("请提供要更新的字段"));
+    }
+
+    get_project(store, project_id, false)?;
+    let now = Utc::now();
+    updates.push(("updated_at", now.to_rfc3339()));
+    store.projects.update_by("project_id", project_id, &updates);
+    store.save_projects()?;
+    get_project(store, project_id, false)
+}
+
 /// 兼容旧版辅助：解析时间字符串。
 pub fn parse_time(value: &str) -> DateTime<Utc> {
     text_service::parse_datetime(value)
