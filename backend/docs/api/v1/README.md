@@ -71,17 +71,32 @@
 | 查询项目列表 | `GET /api/v1/projects` | [list.md](./projects/list.md) |
 | 查询项目详情 | `GET /api/v1/projects/{project_id}` | [get.md](./projects/get.md) |
 | 更新项目名称 | `PATCH/PUT /api/v1/projects/{project_id}` | [update.md](./projects/update.md) |
-| 删除项目（回收站） | `DELETE /api/v1/projects/{project_id}` | [delete.md](./projects/delete.md) |
-| 恢复项目 | `POST /api/v1/projects/{project_id}/restore` | [restore.md](./projects/restore.md) |
-| 彻底删除项目 | `DELETE /api/v1/projects/{project_id}/hard` | [hard-delete.md](./projects/hard-delete.md) |
-| 查询回收站列表 | `GET /api/v1/projects/recycle-bin` | [recycle-bin-list.md](./projects/recycle-bin-list.md) |
-| 清空回收站 | `DELETE /api/v1/projects/recycle-bin` | [recycle-bin-clear.md](./projects/recycle-bin-clear.md) |
-| 查询章节大纲 | `GET /api/v1/projects/{project_id}/chapters` | [chapters-list.md](./projects/chapters-list.md) |
-| 追加上传章节 | `POST /api/v1/projects/{project_id}/chapters`、`/chapters/upload` | [chapters-append.md](./projects/chapters-append.md) |
-| 查询章节内容 | `GET /api/v1/projects/{project_id}/chapters/{chapter_id}`、`/content` | [chapter-content.md](./projects/chapter-content.md) |
-| 查询多音字标注 | `GET /api/v1/projects/{project_id}/sentences/{sentence_id}/polyphones` | [polyphones-list.md](./projects/polyphones-list.md) |
-| 保存多音字标注 | `PUT /api/v1/projects/{project_id}/sentences/{sentence_id}/polyphones` | [polyphones-save.md](./projects/polyphones-save.md) |
-| 清空多音字标注 | `DELETE /api/v1/projects/{project_id}/sentences/{sentence_id}/polyphones` | [polyphones-delete.md](./projects/polyphones-delete.md) |
+| 删除项目（软删） | `DELETE /api/v1/projects/{project_id}` | [delete.md](./projects/delete.md) |
+
+### 回收站（`recycle-bin`）
+
+| 接口 | 方法 | 文档 |
+| --- | --- | --- |
+| 查询回收站列表 | `GET /api/v1/projects/recycle-bin` | [list.md](./recycle-bin/list.md) |
+| 清空回收站 | `DELETE /api/v1/projects/recycle-bin` | [clear.md](./recycle-bin/clear.md) |
+| 恢复项目 | `POST /api/v1/projects/{project_id}/restore` | [restore.md](./recycle-bin/restore.md) |
+| 彻底删除项目 | `DELETE /api/v1/projects/{project_id}/hard` | [hard-delete.md](./recycle-bin/hard-delete.md) |
+
+### 章节（`chapters`）
+
+| 接口 | 方法 | 文档 |
+| --- | --- | --- |
+| 查询章节大纲 | `GET /api/v1/projects/{project_id}/chapters` | [list.md](./chapters/list.md) |
+| 追加上传章节 | `POST /api/v1/projects/{project_id}/chapters`、`/chapters/upload` | [append.md](./chapters/append.md) |
+| 查询章节内容 | `GET /api/v1/projects/{project_id}/chapters/{chapter_id}`、`/content` | [content.md](./chapters/content.md) |
+
+### 多音字标注（`polyphones`）
+
+| 接口 | 方法 | 文档 |
+| --- | --- | --- |
+| 查询多音字标注 | `GET /api/v1/projects/{project_id}/sentences/{sentence_id}/polyphones` | [list.md](./polyphones/list.md) |
+| 保存多音字标注 | `PUT /api/v1/projects/{project_id}/sentences/{sentence_id}/polyphones` | [save.md](./polyphones/save.md) |
+| 清空多音字标注 | `DELETE /api/v1/projects/{project_id}/sentences/{sentence_id}/polyphones` | [delete.md](./polyphones/delete.md) |
 
 ## 相关文档
 

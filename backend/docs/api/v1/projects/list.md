@@ -14,7 +14,7 @@
 ## 接口描述
 
 返回 `is_deleted = false` 的项目，按 `created_at` 倒序排列并分页。
-回收站中的项目不会出现在此列表，请使用[回收站列表](./recycle-bin-list.md)。
+回收站中的项目不会出现在此列表，请使用[回收站列表](./../recycle-bin/list.md)。
 
 ## 请求参数
 

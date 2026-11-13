@@ -15,7 +15,7 @@
 
 将项目标记为 `is_deleted = true` 并记录 `deleted_at`，不删除关联的小说文件、
 章节与切句数据。项目随后不再出现在[项目列表](./list.md)与详情接口中，
-但可通过[恢复接口](./restore.md)还原。
+但可通过[恢复接口](./../recycle-bin/restore.md)还原。
 
 ## 请求参数
 

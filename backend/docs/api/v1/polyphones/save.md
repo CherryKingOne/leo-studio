@@ -65,7 +65,7 @@
 | `total` | `integer` | 保存后的标注总数 |
 | `items` | `object[]` | 保存后的标注列表 |
 
-`SentencePolyphoneInfo` 字段见[章节详细内容](./chapter-content.md#polyphones-元素sentencepolyphoneinfo)。
+`SentencePolyphoneInfo` 字段见[章节详细内容](./../chapters/content.md#polyphones-元素sentencepolyphoneinfo)。
 
 ## 代码示例
 

@@ -29,14 +29,18 @@ docs/api/
 ├── errors.md          # 错误码说明
 ├── v1/                # v1 接口文档（已实现）
 │   ├── README.md
-│   ├── system/
-│   ├── text-files/
-│   └── projects/
+│   ├── system/        # 系统
+│   ├── text-files/    # 文本文件（v1 保留）
+│   ├── projects/      # 项目核心 CRUD
+│   ├── recycle-bin/   # 回收站
+│   ├── chapters/      # 章节
+│   └── polyphones/    # 多音字标注
 └── v2/                # v2 接口文档（预留，暂无接口）
     └── README.md
 ```
 
-- **v1**：对应 `/api/v1`，覆盖系统、文本文件、项目三个模块，文档见 [v1/README.md](v1/README.md)。
+- **v1**：对应 `/api/v1`，按子资源拆分为系统、文本文件、项目、回收站、章节、
+  多音字标注六个模块，文档见 [v1/README.md](v1/README.md)。
 - **v2**：对应 `/api/v2`，当前后端未实现，仅保留目录结构，见 [v2/README.md](v2/README.md)。
 
 ## 统一响应结构

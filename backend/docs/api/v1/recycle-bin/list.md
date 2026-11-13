@@ -42,7 +42,7 @@
 | `pages` | `integer` | 总页数 |
 | `items` | `object[]` | 回收站项目列表，元素为 `ProjectInfo` |
 
-`ProjectInfo` 字段见[创建项目](./create.md#响应字段)。
+`ProjectInfo` 字段见[创建项目](./../projects/create.md#响应字段)。
 
 ## 代码示例
 
