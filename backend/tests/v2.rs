@@ -53,11 +53,11 @@ async fn v2_project_crud_and_filters() {
     let (status, body) = app
         .patch_json(
             &format!("/api/v2/projects/{project_id}"),
-            r#"{"status":"母带就绪"}"#,
+            r#"{"status":"已完成"}"#,
         )
         .await;
     assert_eq!(status, 200);
-    assert_eq!(body["data"]["status"], "母带就绪");
+    assert_eq!(body["data"]["status"], "已完成");
 
     let (status, body) = app
         .get(&format!("/api/v2/projects/{project_id}/chapters"))
@@ -98,6 +98,14 @@ async fn v2_recycle_bin_restore_and_hard_delete() {
         )
         .await;
     assert_eq!(status, 200);
+
+    let (status, body) = app
+        .delete(&format!("/api/v2/projects/{project_id}/hard"))
+        .await;
+    assert_eq!(status, 422);
+    assert_eq!(body["code"], 40000);
+
+    app.delete(&format!("/api/v2/projects/{project_id}")).await;
 
     let (status, body) = app
         .delete(&format!("/api/v2/projects/{project_id}/hard"))

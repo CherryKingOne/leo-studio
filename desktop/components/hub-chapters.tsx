@@ -52,7 +52,7 @@ export function HubChaptersProvider({
   const [filter, setFilter] = useState<PipelineFilter>("全部");
   const [importOpen, setImportOpen] = useState(false);
 
-  // 合成中的章节持续推进进度，满 100% 的那一行当场落到母带就绪
+  // 合成中的章节持续推进进度，满 100% 的那一行当场落到已完成
   useEffect(() => {
     if (!chapters.some((chapter) => chapter.state === "合成中")) return;
     const timer = setInterval(() => {

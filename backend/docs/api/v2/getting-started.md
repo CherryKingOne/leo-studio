@@ -6,7 +6,9 @@
 
 ```bash
 cd backend
-cargo run --release
+cargo run --release --bin leo-studio-backend
+# 开发模式
+cargo run --bin leo-studio-backend
 ```
 
 启动后日志输出监听地址，默认：
@@ -18,7 +20,7 @@ Leo Studio API 已启动：http://0.0.0.0:58685
 可通过环境变量覆盖监听地址与端口：
 
 ```bash
-LEO_HOST=127.0.0.1 LEO_PORT=58685 cargo run --release
+LEO_HOST=127.0.0.1 LEO_PORT=58685 cargo run --release --bin leo-studio-backend
 ```
 
 ## 2. 健康检查

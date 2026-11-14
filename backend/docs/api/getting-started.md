@@ -16,7 +16,9 @@ cd backend
 cargo build --release
 
 # 默认监听 0.0.0.0:58685，数据目录为项目根目录
-cargo run --release
+cargo run --release --bin leo-studio-backend
+# 开发模式
+cargo run --bin leo-studio-backend
 ```
 
 启动成功后可访问：

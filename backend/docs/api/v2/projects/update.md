@@ -36,7 +36,7 @@
 | 名称 | 类型 | 必填 | 说明 |
 | --- | --- | --- | --- |
 | `name` | `string` | 否 | 新项目名称，去首尾空白后不能为空，长度 ≤ 255 |
-| `status` | `string` | 否 | 制作状态，如 `制作中`、`母带就绪` |
+| `status` | `string` | 否 | 制作状态，如 `制作中`、`已完成` |
 
 > `name` 与 `status` 至少提供一个。
 
@@ -51,7 +51,7 @@
 ```bash
 curl -X PATCH "http://127.0.0.1:58685/api/v2/projects/9f8c12a4b3e2489c91d8e5f2a1b3c4d5" \
   -H "Content-Type: application/json" \
-  -d '{"name":"新的项目名称","status":"母带就绪"}'
+  -d '{"name":"新的项目名称","status":"已完成"}'
 ```
 
 ## 成功响应示例
@@ -65,7 +65,7 @@ curl -X PATCH "http://127.0.0.1:58685/api/v2/projects/9f8c12a4b3e2489c91d8e5f2a1
     "name": "新的项目名称",
     "file_id": "a1b2c3d4e5f67890123456789abcdef0",
     "filename": "example.txt",
-    "status": "母带就绪",
+    "status": "已完成",
     "chapter_count": 12,
     "total_words": 45820,
     "created_at": "2026-10-27T08:55:00+00:00",

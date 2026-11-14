@@ -1,4 +1,4 @@
-export type ProjectStatus = "制作中" | "母带就绪";
+export type ProjectStatus = "制作中" | "已完成";
 export type SortKey = "edited" | "chapters" | "words";
 
 /** 后端章节大纲映射后的轻量结构 */
@@ -104,7 +104,7 @@ export const initialProjects: ProjectEntry[] = [
     title: "道诡异仙：清旺来",
     genre: "东方民俗 / 悬疑",
     author: "狐尾的笔",
-    status: "母带就绪",
+    status: "已完成",
     chapters: 1,
     progress: 100,
     generatedSeconds: 1120,
@@ -163,7 +163,7 @@ export function sortProjects(projects: ProjectSummary[], key: SortKey) {
 export type HubTone = "neutral" | "muted" | "accent" | "emerald" | "amber" | "violet";
 
 export type ChapterState = "待拆解" | "待合成" | "合成中" | "已就绪";
-/** 状态筛选条不含「已就绪」：母带就绪的章节走右上角星标只看，不再占一个筛选 chip */
+/** 状态筛选条不含「已就绪」：已完成的章节走右上角星标只看，不再占一个筛选 chip */
 export type PipelineFilter = "全部" | Exclude<ChapterState, "已就绪">;
 
 export const pipelineFilters: { state: PipelineFilter; label: string }[] = [
@@ -267,7 +267,7 @@ const lordOfMysteriesHub: ProjectHub = {
       masterSeconds: 858,
       tone: "emerald",
       state: "已就绪",
-      status: { label: "全章母带就绪", tone: "emerald", icon: "master" },
+      status: { label: "全章已完成", tone: "emerald", icon: "master" },
       speakers: [narrator, klein, { name: "梅丽莎", tone: "violet" }],
       action: { kind: "studio" },
       openable: true,
@@ -493,7 +493,7 @@ function pendingHub(project: ProjectEntry): ProjectHub {
         tone: ready ? "emerald" : "neutral",
         state: ready ? "已就绪" : "待拆解",
         status: ready
-          ? { label: "全章母带就绪", tone: "emerald", icon: "master" }
+          ? { label: "全章已完成", tone: "emerald", icon: "master" }
           : { label: "待拆解", tone: "neutral", icon: "scan" },
         speakers: ready ? [narrator] : null,
         action: ready ? { kind: "studio" } : { kind: "split" },
@@ -563,7 +563,7 @@ export function chapterAfterRender(chapter: HubChapter): HubChapter {
     masterSeconds: chapter.etaSeconds,
     etaSeconds: undefined,
     percent: undefined,
-    status: { label: "全章母带就绪", tone: "emerald", icon: "master" },
+    status: { label: "全章已完成", tone: "emerald", icon: "master" },
     action: { kind: "studio" },
     openable: true,
   };

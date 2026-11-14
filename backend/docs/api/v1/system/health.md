@@ -49,16 +49,6 @@
 curl -s "http://127.0.0.1:58685/health"
 ```
 
-### Python
-
-```python
-import httpx
-
-resp = httpx.get("http://127.0.0.1:58685/health")
-print(resp.json())
-# {'status': 'ok', 'app': 'Leo Studio API', 'version': '0.1.0', 'request_id': '...'}
-```
-
 ## 成功响应示例
 
 `HTTP/1.1 200 OK`

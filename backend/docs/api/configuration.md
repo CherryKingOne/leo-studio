@@ -50,7 +50,8 @@ LEO_DATA_DIR=./data \
 LEO_CSV_DIR=./data/csv \
 LEO_UPLOAD_DIR=./data/uploads \
 LEO_TEXT_FILES_ALLOWED_EXTENSIONS=.txt \
-cargo run --release
+cargo run --release --bin leo-studio-backend
+# 开发模式：cargo run --bin leo-studio-backend
 ```
 
 ## 存储说明

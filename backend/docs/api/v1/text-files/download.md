@@ -49,18 +49,6 @@ UTF-8 编码文件名（`filename*=UTF-8''...`），以兼容中文文件名。
 curl -s -O -J "http://127.0.0.1:58685/api/v1/text-files/9f2c1a8b7d6e5f4a3b2c1d0e9f8a7b6c/download"
 ```
 
-### Python
-
-```python
-import httpx
-
-resp = httpx.get(
-    "http://127.0.0.1:58685/api/v1/text-files/9f2c1a8b7d6e5f4a3b2c1d0e9f8a7b6c/download"
-)
-with open("downloaded.txt", "wb") as fp:
-    fp.write(resp.content)
-```
-
 ## 成功响应示例
 
 `HTTP/1.1 200 OK`

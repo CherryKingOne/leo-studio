@@ -318,6 +318,11 @@ pub fn restore_project(store: &mut Store, project_id: &str) -> AppResult<Project
 /// 彻底物理删除项目及其关联的文本文件、章节与切句数据。
 pub fn hard_delete_project(store: &mut Store, project_id: &str) -> AppResult<ProjectInfo> {
     let info = get_project(store, project_id, true)?;
+    if !info.is_deleted {
+        return Err(AppError::invalid_parameter(format!(
+            "项目未处于回收站中：{project_id}"
+        )));
+    }
     store.projects.delete_by("project_id", project_id);
     store.save_projects()?;
 

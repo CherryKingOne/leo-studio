@@ -20,7 +20,8 @@ Leo Studio 后端服务，使用 **Rust + Axum + Tokio** 实现，前后端通�
 ```bash
 cd backend
 cp .env.example .env          # 可选
-cargo run --release           # 以 API Server 模式启动
+cargo run --release --bin leo-studio-backend   # 以 API Server 模式启动
+cargo run --bin leo-studio-backend             # 开发模式启动
 ```
 
 服务地址：<http://127.0.0.1:58685>

@@ -37,7 +37,8 @@ v2 面向新客户端，已在 `backend/src/modules/v2` 实现。
 
 ```bash
 cd backend
-cargo run --release
+cargo run --release --bin leo-studio-backend
+# 开发模式：cargo run --bin leo-studio-backend
 # 监听 http://0.0.0.0:58685
 ```
 
@@ -87,13 +88,6 @@ curl http://127.0.0.1:58685/api/v2/health
 | 500 | 50001 | 服务内部错误 |
 
 ## 目录
-
-### 系统（`system`）
-
-| 接口 | 方法 | 文档 |
-| --- | --- | --- |
-| 健康检查 | `GET /api/v2/health` | [health.md](./system/health.md) |
-| 服务索引 | `GET /api/v2` | [index.md](./system/index.md) |
 
 ### 项目（`projects`）
 

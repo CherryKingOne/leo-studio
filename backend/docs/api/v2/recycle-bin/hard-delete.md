@@ -9,13 +9,13 @@
 | **请求格式** | 无请求体 |
 | **响应格式** | `application/json` |
 | **认证方式** | 无 |
-| **幂等性** | 是（重复删除返回 `404`） |
+| **幂等性** | 是（重复删除返回 `404`，未进入回收站返回 `422`） |
 
 ## 接口描述
 
 从 `projects.csv` 中物理删除项目记录，并调用内部文本文件能力清理磁盘文件、
 `novels.csv`、`novel_contents.csv`、`novel_sentences.csv`、`novel_polyphones.csv`
-中的关联数据。项目可来自正常列表或回收站。
+中的关联数据。仅允许删除已移入回收站的项目；正常项目需先调用软删除接口。
 
 ## 请求参数
 
@@ -70,6 +70,17 @@ curl -X DELETE "http://127.0.0.1:58685/api/v2/projects/9f8c12a4b3e2489c91d8e5f2a
 {
   "code": 40400,
   "message": "项目不存在：9f8c12a4b3e2489c91d8e5f2a1b3c4d5",
+  "data": null,
+  "request_id": "b3f1c2d4e5a60718293a4b5c6d7e8f90"
+}
+```
+
+### 422 项目未进入回收站
+
+```json
+{
+  "code": 40000,
+  "message": "项目未处于回收站中：9f8c12a4b3e2489c91d8e5f2a1b3c4d5",
   "data": null,
   "request_id": "b3f1c2d4e5a60718293a4b5c6d7e8f90"
 }

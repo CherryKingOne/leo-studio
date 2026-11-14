@@ -67,20 +67,6 @@ curl -X POST "http://127.0.0.1:58685/api/v1/text-files" \
   -F "description=示例文本"
 ```
 
-### Python
-
-```python
-import httpx
-
-with open("example.txt", "rb") as fp:
-    resp = httpx.post(
-        "http://127.0.0.1:58685/api/v1/text-files",
-        files={"file": ("example.txt", fp, "text/plain")},
-        data={"description": "示例文本"},
-    )
-print(resp.json()["data"]["file_id"])
-```
-
 ## 成功响应示例
 
 `HTTP/1.1 200 OK`

@@ -229,6 +229,14 @@ async fn project_lifecycle() {
     let (status, body) = app
         .delete(&format!("/api/v1/projects/{project_id}/hard"))
         .await;
+    assert_eq!(status, 422);
+    assert_eq!(body["code"], 40000);
+
+    app.delete(&format!("/api/v1/projects/{project_id}")).await;
+
+    let (status, body) = app
+        .delete(&format!("/api/v1/projects/{project_id}/hard"))
+        .await;
     assert_eq!(status, 200);
     assert_eq!(body["data"]["hard_deleted"], true);
 }

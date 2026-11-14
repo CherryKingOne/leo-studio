@@ -40,7 +40,9 @@
 ```bash
 # 后端
 cd backend
-cargo run --release
+cargo run --release --bin leo-studio-backend
+# 或
+cargo run --bin leo-studio-backend
 # http://127.0.0.1:58685
 
 # 前端

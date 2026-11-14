@@ -38,7 +38,6 @@ docs/api/
 └── v2/                # v2 接口文档（已实现）
     ├── README.md
     ├── getting-started.md
-    ├── system/        # 系统
     ├── projects/      # 项目核心 CRUD
     ├── recycle-bin/   # 回收站
     ├── chapters/      # 章节

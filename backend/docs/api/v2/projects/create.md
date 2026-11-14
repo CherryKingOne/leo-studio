@@ -62,18 +62,6 @@ curl -X POST "http://127.0.0.1:58685/api/v2/projects" \
   -F "file=@./example.txt"
 ```
 
-```python
-import httpx
-
-with open("example.txt", "rb") as fp:
-    resp = httpx.post(
-        "http://127.0.0.1:58685/api/v2/projects",
-        data={"name": "示例项目"},
-        files={"file": ("example.txt", fp, "text/plain")},
-    )
-print(resp.json()["data"]["project_id"])
-```
-
 ## 成功响应示例
 
 ```json
