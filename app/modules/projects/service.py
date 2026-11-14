@@ -32,6 +32,7 @@ from app.modules.text_files.constants import (
 )
 from app.modules.text_files.csv_store import CsvTable
 from app.modules.text_files.dependencies import get_storage_service
+from app.modules.text_files.dialogue import build_dialogue_records
 from app.modules.text_files.parsers import (
     CN_NUM,
     clean_text,
@@ -678,6 +679,7 @@ class ProjectService:
         skipped_chapters = 0
         new_chapter_records: list[dict[str, str]] = []
         new_sentence_records: list[dict[str, str]] = []
+        new_dialogue_records: list[dict[str, str]] = []
 
         current_max_index = (
             max(int(r.get("chapter_index", 0) or 0) for r in existing_chapter_rows)
@@ -713,6 +715,7 @@ class ProjectService:
                     for sr in old_sentence_rows:
                         self.polyphones_table.delete_by("sentence_id", sr.get("sentence_id", ""))
                     self.storage.sentences_table.delete_by("chapter_id", old_ch_id)
+                    self.storage.dialogues_table.delete_by("chapter_id", old_ch_id)
                     if ch_content:
                         overwritten_sentences = (
                             self.storage.processor.create_sentence_records(
@@ -724,6 +727,13 @@ class ProjectService:
                         if overwritten_sentences:
                             self.storage.sentences_table.insert_batch(
                                 overwritten_sentences
+                            )
+                            self.storage.dialogues_table.insert_batch(
+                                build_dialogue_records(
+                                    project.file_id,
+                                    old_ch_id,
+                                    overwritten_sentences,
+                                )
                             )
                     skipped_chapters += 1
                     continue
@@ -742,18 +752,22 @@ class ProjectService:
                 "word_count": str(w_count),
             })
             if ch_content:
-                new_sentence_records.extend(
-                    self.storage.processor.create_sentence_records(
-                        novel_id=project.file_id,
-                        chapter_id=ch_id,
-                        content=ch_content,
-                    )
+                chapter_sentences = self.storage.processor.create_sentence_records(
+                    novel_id=project.file_id,
+                    chapter_id=ch_id,
+                    content=ch_content,
+                )
+                new_sentence_records.extend(chapter_sentences)
+                new_dialogue_records.extend(
+                    build_dialogue_records(project.file_id, ch_id, chapter_sentences)
                 )
 
         if new_chapter_records:
             self.storage.contents_table.insert_batch(new_chapter_records)
         if new_sentence_records:
             self.storage.sentences_table.insert_batch(new_sentence_records)
+        if new_dialogue_records:
+            self.storage.dialogues_table.insert_batch(new_dialogue_records)
 
         # 重新统计该项目的最新总章节数与总字数
         all_chapters = self.storage.get_novel_chapters(project.file_id)

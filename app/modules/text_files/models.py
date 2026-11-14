@@ -57,3 +57,22 @@ class TextFileInfo:
     uploaded_at: datetime
     download_url: str
     description: str | None = None
+
+
+class DialogueSegmentType(StrEnum):
+    """台词切分片段类型。"""
+
+    NARRATION = "narration"
+    DIALOGUE = "dialogue"
+
+
+@dataclass(slots=True)
+class DialogueSegment:
+    """句子内的台词切分片段。"""
+
+    segment_index: int
+    segment_type: DialogueSegmentType
+    content: str
+    char_start: int
+    char_end: int
+    quote_char: str

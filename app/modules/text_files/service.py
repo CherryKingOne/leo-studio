@@ -24,11 +24,13 @@ from app.modules.text_files.config import TextFilesSettings, get_text_files_sett
 from app.modules.text_files.constants import (
     EXTENSION_MIME_MAP,
     NOVEL_CONTENTS_COLUMNS,
+    NOVEL_DIALOGUES_COLUMNS,
     NOVEL_POLYPHONES_COLUMNS,
     NOVEL_SENTENCES_COLUMNS,
     NOVELS_COLUMNS,
 )
 from app.modules.text_files.csv_store import CsvTable
+from app.modules.text_files.dialogue import build_dialogue_records
 from app.modules.text_files.models import TextFileInfo, categorize
 from app.modules.text_files.parsers import (
     clean_text,
@@ -85,6 +87,10 @@ class TextFileStorageService:
         self.polyphones_table = CsvTable(
             self.csv_dir / self.settings.novel_polyphones_csv_filename,
             columns=NOVEL_POLYPHONES_COLUMNS,
+        )
+        self.dialogues_table = CsvTable(
+            self.csv_dir / self.settings.novel_dialogues_csv_filename,
+            columns=NOVEL_DIALOGUES_COLUMNS,
         )
         self.processor = NovelDataProcessor(
             sentences_table=self.sentences_table,
@@ -258,9 +264,10 @@ class TextFileStorageService:
             "created_at": now.isoformat(),
         })
 
-        # 批量写入小说章节内容表 (novel_contents.csv) 与章节切句表 (novel_sentences.csv)
+        # 批量写入小说章节内容表、章节切句表与台词切分表
         chapter_records = []
         sentence_records = []
+        dialogue_records = []
         for idx, (ch_title, ch_content) in enumerate(chapters):
             ch_id = uuid.uuid4().hex
             chapter_records.append({
@@ -272,17 +279,21 @@ class TextFileStorageService:
                 "word_count": str(count_words(ch_content)),
             })
             if ch_content:
-                sentence_records.extend(
-                    self.processor.create_sentence_records(
-                        novel_id=file_id,
-                        chapter_id=ch_id,
-                        content=ch_content,
-                    )
+                chapter_sentences = self.processor.create_sentence_records(
+                    novel_id=file_id,
+                    chapter_id=ch_id,
+                    content=ch_content,
+                )
+                sentence_records.extend(chapter_sentences)
+                dialogue_records.extend(
+                    build_dialogue_records(file_id, ch_id, chapter_sentences)
                 )
 
         self.contents_table.insert_batch(chapter_records)
         if sentence_records:
             self.sentences_table.insert_batch(sentence_records)
+        if dialogue_records:
+            self.dialogues_table.insert_batch(dialogue_records)
 
         return info
 
@@ -371,6 +382,7 @@ class TextFileStorageService:
         for sentence_row in self.sentences_table.find_all(lambda r: r.get("novel_id") == file_id):
             self.polyphones_table.delete_by("sentence_id", sentence_row.get("sentence_id", ""))
         self.sentences_table.delete_by("novel_id", file_id)
+        self.dialogues_table.delete_by("novel_id", file_id)
         return info
 
     def open_file(self, file_id: str) -> tuple[Path, TextFileInfo]:
@@ -442,6 +454,14 @@ class TextFileStorageService:
         """获取指定章节的全部切句记录。"""
         return self.processor.get_sentences_by_chapter(chapter_id)
 
+    def get_novel_dialogues(self, file_id: str) -> list[dict[str, str]]:
+        """获取指定小说的全部台词切分记录。"""
+        return self.dialogues_table.find_all(lambda r: r.get("novel_id") == file_id)
+
+    def get_chapter_dialogues(self, chapter_id: str) -> list[dict[str, str]]:
+        """获取指定章节的全部台词切分记录。"""
+        return self.dialogues_table.find_all(lambda r: r.get("chapter_id") == chapter_id)
+
     def cleanup(self) -> None:
         """清理上传目录与 CSV 表（测试或运维使用）。"""
         shutil.rmtree(self.upload_dir, ignore_errors=True)
@@ -450,6 +470,7 @@ class TextFileStorageService:
         self.contents_table.clear()
         self.sentences_table.clear()
         self.polyphones_table.clear()
+        self.dialogues_table.clear()
 
     def iter_stored_names(self) -> Iterable[str]:
         """迭代所有已存储文件名。"""
