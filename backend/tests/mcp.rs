@@ -33,7 +33,6 @@ fn mcp_settings(write: bool, destructive: bool) -> McpSettings {
     McpSettings {
         enabled: true,
         http_path: "/mcp".to_string(),
-        token: String::new(),
         write_tools: write,
         destructive_tools: destructive,
         max_chars: 20_000,

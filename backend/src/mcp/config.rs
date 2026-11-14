@@ -5,7 +5,6 @@
 pub struct McpSettings {
     pub enabled: bool,
     pub http_path: String,
-    pub token: String,
     pub write_tools: bool,
     pub destructive_tools: bool,
     pub max_chars: usize,
@@ -28,9 +27,8 @@ impl McpSettings {
         };
 
         Self {
-            enabled: env_bool("LEO_MCP_HTTP_ENABLED", false),
+            enabled: env_bool("LEO_MCP_HTTP_ENABLED", true),
             http_path,
-            token: env_string("LEO_MCP_TOKEN", ""),
             write_tools: env_bool("LEO_MCP_WRITE_TOOLS", false),
             destructive_tools: env_bool("LEO_MCP_DESTRUCTIVE_TOOLS", false),
             max_chars: 20_000,

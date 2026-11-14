@@ -9,13 +9,7 @@ pub use server::McpHandler;
 
 use std::sync::Arc;
 
-use axum::{
-    Router,
-    extract::State,
-    http::{Request, StatusCode, header::AUTHORIZATION},
-    middleware::Next,
-    response::{IntoResponse, Response},
-};
+use axum::Router;
 use rmcp::transport::streamable_http_server::{
     StreamableHttpServerConfig, StreamableHttpService, session::local::LocalSessionManager,
 };
@@ -37,38 +31,5 @@ pub fn http_router(mcp: Arc<McpSettings>, state: AppState) -> Router {
         config,
     );
 
-    let app: Router<Arc<McpSettings>> = Router::new().fallback_service(service);
-    let app = if mcp.token.is_empty() {
-        app
-    } else {
-        app.layer(axum::middleware::from_fn_with_state(
-            mcp.clone(),
-            require_bearer,
-        ))
-    };
-
-    app.with_state(mcp)
-}
-
-async fn require_bearer(
-    State(mcp): State<Arc<McpSettings>>,
-    request: Request<axum::body::Body>,
-    next: Next,
-) -> Response {
-    let expected = format!("Bearer {}", mcp.token);
-    let authorized = request
-        .headers()
-        .get(AUTHORIZATION)
-        .and_then(|value| value.to_str().ok())
-        .is_some_and(|value| value == expected);
-
-    if authorized {
-        next.run(request).await
-    } else {
-        (
-            StatusCode::UNAUTHORIZED,
-            "缺少或无效的 Authorization: Bearer <token>",
-        )
-            .into_response()
-    }
+    Router::new().fallback_service(service)
 }

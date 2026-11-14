@@ -34,7 +34,7 @@
 ### 1.3 非目标（本期不做）
 
 - 不做 MCP **客户端**（不代理别的 MCP Server）。
-- 不做 OAuth 2.1 / 多租户鉴权（本期只用静态 Bearer Token + 本机绑定）。
+- 不做鉴权（无用户体系，MCP 与 REST 同域暴露）。
 - 不实现 Sampling / Roots / Logging（`2026-07-28` 已弃用）。
 - 不实现 Tasks 扩展、MCP Apps 扩展。
 - 不做音频合成、母带导出等尚未落地的业务能力。
@@ -126,7 +126,7 @@ MCP 层只做四件事：
 1. 把工具参数映射成 `service` 调用；
 2. 把领域模型映射成 MCP 的 `content` + `structuredContent`；
 3. 把 `AppError` 映射成「工具执行错误」（`isError: true`，让模型自我纠正）或协议错误；
-4. 鉴权、开关、限流、审计。
+4. 开关与审计。
 
 **禁止**在 MCP 层写章节切分、防污染比对、多音字校验等规则——这些必须留在 `service`。
 
@@ -241,7 +241,7 @@ MCP 层只做四件事：
 
 - 默认绑定 `127.0.0.1`；对外暴露必须显式改 `LEO_MCP_HOST`。
 - `Origin` 校验：缺失或不在白名单 → `403`。
-- 可选 Bearer Token：`LEO_MCP_TOKEN` 非空时，所有 `/mcp` 请求必须带 `Authorization: Bearer ...`。
+- 不做 Token 鉴权；暴露范围由 `LEO_HOST` 决定。
 - 写工具与破坏性工具默认关闭，分别由两个开关控制。
 - 所有写操作记审计日志：`request_id / clientInfo / tool / 参数摘要 / 结果 / 耗时`，只记元数据，不记正文全文。
 - 速率限制：单客户端 `60 req/min`，超限返回 `429`。
@@ -288,7 +288,7 @@ backend/
 ├── Cargo.toml                     # 增加 rmcp；仅 Streamable HTTP 相关 feature
 ├── src/
 │   ├── mcp/                       # ★ 新增模块
-│   │   ├── mod.rs                 # 导出与 Axum /mcp 挂载、Bearer 鉴权
+│   │   ├── mod.rs                 # 导出与 Axum /mcp 挂载
 │   │   ├── config.rs              # LEO_MCP_* 配置与校验
 │   │   ├── server.rs              # ServerHandler：discover / tools / resources / prompts
 │   │   ├── registry.rs            # 21 个工具定义、参数校验与分发
@@ -340,9 +340,8 @@ mcp-server/
 
 | 环境变量 | 默认值 | 说明 |
 | --- | --- | --- |
-| `LEO_MCP_HTTP_ENABLED` | `false` | 是否挂载 `/mcp` |
+| `LEO_MCP_HTTP_ENABLED` | `true` | 是否挂载 `/mcp`（默认开启） |
 | `LEO_MCP_HTTP_PATH` | `/mcp` | Streamable HTTP 端点 |
-| `LEO_MCP_TOKEN` | 空 | 非空时要求 `Authorization: Bearer` |
 | `LEO_MCP_WRITE_TOOLS` | `false` | 注册写入工具 |
 | `LEO_MCP_DESTRUCTIVE_TOOLS` | `false` | 注册破坏性工具 |
 
@@ -359,7 +358,7 @@ mcp-server/
 | P0 | 规划与契约评审（本文） | 本文档 + 工具清单定稿 | 评审通过 |
 | P1 | 骨架与发现 | `mcp/` 模块、HTTP 入口、`server/discover`、`leo_health` | `server/discover` 返回 `2026-07-28`；旧协议返回 `-32022` |
 | P2 | 只读工具 + 资源 | 4.2 全部工具、第 5 节资源 | 契约测试覆盖每个工具的正常/404/参数错误 |
-| P3 | HTTP 传输 | `/mcp`、头部校验、Origin、Token | `-32020` / `-32022` / `403` / `401` 用例通过 |
+| P3 | HTTP 传输 | `/mcp`、头部校验、Origin | `-32020` / `-32022` / `403` 用例通过 |
 | P4 | 写入与破坏性工具 | 4.3 / 4.4 工具、审计、`confirm` | 默认关闭时 `tools/list` 不出现；开启后危险操作留痕 |
 | P5 | 提示词与订阅 | 第 6 节提示词、`subscriptions/listen` | 变更通知能推到订阅流 |
 | P6 | 文档与联调 | `docs/mcp/*`、Claude/Cursor 实测 | 至少两个真实客户端跑通端到端 |
@@ -393,7 +392,7 @@ mcp-server/
 
 待确认：
 
-1. **鉴权**：当前是静态 Bearer Token，是否需要 OAuth / 多用户？
+1. **访问控制**：当前无鉴权；若需要公网暴露，再补 Token 或网关鉴权。
 2. **订阅与变更通知**：是否补 `subscriptions/listen`（P5）？
 3. **桌面端配置页**：是否要做「一键复制 Claude Desktop / Cursor 配置」的设置页？
 

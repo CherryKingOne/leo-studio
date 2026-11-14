@@ -13,15 +13,12 @@
 | 工具 | 10 个只读；7 个写入（默认关闭）；4 个破坏性（额外开关 + `confirm`） |
 | 资源 | `leo://projects`、`leo://stats` 及剧目/章节参数化资源 |
 | 提示词 | 剧目总览、导入小说、章节摘要 |
-| 鉴权 | 可选 Bearer Token；默认只绑定 `127.0.0.1` |
 
 ## 启动
 
 ```bash
 cd backend
 LEO_DATA_DIR=./.data \
-LEO_MCP_HTTP_ENABLED=true \
-LEO_MCP_TOKEN=replace-me \
 cargo run --bin leo-studio-backend
 ```
 
@@ -35,7 +32,6 @@ curl -sS -X POST http://127.0.0.1:58685/mcp \
   -H 'Accept: application/json, text/event-stream' \
   -H 'MCP-Protocol-Version: 2026-07-28' \
   -H 'Mcp-Method: server/discover' \
-  -H 'Authorization: Bearer replace-me' \
   -d '{"jsonrpc":"2.0","id":1,"method":"server/discover","params":{"_meta":{"io.modelcontextprotocol/protocolVersion":"2026-07-28","io.modelcontextprotocol/clientInfo":{"name":"curl","version":"1.0"},"io.modelcontextprotocol/clientCapabilities":{}}}}'
 ```
 
@@ -50,9 +46,8 @@ curl -sS -X POST http://127.0.0.1:58685/mcp \
 
 | 环境变量 | 默认值 | 说明 |
 | --- | --- | --- |
-| `LEO_MCP_HTTP_ENABLED` | `false` | 是否挂载 `/mcp` |
+| `LEO_MCP_HTTP_ENABLED` | `true` | 是否挂载 `/mcp`（默认开启） |
 | `LEO_MCP_HTTP_PATH` | `/mcp` | HTTP 端点路径 |
-| `LEO_MCP_TOKEN` | 空 | 非空时要求 `Authorization: Bearer <token>` |
 | `LEO_MCP_WRITE_TOOLS` | `false` | 注册写入工具 |
 | `LEO_MCP_DESTRUCTIVE_TOOLS` | `false` | 注册破坏性工具 |
 
@@ -87,7 +82,7 @@ curl -sS -X POST http://127.0.0.1:58685/mcp \
 
 ## 安全边界
 
-- 默认只监听 `127.0.0.1`；对外暴露需显式修改监听地址并配置 Token。
+- 与 REST 共用 `LEO_HOST` / `LEO_PORT`（默认 `0.0.0.0:58685`），不做额外鉴权。
 - 写工具与破坏性工具是双层开关；破坏性操作必须显式 `confirm=true`。
 - `leo_append_chapters` 默认 `dry_run=true`，先预检再写。
 - 导入只接受 `text` 参数，不读取服务器本地文件，避免路径穿越。
@@ -97,7 +92,7 @@ curl -sS -X POST http://127.0.0.1:58685/mcp \
 ## 已验证
 
 - HTTP：`server/discover` → `tools/list` → `tools/call`。
-- 缺 `Mcp-Method` 返回 `-32020`；旧版本返回 `-32022`；Token 缺失返回 `401`。
+- 缺 `Mcp-Method` 返回 `-32020`；旧版本返回 `-32022`。
 - 集成测试：`cargo test --test mcp`（6 例，覆盖工具开关、创建/查询/搜索/统计、追更预检与确认、多音字往返、破坏性确认）。
 
 ## 未实现
