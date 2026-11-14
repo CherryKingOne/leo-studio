@@ -14,9 +14,9 @@ use crate::text::processor::create_sentence_records;
 
 use super::model::{
     ChapterAppendItem, ChapterConflictInfo, ChapterContentInfo, ChapterDeleteInfo,
-    ChapterOutlineInfo, ChapterPolyphoneList, ChapterPolyphoneSentence, ChapterSentenceInfo,
-    ProjectChapterAppendInfo, ProjectInfo, STATUS_IN_PROGRESS, SentencePolyphoneInfo,
-    SentencePolyphoneItemDeleteInfo,
+    ChapterOutlineInfo, ChapterPolyphoneList, ChapterPolyphoneSentence, ChapterSearchHit,
+    ChapterSentenceInfo, ProjectChapterAppendInfo, ProjectInfo, ProjectStats, STATUS_IN_PROGRESS,
+    SentencePolyphoneInfo, SentencePolyphoneItemDeleteInfo,
 };
 
 /// 将 CSV 记录转换为项目领域模型。
@@ -1271,4 +1271,73 @@ pub fn update_project_fields(
 /// 兼容旧版辅助：解析时间字符串。
 pub fn parse_time(value: &str) -> DateTime<Utc> {
     text_service::parse_datetime(value)
+}
+
+/// 在项目内按关键词搜索章节（标题或正文命中），返回章节元信息与摘要。
+pub fn search_chapters(
+    store: &Store,
+    project_id: &str,
+    keyword: &str,
+    limit: usize,
+) -> AppResult<Vec<ChapterSearchHit>> {
+    let project = get_project(store, project_id, false)?;
+    let needle = keyword.trim();
+    if needle.is_empty() || limit == 0 {
+        return Ok(Vec::new());
+    }
+
+    let mut items: Vec<ChapterSearchHit> = store
+        .contents
+        .find_all()
+        .iter()
+        .filter(|row| str_field(row, "novel_id") == project.file_id)
+        .filter_map(|row| {
+            let title = str_field(row, "chapter_title");
+            let content = str_field(row, "content");
+            let position = title
+                .find(needle)
+                .map(|index| (true, index))
+                .or_else(|| content.find(needle).map(|index| (false, index)))?;
+            let (in_title, byte_index) = position;
+            let source = if in_title { title } else { content };
+            let chars: Vec<char> = source.chars().collect();
+            let start = source[..byte_index].chars().count().min(chars.len());
+            let from = start.saturating_sub(40);
+            let to = (start + needle.chars().count() + 40).min(chars.len());
+            let excerpt: String = chars[from..to].iter().collect();
+            Some(ChapterSearchHit {
+                chapter_id: str_field(row, "chapter_id").to_string(),
+                chapter_index: int_field(row, "chapter_index"),
+                chapter_title: title.to_string(),
+                word_count: int_field(row, "word_count"),
+                excerpt,
+            })
+        })
+        .collect();
+
+    items.sort_by_key(|item| item.chapter_index);
+    items.truncate(limit);
+    Ok(items)
+}
+
+/// 全库统计：剧目数、章节数、总字数与回收站数量。
+pub fn get_stats(store: &Store) -> ProjectStats {
+    let mut stats = ProjectStats {
+        projects: 0,
+        chapters: 0,
+        words: 0,
+        recycle_bin: 0,
+    };
+
+    for record in store.projects.find_all() {
+        if bool_field(record, "is_deleted") {
+            stats.recycle_bin += 1;
+        } else {
+            stats.projects += 1;
+            stats.chapters += int_field(record, "chapter_count");
+            stats.words += int_field(record, "total_words");
+        }
+    }
+
+    stats
 }

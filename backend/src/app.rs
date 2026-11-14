@@ -58,16 +58,24 @@ pub fn build_router(settings: Arc<Settings>, store: Store) -> Router {
             .allow_credentials(true)
     };
 
-    Router::new()
+    // request_id 中间件只作用于 REST 路由；MCP 的 JSON-RPC 响应不能被改写。
+    let api = Router::new()
         .nest("/api/v1/text-files", text_files::router())
         .nest("/api/v1/projects", projects::router())
         .nest("/api/v1", system::router())
         .nest("/api/v2", v2::router())
         .merge(system::root_router())
         .layer(middleware::from_fn(request_id_middleware))
-        .layer(cors)
-        .layer(DefaultBodyLimit::max(
-            settings.max_upload_size_mb.saturating_mul(1024 * 1024) + 2 * 1024 * 1024,
-        ))
-        .with_state(state)
+        .with_state(state.clone());
+
+    let mut router = api;
+    let mcp = Arc::new(crate::mcp::McpSettings::from_env());
+    if mcp.enabled && mcp.transport.serves_http() {
+        let path = mcp.http_path.clone();
+        router = router.nest(&path, crate::mcp::http_router(mcp, state));
+    }
+
+    router.layer(cors).layer(DefaultBodyLimit::max(
+        settings.max_upload_size_mb.saturating_mul(1024 * 1024) + 2 * 1024 * 1024,
+    ))
 }

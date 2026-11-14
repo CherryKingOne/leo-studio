@@ -2,6 +2,7 @@ pub mod app;
 pub mod config;
 pub mod error;
 pub mod http;
+pub mod mcp;
 pub mod middleware;
 pub mod modules;
 pub mod response;

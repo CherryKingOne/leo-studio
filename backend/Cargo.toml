@@ -9,6 +9,10 @@ license = "MIT"
 name = "leo-studio-backend"
 path = "src/main.rs"
 
+[[bin]]
+name = "leo-studio-mcp"
+path = "src/bin/leo-studio-mcp.rs"
+
 [dependencies]
 axum = { version = "0.8", features = ["multipart", "json"] }
 tokio = { version = "1", features = ["full"] }
@@ -26,6 +30,7 @@ tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 dotenvy = "0.15"
 bytes = "1"
 percent-encoding = "2"
+rmcp = { version = "3.8", features = ["transport-io", "transport-streamable-http-server", "tower"] }
 
 [dev-dependencies]
 tempfile = "3"

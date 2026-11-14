@@ -24,8 +24,8 @@
 
 | 编号 | 目标 | 验收口径 |
 | --- | --- | --- |
-| G1 | 兼容**当前最新** MCP 规范 `2026-07-28`（无状态核心） | 官方 conformance 场景通过；`server/discover`、无 `_meta` 拒绝、`Mcp-Method` 校验生效 |
-| G2 | 同时兼容**上一代** `2025-11-25` 及更早（`initialize` 握手） | 旧客户端（Claude Desktop / Cursor 现有版本）可正常完成握手与调用 |
+| G1 | 只支持**当前最新** MCP 规范 `2026-07-28`（无状态核心） | 官方 conformance 场景通过；`server/discover`、无 `_meta` 拒绝、`Mcp-Method` 校验生效 |
+| G2 | 旧协议（`2025-11-25` 及更早）明确拒绝 | 旧客户端收到 `-32022` 与 `supported=["2026-07-28"]`，不会误连 |
 | G3 | 复用现有 `projects` / `text_files` 业务服务，**不复制业务规则** | MCP 工具最终都落到 `projects::service` / `text_files::service` |
 | G4 | 只读能力默认可用，写能力受配置开关与工具注解约束 | 默认配置下模型只能查询，不能改数据 |
 | G5 | 支持 stdio 与 Streamable HTTP 两种传输 | 两种入口都能跑通同一套工具清单 |
@@ -55,57 +55,36 @@ MCP **没有「v2」这种大版本号**。它用日期作为协议版本：
 | `2025-11-25` | 有状态 | 图标、URL 模式 Elicitation、Tasks（实验） |
 | **`2026-07-28`** | **无状态（当前最新）** | 去掉 `initialize` 与会话、强制 `server/discover`、MRTR、`subscriptions/listen`、结果带 `resultType` |
 
-「最新版」= **`2026-07-28`**；「上一版」= **`2025-11-25`**。本文说的「新旧兼容」就是这两代同时支持（规范里叫 **dual-era**）。
+本期**只支持 `2026-07-28`**。旧协议（`2025-11-25` 及更早）直接拒绝，不做兼容层：
 
-### 2.2 兼容结论
+- HTTP：不支持的版本返回 `400` + `-32022`，`data.supported = ["2026-07-28"]`；
+- stdio：旧客户端发 `initialize` 时协商不到支持的版本，返回 `-32022`；
+- HTTP+SSE（`2024-11-05`）与旧版会话头一律不支持。
 
-**可以做到同时兼容，且成本可控**：
+### 2.2 方法矩阵
 
-- 官方 Rust SDK **`rmcp` 3.x** 已同时实现 `2026-07-28` 与 `2025-11-25` 及更早版本，并按协商结果自动切换线格式（新版结果带 `resultType`，旧版不带）。
-- 差异主要在 HTTP 传输层：新版无 `Mcp-Session-Id`、无 GET SSE、无 `Last-Event-ID` 续传；旧版反之。SDK 的 `legacy_session_mode` 只影响旧协议会话。
-- stdio 侧不需要猜：按规范用 `server/discover` 探测，失败再回落到 `initialize`。
+图例：✅ 已实现；❌ 不支持。
 
-所以策略是：
-
-```
-客户端
-  │
-  ├─ 2026-07-28（modern）→ server/discover → 无 _meta 则拒绝 → 正常调用
-  │
-  └─ ≤2025-11-25（legacy）→ initialize → notifications/initialized → 正常调用
-```
-
-### 2.3 我们要实现的协议方法矩阵
-
-图例：✅ 必须/已实现；🟡 可选；➖ 该版本没有；❌ 本期不做。
-
-| 方法 | `2026-07-28` | `≤ 2025-11-25` | 本期 |
-| --- | --- | --- | --- |
-| `server/discover` | ✅ 必须 | ➖ | ✅ |
-| `initialize` | ➖（已移除） | ✅ 必须 | ✅ 仅 legacy |
-| `notifications/initialized` | ➖ | ✅ | ✅ 仅 legacy |
-| `ping` | ➖（已移除） | ✅ | ✅ 仅 legacy |
-| `tools/list` | ✅ | ✅ | ✅ |
-| `tools/call` | ✅ | ✅ | ✅ |
-| `resources/list` | ✅（声明能力后） | ✅ | ✅ |
-| `resources/templates/list` | ✅（声明后） | ✅ | ✅ |
-| `resources/read` | ✅ | ✅ | ✅ |
-| `prompts/list` | ✅（声明后） | ✅ | ✅ |
-| `prompts/get` | ✅ | ✅ | ✅ |
-| `resources/subscribe` / `unsubscribe` | ➖（被 `subscriptions/listen` 取代） | ✅ | ✅ 仅 legacy |
-| `subscriptions/listen` | ✅（声明 `listChanged` 后） | ➖ | ✅ |
-| `notifications/tools/list_changed` | ✅ SHOULD | ✅ SHOULD | ✅ |
-| `notifications/resources/updated` | ✅ SHOULD | ✅ SHOULD | ✅ |
-| `notifications/progress` | ✅（请求级 SSE） | ✅ | ✅ 上传/导入长任务 |
-| `notifications/cancelled` | 🟡（仅 stdio） | ✅ | ✅ stdio |
-| `logging/setLevel` | ➖（已移除） | 🟡 | 🟡 仅 legacy 空实现 |
-| `completion/complete` | 🟡 | 🟡 | 🟡 第二版 |
-| `elicitation/create` | 🟡（MRTR 形式） | 🟡 | ❌ 用工具参数 `confirm` 代替 |
-| `sampling/createMessage` | ➖（已弃用） | 🟡 | ❌ |
-| `roots/list` | ➖（已弃用） | 🟡 | ❌ |
-| Tasks 扩展 | 🟡 扩展 | 🟡 实验 | ❌ |
-| HTTP GET SSE 流 | ➖（已移除，返回 405） | 🟡 | 🟡 旧版兼容时返回 405 |
-| HTTP+SSE（`2024-11-05`） | 已弃用 | ✅ 老客户端 | ❌ 返回 405 + 说明 |
+| 方法 | `2026-07-28` | 本期 |
+| --- | --- | --- |
+| `server/discover` | ✅ 必须 | ✅ |
+| `initialize` / `notifications/initialized` | ➖（已移除） | ❌ |
+| `ping` | ➖（已移除） | ❌ |
+| `tools/list` | ✅ | ✅ |
+| `tools/call` | ✅ | ✅ |
+| `resources/list` | ✅ | ✅ |
+| `resources/templates/list` | ✅ | ✅ |
+| `resources/read` | ✅ | ✅ |
+| `prompts/list` | ✅ | ✅ |
+| `prompts/get` | ✅ | ✅ |
+| `subscriptions/listen` | ✅ | ❌（本期不做变更订阅） |
+| `notifications/*` | 🟡 | ❌ |
+| `completion/complete` | 🟡 | ❌ |
+| `elicitation/create` | 🟡 | ❌（用工具参数 `confirm`） |
+| `sampling/createMessage` / `roots/list` | 已弃用 | ❌ |
+| Tasks 扩展 / MCP Apps | 扩展 | ❌ |
+| HTTP GET SSE 流 | ➖ | 405 |
+| HTTP+SSE（`2024-11-05`） | 已弃用 | ❌ |
 
 HTTP 侧还要满足 `2026-07-28` 的请求元数据要求：
 
@@ -364,7 +343,7 @@ backend/
         ├── common.rs              # 构造测试用 Store / 临时目录
         ├── discovery.rs           # server/discover、版本协商、-32022
         ├── tools.rs               # 每个工具的契约与错误映射
-        ├── legacy.rs              # initialize 握手与旧客户端兼容
+        ├── protocol.rs            # discover、版本拒绝、-32020
         └── http.rs                # 头部校验 -32020、Origin 403、鉴权 401
 ```
 
@@ -429,7 +408,7 @@ mcp-server/
 | 阶段 | 内容 | 产出 | 验收 |
 | --- | --- | --- | --- |
 | P0 | 规划与契约评审（本文） | 本文档 + 工具清单定稿 | 评审通过 |
-| P1 | 骨架与发现 | `mcp/` 模块、stdio 入口、`server/discover`、`leo_health` | `server/discover` 返回两代版本；旧客户端可握手 |
+| P1 | 骨架与发现 | `mcp/` 模块、stdio 入口、`server/discover`、`leo_health` | `server/discover` 返回 `2026-07-28`；旧协议返回 `-32022` |
 | P2 | 只读工具 + 资源 | 4.2 全部工具、第 5 节资源 | 契约测试覆盖每个工具的正常/404/参数错误 |
 | P3 | HTTP 传输 | `/mcp`、头部校验、Origin、Token | `-32020` / `-32022` / `403` / `401` 用例通过 |
 | P4 | 写入与破坏性工具 | 4.3 / 4.4 工具、审计、`confirm` | 默认关闭时 `tools/list` 不出现；开启后危险操作留痕 |
@@ -450,20 +429,25 @@ mcp-server/
 | 写工具被模型误用 | 数据被覆盖/删除 | 双层开关 + `confirm` + `dry_run` 默认 true + 审计 |
 | `file_path` 路径穿越 | 读到任意文件 | 规范化 + 根目录白名单 + 拒绝符号链接 + 默认关闭 |
 | MCP 响应被 `request_id` 中间件改写 | 协议不合规 | `/mcp` 路由单独挂载，不套用该中间件 |
-| 客户端版本碎片化 | 行为差异 | 用 `server/discover` 与 `initialize` 双路径；在 `docs/mcp/protocol.md` 维护兼容矩阵 |
+| 客户端版本碎片化 | 行为差异 | 只维护 `2026-07-28` 一套契约；旧客户端需升级 |
 | 业务服务没有 `search_chapters` / `get_stats` | 需要补 service | 在 `projects::service` 增加只读函数，MCP 只调用不实现 |
 
 ---
 
-## 12. 待确认
+## 12. 决策记录与待确认
 
-1. **传输范围**：首期只做 stdio，还是同时做 HTTP？（建议：P1 先做 stdio，P3 再补 HTTP）
-2. **写工具默认值**：`leo_append_chapters` 这类低风险写入是否默认开启？（建议：`dry_run` 默认 true，真正写入需 `confirm`）
-3. **`file_path` 入参**：是否允许模型读服务器本地文件？（建议：仅 stdio + 白名单）
-4. **鉴权**：是否需要 OAuth（多用户、企业网关），还是静态 Token 足够？
-5. **返回语言**：`content` 文本用中文摘要 + `structuredContent` 结构化，是否符合客户端预期？
-6. **桌面端配置页**：是否要做「一键复制 Claude Desktop / Cursor 配置」的设置页？
-7. **能力边界**：是否需要把「声线绑定 / 配音参数」等 mock 数据也暴露（目前后端没有对应接口，建议不做）。
+已决策：
+
+1. **协议**：只支持 `2026-07-28`，不做旧版兼容。
+2. **传输**：stdio 与 Streamable HTTP 均已实现，同一套工具清单。
+3. **写工具**：默认关闭；`leo_append_chapters` 默认 `dry_run=true`，真正写入需 `confirm=true`。
+4. **`file_path`**：默认关闭，仅允许 `LEO_MCP_ALLOWED_ROOTS` 内的普通文件。
+
+待确认：
+
+1. **鉴权**：当前是静态 Bearer Token，是否需要 OAuth / 多用户？
+2. **订阅与变更通知**：是否补 `subscriptions/listen`（P5）？
+3. **桌面端配置页**：是否要做「一键复制 Claude Desktop / Cursor 配置」的设置页？
 
 ---
 

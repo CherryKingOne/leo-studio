@@ -141,4 +141,24 @@ pub struct ChapterPolyphoneList {
     pub items: Vec<ChapterPolyphoneSentence>,
 }
 
+/// 章节搜索命中项。
+#[derive(Debug, Clone, Serialize)]
+pub struct ChapterSearchHit {
+    pub chapter_id: String,
+    pub chapter_index: i64,
+    pub chapter_title: String,
+    pub word_count: i64,
+    /// 命中关键词前后各取若干字的摘要
+    pub excerpt: String,
+}
+
+/// 全库统计。
+#[derive(Debug, Clone, Serialize)]
+pub struct ProjectStats {
+    pub projects: i64,
+    pub chapters: i64,
+    pub words: i64,
+    pub recycle_bin: i64,
+}
+
 pub const STATUS_IN_PROGRESS: &str = "制作中";
