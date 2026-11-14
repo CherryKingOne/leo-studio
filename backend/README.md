@@ -71,6 +71,7 @@ cargo run --bin leo-studio-backend
 ├── novels.csv
 ├── novel_contents.csv
 ├── novel_sentences.csv
+├── novel_dialogues.csv
 ├── novel_polyphones.csv
 └── projects.csv
 storage/uploads/text-files/

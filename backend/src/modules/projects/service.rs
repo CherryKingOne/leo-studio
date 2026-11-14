@@ -10,7 +10,9 @@ use crate::storage::store::Store;
 use crate::text::parsers::{
     chapter_number, clean_text, count_words, parse_chapters, resolve_chapter_key,
 };
-use crate::text::processor::create_sentence_records;
+use crate::text::processor::{
+    clean_dialogue_records, create_dialogue_records_from_sentence, create_sentence_records,
+};
 
 use super::model::{
     ChapterAppendItem, ChapterConflictInfo, ChapterContentInfo, ChapterDeleteInfo,
@@ -513,9 +515,16 @@ pub fn update_chapter(
             store.polyphones.delete_by("sentence_id", sentence_id);
         }
         store.sentences.delete_by("chapter_id", chapter_id);
+        store.dialogues.delete_by("chapter_id", chapter_id);
         if !new_content.is_empty() {
             let records = create_sentence_records(&project.file_id, chapter_id, new_content);
+            let dialogue_records: Vec<Record> = records
+                .iter()
+                .flat_map(create_dialogue_records_from_sentence)
+                .collect();
+            let dialogue_records = clean_dialogue_records(dialogue_records);
             store.sentences.insert_batch(records);
+            store.dialogues.insert_batch(dialogue_records);
         }
     }
 
@@ -547,6 +556,7 @@ pub fn update_chapter(
 
     store.save_polyphones()?;
     store.save_sentences()?;
+    store.save_dialogues()?;
     store.save_contents()?;
     store.save_novels()?;
     store.save_projects()?;
@@ -580,6 +590,7 @@ pub fn delete_chapter(
         store.polyphones.delete_by("sentence_id", sentence_id);
     }
     store.sentences.delete_by("chapter_id", chapter_id);
+    store.dialogues.delete_by("chapter_id", chapter_id);
     store.contents.delete_by("chapter_id", chapter_id);
 
     let all_chapters = text_service::get_novel_chapters(store, &project.file_id);
@@ -610,6 +621,7 @@ pub fn delete_chapter(
 
     store.save_polyphones()?;
     store.save_sentences()?;
+    store.save_dialogues()?;
     store.save_contents()?;
     store.save_novels()?;
     store.save_projects()?;
@@ -834,10 +846,17 @@ pub fn append_chapters(
                     .delete_by("sentence_id", str_field(row, "sentence_id"));
             }
             store.sentences.delete_by("chapter_id", &old_chapter_id);
+            store.dialogues.delete_by("chapter_id", &old_chapter_id);
             if !chapter_content.is_empty() {
                 let overwritten =
                     create_sentence_records(&project.file_id, &old_chapter_id, chapter_content);
+                let dialogue_records: Vec<Record> = overwritten
+                    .iter()
+                    .flat_map(create_dialogue_records_from_sentence)
+                    .collect();
+                let dialogue_records = clean_dialogue_records(dialogue_records);
                 store.sentences.insert_batch(overwritten);
+                store.dialogues.insert_batch(dialogue_records);
             }
             skipped_chapters += 1;
             processed_chapters.push(ChapterAppendItem {
@@ -916,9 +935,16 @@ pub fn append_chapters(
         }
     }
 
+    let new_dialogue_records: Vec<Record> = new_sentence_records
+        .iter()
+        .flat_map(create_dialogue_records_from_sentence)
+        .collect();
+    let new_dialogue_records = clean_dialogue_records(new_dialogue_records);
     store.sentences.insert_batch(new_sentence_records);
+    store.dialogues.insert_batch(new_dialogue_records);
     store.save_contents()?;
     store.save_sentences()?;
+    store.save_dialogues()?;
 
     let all_chapters = text_service::get_novel_chapters(store, &project.file_id);
     let total_chapters = all_chapters.len() as i64;

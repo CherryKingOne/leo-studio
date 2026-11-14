@@ -39,6 +39,7 @@ Leo Studio 后端服务的全部配置项均可通过**环境变量**或 `backen
 | `novels_csv_filename` | `LEO_TEXT_FILES_NOVELS_CSV_FILENAME` | `string` | `novels.csv` | 小说元数据表 |
 | `novel_contents_csv_filename` | `LEO_TEXT_FILES_NOVEL_CONTENTS_CSV_FILENAME` | `string` | `novel_contents.csv` | 章节内容表 |
 | `novel_sentences_csv_filename` | `LEO_TEXT_FILES_NOVEL_SENTENCES_CSV_FILENAME` | `string` | `novel_sentences.csv` | 切句表 |
+| `novel_dialogues_csv_filename` | `LEO_TEXT_FILES_NOVEL_DIALOGUES_CSV_FILENAME` | `string` | `novel_dialogues.csv` | 台词切分表 |
 | `novel_polyphones_csv_filename` | `LEO_TEXT_FILES_NOVEL_POLYPHONES_CSV_FILENAME` | `string` | `novel_polyphones.csv` | 多音字标注表 |
 | `max_filename_length` | `LEO_TEXT_FILES_MAX_FILENAME_LENGTH` | `integer` | `255` | 文件名最大长度 |
 

@@ -2,6 +2,7 @@ use std::sync::Arc;
 
 use leo_studio_backend::app::build_router;
 use leo_studio_backend::config::{Settings, load_dotenv};
+use leo_studio_backend::modules::text_files::service::backfill_dialogues;
 use leo_studio_backend::storage::store::Store;
 
 #[tokio::main]
@@ -15,13 +16,19 @@ async fn main() {
         .init();
 
     let settings = Settings::from_env();
-    let store = match Store::new(&settings) {
+    let mut store = match Store::new(&settings) {
         Ok(store) => store,
         Err(err) => {
             tracing::error!("初始化数据存储失败：{err}");
             std::process::exit(1);
         }
     };
+
+    match backfill_dialogues(&mut store) {
+        Ok(0) => {}
+        Ok(count) => tracing::info!("补齐台词片段 {count} 行"),
+        Err(err) => tracing::warn!("补齐台词片段失败：{err}"),
+    }
 
     let address = format!("{}:{}", settings.host, settings.port);
     let listener = match tokio::net::TcpListener::bind(&address).await {

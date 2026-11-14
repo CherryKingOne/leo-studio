@@ -38,6 +38,7 @@ impl TestApp {
             novels_csv_filename: "novels.csv".to_string(),
             novel_contents_csv_filename: "novel_contents.csv".to_string(),
             novel_sentences_csv_filename: "novel_sentences.csv".to_string(),
+            novel_dialogues_csv_filename: "novel_dialogues.csv".to_string(),
             novel_polyphones_csv_filename: "novel_polyphones.csv".to_string(),
             max_filename_length: 255,
         };
@@ -48,6 +49,7 @@ impl TestApp {
             &settings.novels_csv_filename,
             &settings.novel_contents_csv_filename,
             &settings.novel_sentences_csv_filename,
+            &settings.novel_dialogues_csv_filename,
             &settings.novel_polyphones_csv_filename,
         )
         .unwrap();

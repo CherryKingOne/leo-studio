@@ -101,6 +101,7 @@ ApiResponse<T>   统一 { code, message, data, request_id }
 | `novels` | `.leo-studio/novels.csv` | 小说元信息 |
 | `contents` | `.leo-studio/novel_contents.csv` | 章节标题、正文、字数 |
 | `sentences` | `.leo-studio/novel_sentences.csv` | 章节切句 |
+| `dialogues` | `.leo-studio/novel_dialogues.csv` | 按成对中文双引号拆分的台词片段 |
 | `polyphones` | `.leo-studio/novel_polyphones.csv` | 句子多音字标注 |
 | `projects` | `.leo-studio/projects.csv` | 项目元信息与回收站标记 |
 

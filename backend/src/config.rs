@@ -22,6 +22,7 @@ pub struct Settings {
     pub novels_csv_filename: String,
     pub novel_contents_csv_filename: String,
     pub novel_sentences_csv_filename: String,
+    pub novel_dialogues_csv_filename: String,
     pub novel_polyphones_csv_filename: String,
     pub max_filename_length: usize,
 }
@@ -69,6 +70,10 @@ impl Settings {
             novel_sentences_csv_filename: env_string(
                 "LEO_TEXT_FILES_NOVEL_SENTENCES_CSV_FILENAME",
                 "novel_sentences.csv",
+            ),
+            novel_dialogues_csv_filename: env_string(
+                "LEO_TEXT_FILES_NOVEL_DIALOGUES_CSV_FILENAME",
+                "novel_dialogues.csv",
             ),
             novel_polyphones_csv_filename: env_string(
                 "LEO_TEXT_FILES_NOVEL_POLYPHONES_CSV_FILENAME",

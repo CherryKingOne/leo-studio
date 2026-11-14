@@ -1,3 +1,4 @@
+use std::collections::HashSet;
 use std::fs;
 use std::path::{Path, PathBuf};
 
@@ -9,7 +10,9 @@ use crate::error::{AppError, AppResult, storage_io};
 use crate::storage::csv_table::{Record, bool_field, int_field, str_field};
 use crate::storage::store::{Store, human_size};
 use crate::text::parsers::{clean_text, count_words, parse_chapters, parse_novel_filename};
-use crate::text::processor::create_sentence_records;
+use crate::text::processor::{
+    clean_dialogue_records, create_dialogue_records_from_sentence, create_sentence_records,
+};
 
 use super::model::{TextFileInfo, categorize, default_mime};
 
@@ -181,9 +184,21 @@ pub fn save_file(
 
     store.contents.insert_batch(chapter_records);
     store.sentences.insert_batch(sentence_records);
+
+    let dialogue_records: Vec<Record> = store
+        .sentences
+        .find_all()
+        .iter()
+        .filter(|row| str_field(row, "novel_id") == file_id)
+        .flat_map(create_dialogue_records_from_sentence)
+        .collect();
+    let dialogue_records = clean_dialogue_records(dialogue_records);
+    store.dialogues.insert_batch(dialogue_records);
+
     store.save_novels()?;
     store.save_contents()?;
     store.save_sentences()?;
+    store.save_dialogues()?;
 
     let download_url = format!("/api/v1/text-files/{file_id}/download");
     Ok(TextFileInfo {
@@ -353,10 +368,12 @@ pub fn delete_file(store: &mut Store, file_id: &str) -> AppResult<TextFileInfo> 
         store.polyphones.delete_by("sentence_id", &sentence_id);
     }
     store.sentences.delete_by("novel_id", file_id);
+    store.dialogues.delete_by("novel_id", file_id);
 
     store.save_novels()?;
     store.save_contents()?;
     store.save_sentences()?;
+    store.save_dialogues()?;
     store.save_polyphones()?;
     Ok(info)
 }
@@ -495,6 +512,33 @@ pub fn get_chapter_sentences(store: &Store, chapter_id: &str) -> Vec<Record> {
         .collect()
 }
 
+/// 为已有切句补齐缺失的台词片段，返回新写入的行数。
+pub fn backfill_dialogues(store: &mut Store) -> AppResult<usize> {
+    let existing: HashSet<String> = store
+        .dialogues
+        .find_all()
+        .iter()
+        .map(|row| str_field(row, "parent_sentence_id").to_string())
+        .collect();
+    let records: Vec<Record> = store
+        .sentences
+        .find_all()
+        .iter()
+        .filter(|row| !existing.contains(str_field(row, "sentence_id")))
+        .flat_map(create_dialogue_records_from_sentence)
+        .collect();
+    let records = clean_dialogue_records(records);
+
+    if records.is_empty() {
+        return Ok(0);
+    }
+
+    let count = records.len();
+    store.dialogues.insert_batch(records);
+    store.save_dialogues()?;
+    Ok(count)
+}
+
 /// 清理上传目录与 CSV 表（测试或运维使用）。
 pub fn cleanup(store: &mut Store) -> AppResult<()> {
     if store.upload_dir.exists() {
@@ -504,6 +548,7 @@ pub fn cleanup(store: &mut Store) -> AppResult<()> {
     store.novels.clear();
     store.contents.clear();
     store.sentences.clear();
+    store.dialogues.clear();
     store.polyphones.clear();
     store.save_all()
 }

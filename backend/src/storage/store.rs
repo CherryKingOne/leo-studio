@@ -35,6 +35,19 @@ const SENTENCE_HEADERS: &[&str] = &[
     "word_count",
 ];
 
+const DIALOGUE_HEADERS: &[&str] = &[
+    "dialogue_id",
+    "novel_id",
+    "chapter_id",
+    "parent_sentence_id",
+    "source_sentence_index",
+    "split_index",
+    "segment_type",
+    "content",
+    "word_count",
+    "parse_status",
+];
+
 const POLYPHONE_HEADERS: &[&str] = &[
     "polyphone_id",
     "sentence_id",
@@ -69,6 +82,7 @@ pub struct Store {
     pub novels: CsvTable,
     pub contents: CsvTable,
     pub sentences: CsvTable,
+    pub dialogues: CsvTable,
     pub polyphones: CsvTable,
     pub projects: CsvTable,
 }
@@ -82,6 +96,7 @@ impl Store {
             &settings.novels_csv_filename,
             &settings.novel_contents_csv_filename,
             &settings.novel_sentences_csv_filename,
+            &settings.novel_dialogues_csv_filename,
             &settings.novel_polyphones_csv_filename,
         )
     }
@@ -94,6 +109,7 @@ impl Store {
         novels_filename: &str,
         contents_filename: &str,
         sentences_filename: &str,
+        dialogues_filename: &str,
         polyphones_filename: &str,
     ) -> AppResult<Self> {
         std::fs::create_dir_all(&upload_dir).map_err(|err| storage_io("创建上传目录失败", err))?;
@@ -103,6 +119,7 @@ impl Store {
             novels: CsvTable::open(csv_dir.join(novels_filename), NOVEL_HEADERS)?,
             contents: CsvTable::open(csv_dir.join(contents_filename), CONTENT_HEADERS)?,
             sentences: CsvTable::open(csv_dir.join(sentences_filename), SENTENCE_HEADERS)?,
+            dialogues: CsvTable::open(csv_dir.join(dialogues_filename), DIALOGUE_HEADERS)?,
             polyphones: CsvTable::open(csv_dir.join(polyphones_filename), POLYPHONE_HEADERS)?,
             projects: CsvTable::open(csv_dir.join(PROJECTS_FILENAME), PROJECT_HEADERS)?,
             upload_dir,
@@ -127,6 +144,10 @@ impl Store {
         self.sentences.save()
     }
 
+    pub fn save_dialogues(&self) -> AppResult<()> {
+        self.dialogues.save()
+    }
+
     pub fn save_polyphones(&self) -> AppResult<()> {
         self.polyphones.save()
     }
@@ -139,6 +160,7 @@ impl Store {
         self.save_novels()?;
         self.save_contents()?;
         self.save_sentences()?;
+        self.save_dialogues()?;
         self.save_polyphones()?;
         self.save_projects()
     }
