@@ -27,7 +27,7 @@ impl McpSettings {
         };
 
         Self {
-            enabled: env_bool("LEO_MCP_HTTP_ENABLED", true),
+            enabled: env_bool("LEO_MCP_ENABLED", true),
             http_path,
             write_tools: env_bool("LEO_MCP_WRITE_TOOLS", false),
             destructive_tools: env_bool("LEO_MCP_DESTRUCTIVE_TOOLS", false),

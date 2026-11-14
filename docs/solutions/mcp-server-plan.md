@@ -340,7 +340,7 @@ mcp-server/
 
 | 环境变量 | 默认值 | 说明 |
 | --- | --- | --- |
-| `LEO_MCP_HTTP_ENABLED` | `true` | 是否挂载 `/mcp`（默认开启） |
+| `LEO_MCP_ENABLED` | `true` | 是否挂载 `/mcp`（默认开启） |
 | `LEO_MCP_HTTP_PATH` | `/mcp` | Streamable HTTP 端点 |
 | `LEO_MCP_WRITE_TOOLS` | `false` | 注册写入工具 |
 | `LEO_MCP_DESTRUCTIVE_TOOLS` | `false` | 注册破坏性工具 |
