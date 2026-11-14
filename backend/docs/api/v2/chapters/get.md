@@ -71,6 +71,9 @@
 | `created_at` | `string` | 创建时间（RFC 3339 UTC） |
 | `updated_at` | `string` | 更新时间（RFC 3339 UTC） |
 
+若只需查询该章节的多音字标注，可使用
+[`GET /api/v2/projects/{project_id}/chapters/{chapter_id}/polyphones`](../polyphones/list.md)。
+
 ## 代码示例
 
 ```bash

@@ -7,12 +7,16 @@ use crate::error::{AppError, AppResult};
 use crate::modules::text_files::service as text_service;
 use crate::storage::csv_table::{Record, bool_field, int_field, str_field};
 use crate::storage::store::Store;
-use crate::text::parsers::{clean_text, count_words, parse_chapters, resolve_chapter_key};
+use crate::text::parsers::{
+    chapter_number, clean_text, count_words, parse_chapters, resolve_chapter_key,
+};
 use crate::text::processor::create_sentence_records;
 
 use super::model::{
-    ChapterConflictInfo, ChapterContentInfo, ChapterOutlineInfo, ChapterSentenceInfo,
+    ChapterAppendItem, ChapterConflictInfo, ChapterContentInfo, ChapterDeleteInfo,
+    ChapterOutlineInfo, ChapterPolyphoneList, ChapterPolyphoneSentence, ChapterSentenceInfo,
     ProjectChapterAppendInfo, ProjectInfo, STATUS_IN_PROGRESS, SentencePolyphoneInfo,
+    SentencePolyphoneItemDeleteInfo,
 };
 
 /// 将 CSV 记录转换为项目领域模型。
@@ -436,6 +440,77 @@ pub fn get_project_chapter_content(
     })
 }
 
+/// 删除项目中的指定章节及其切句、多音字标注，并刷新项目统计。
+pub fn delete_chapter(
+    store: &mut Store,
+    project_id: &str,
+    chapter_id: &str,
+) -> AppResult<ChapterDeleteInfo> {
+    let project = get_project(store, project_id, false)?;
+    let chapter_row = store
+        .contents
+        .find_by("chapter_id", chapter_id)
+        .filter(|row| str_field(row, "novel_id") == project.file_id)
+        .cloned()
+        .ok_or_else(|| AppError::file_not_found(format!("章节不存在：{chapter_id}")))?;
+    let chapter_title = str_field(&chapter_row, "chapter_title").to_string();
+
+    let sentence_ids: Vec<String> = store
+        .sentences
+        .find_all()
+        .iter()
+        .filter(|row| str_field(row, "chapter_id") == chapter_id)
+        .map(|row| str_field(row, "sentence_id").to_string())
+        .collect();
+    for sentence_id in &sentence_ids {
+        store.polyphones.delete_by("sentence_id", sentence_id);
+    }
+    store.sentences.delete_by("chapter_id", chapter_id);
+    store.contents.delete_by("chapter_id", chapter_id);
+
+    let all_chapters = text_service::get_novel_chapters(store, &project.file_id);
+    let chapter_count = all_chapters.len() as i64;
+    let total_words: i64 = all_chapters
+        .iter()
+        .map(|row| int_field(row, "word_count"))
+        .sum();
+    let now = Utc::now();
+
+    store.novels.update_by(
+        "novel_id",
+        &project.file_id,
+        &[
+            ("chapter_count", chapter_count.to_string()),
+            ("total_words", total_words.to_string()),
+        ],
+    );
+    store.projects.update_by(
+        "project_id",
+        &project.project_id,
+        &[
+            ("chapter_count", chapter_count.to_string()),
+            ("total_words", total_words.to_string()),
+            ("updated_at", now.to_rfc3339()),
+        ],
+    );
+
+    store.save_polyphones()?;
+    store.save_sentences()?;
+    store.save_contents()?;
+    store.save_novels()?;
+    store.save_projects()?;
+
+    Ok(ChapterDeleteInfo {
+        project_id: project.project_id,
+        chapter_id: chapter_id.to_string(),
+        chapter_title,
+        deleted: true,
+        chapter_count,
+        total_words,
+        updated_at: now,
+    })
+}
+
 /// 向已有项目安全追加小说章节。
 #[allow(clippy::too_many_arguments)]
 pub fn append_chapters(
@@ -508,14 +583,43 @@ pub fn append_chapters(
         }
     }
 
+    let existing_total_words: i64 = existing_chapter_rows
+        .iter()
+        .map(|row| int_field(row, "word_count"))
+        .sum();
     let mut simulated_added = 0i64;
     let mut simulated_skipped = 0i64;
-    for (chapter_title, _) in &new_parsed_chapters {
+    let mut simulated_chapters = Vec::new();
+    let mut projected_total_words = existing_total_words;
+    for (chapter_title, chapter_content) in &new_parsed_chapters {
         let key = resolve_chapter_key(chapter_title);
-        if existing_key_map.contains_key(&key) {
+        let new_words = count_words(chapter_content) as i64;
+        if let Some(old_row) = existing_key_map.get(&key) {
             simulated_skipped += 1;
+            if overwrite_existing {
+                projected_total_words += new_words - int_field(old_row, "word_count");
+            }
+            simulated_chapters.push(ChapterAppendItem {
+                chapter_id: Some(str_field(old_row, "chapter_id").to_string()),
+                chapter_index: Some(int_field(old_row, "chapter_index")),
+                chapter_title: chapter_title.clone(),
+                action: if overwrite_existing {
+                    "overwritten".to_string()
+                } else {
+                    "skipped".to_string()
+                },
+                word_count: new_words,
+            });
         } else {
             simulated_added += 1;
+            projected_total_words += new_words;
+            simulated_chapters.push(ChapterAppendItem {
+                chapter_id: None,
+                chapter_index: None,
+                chapter_title: chapter_title.clone(),
+                action: "added".to_string(),
+                word_count: new_words,
+            });
         }
     }
 
@@ -530,12 +634,14 @@ pub fn append_chapters(
         return Ok(ProjectChapterAppendInfo {
             project_id: project.project_id,
             file_id: project.file_id,
+            dry_run: true,
             added_chapters: simulated_added,
             skipped_chapters: simulated_skipped,
             total_chapters: projected_chapters,
-            total_words: project.total_words,
+            total_words: projected_total_words,
             has_conflicts: !conflicts.is_empty(),
             conflicts,
+            chapters: simulated_chapters,
             updated_at: project.updated_at,
         });
     }
@@ -544,17 +650,37 @@ pub fn append_chapters(
     let mut skipped_chapters = 0i64;
     let mut new_chapter_records = Vec::new();
     let mut new_sentence_records = Vec::new();
+    let mut processed_chapters = Vec::new();
 
-    let mut current_max_index = existing_chapter_rows
+    let numbered_positions: Vec<usize> = existing_chapter_rows
         .iter()
-        .map(|row| int_field(row, "chapter_index"))
-        .max()
-        .unwrap_or(-1);
+        .enumerate()
+        .filter_map(|(index, row)| chapter_number(str_field(row, "chapter_title")).map(|_| index))
+        .collect();
+    if !numbered_positions.is_empty() {
+        let mut numbered_rows: Vec<Record> = numbered_positions
+            .iter()
+            .map(|&index| existing_chapter_rows[index].clone())
+            .collect();
+        numbered_rows
+            .sort_by_key(|row| chapter_number(str_field(row, "chapter_title")).unwrap_or(0));
+        for (slot, row) in numbered_positions.into_iter().zip(numbered_rows) {
+            existing_chapter_rows[slot] = row;
+        }
+    }
 
     for (chapter_title, chapter_content) in &new_parsed_chapters {
         let key = resolve_chapter_key(chapter_title);
         if existing_key_map.contains_key(&key) {
             if !overwrite_existing {
+                let old_row = existing_key_map.get(&key).unwrap();
+                processed_chapters.push(ChapterAppendItem {
+                    chapter_id: Some(str_field(old_row, "chapter_id").to_string()),
+                    chapter_index: Some(int_field(old_row, "chapter_index")),
+                    chapter_title: chapter_title.clone(),
+                    action: "skipped".to_string(),
+                    word_count: int_field(old_row, "word_count"),
+                });
                 skipped_chapters += 1;
                 continue;
             }
@@ -572,6 +698,14 @@ pub fn append_chapters(
                     ("word_count", word_count.to_string()),
                 ],
             );
+            if let Some(row) = existing_chapter_rows
+                .iter_mut()
+                .find(|row| str_field(row, "chapter_id") == old_chapter_id)
+            {
+                row.insert("chapter_title".into(), chapter_title.clone());
+                row.insert("content".into(), chapter_content.clone());
+                row.insert("word_count".into(), word_count.to_string());
+            }
 
             let old_sentence_rows: Vec<Record> = store
                 .sentences
@@ -592,21 +726,45 @@ pub fn append_chapters(
                 store.sentences.insert_batch(overwritten);
             }
             skipped_chapters += 1;
+            processed_chapters.push(ChapterAppendItem {
+                chapter_id: Some(old_chapter_id),
+                chapter_index: None,
+                chapter_title: chapter_title.clone(),
+                action: "overwritten".to_string(),
+                word_count: word_count as i64,
+            });
             continue;
         }
 
         added_chapters += 1;
-        current_max_index += 1;
         let chapter_id = uuid::Uuid::new_v4().simple().to_string();
         let word_count = count_words(chapter_content);
+        processed_chapters.push(ChapterAppendItem {
+            chapter_id: Some(chapter_id.clone()),
+            chapter_index: None,
+            chapter_title: chapter_title.clone(),
+            action: "added".to_string(),
+            word_count: word_count as i64,
+        });
 
         let mut chapter_record = Record::new();
         chapter_record.insert("chapter_id".into(), chapter_id.clone());
         chapter_record.insert("novel_id".into(), project.file_id.clone());
-        chapter_record.insert("chapter_index".into(), current_max_index.to_string());
+        chapter_record.insert("chapter_index".into(), "0".to_string());
         chapter_record.insert("chapter_title".into(), chapter_title.clone());
         chapter_record.insert("content".into(), chapter_content.clone());
         chapter_record.insert("word_count".into(), word_count.to_string());
+
+        let insert_at = chapter_number(chapter_title)
+            .and_then(|number| {
+                existing_chapter_rows.iter().position(|row| {
+                    chapter_number(str_field(row, "chapter_title"))
+                        .map(|existing| existing > number)
+                        .unwrap_or(false)
+                })
+            })
+            .unwrap_or(existing_chapter_rows.len());
+        existing_chapter_rows.insert(insert_at, chapter_record.clone());
         new_chapter_records.push(chapter_record);
 
         if !chapter_content.is_empty() {
@@ -619,6 +777,31 @@ pub fn append_chapters(
     }
 
     store.contents.insert_batch(new_chapter_records);
+
+    for (index, row) in existing_chapter_rows.iter_mut().enumerate() {
+        let chapter_id = str_field(row, "chapter_id").to_string();
+        let index_value = index.to_string();
+        row.insert("chapter_index".into(), index_value.clone());
+        store
+            .contents
+            .update_by("chapter_id", &chapter_id, &[("chapter_index", index_value)]);
+    }
+
+    let chapter_index_map: HashMap<String, i64> = existing_chapter_rows
+        .iter()
+        .map(|row| {
+            (
+                str_field(row, "chapter_id").to_string(),
+                int_field(row, "chapter_index"),
+            )
+        })
+        .collect();
+    for item in &mut processed_chapters {
+        if let Some(chapter_id) = &item.chapter_id {
+            item.chapter_index = chapter_index_map.get(chapter_id).copied();
+        }
+    }
+
     store.sentences.insert_batch(new_sentence_records);
     store.save_contents()?;
     store.save_sentences()?;
@@ -657,13 +840,170 @@ pub fn append_chapters(
     Ok(ProjectChapterAppendInfo {
         project_id: project.project_id,
         file_id: project.file_id,
+        dry_run: false,
         added_chapters,
         skipped_chapters,
         total_chapters,
         total_words,
         has_conflicts: !conflicts.is_empty(),
         conflicts,
+        chapters: processed_chapters,
         updated_at: now,
+    })
+}
+
+/// 获取指定章节内所有句子的多音字标注。
+pub fn get_chapter_polyphones(
+    store: &Store,
+    project_id: &str,
+    chapter_id: &str,
+) -> AppResult<ChapterPolyphoneList> {
+    let project = get_project(store, project_id, false)?;
+    let chapter_row = store
+        .contents
+        .find_by("chapter_id", chapter_id)
+        .filter(|row| str_field(row, "novel_id") == project.file_id)
+        .ok_or_else(|| AppError::file_not_found(format!("章节不存在：{chapter_id}")))?;
+    let chapter_title = str_field(chapter_row, "chapter_title").to_string();
+
+    let mut sentence_rows: Vec<Record> = store
+        .sentences
+        .find_all()
+        .iter()
+        .filter(|row| {
+            str_field(row, "chapter_id") == chapter_id
+                && str_field(row, "novel_id") == project.file_id
+        })
+        .cloned()
+        .collect();
+    sentence_rows.sort_by_key(|row| int_field(row, "sentence_index"));
+
+    let mut items = Vec::new();
+    let mut total = 0usize;
+    for sentence in sentence_rows {
+        let sentence_id = str_field(&sentence, "sentence_id").to_string();
+        let mut polyphones: Vec<SentencePolyphoneInfo> = store
+            .polyphones
+            .find_all()
+            .iter()
+            .filter(|row| str_field(row, "sentence_id") == sentence_id)
+            .map(record_to_polyphone_info)
+            .collect();
+        if polyphones.is_empty() {
+            continue;
+        }
+        polyphones.sort_by_key(|item| item.char_index);
+        total += polyphones.len();
+        items.push(ChapterPolyphoneSentence {
+            sentence_id,
+            sentence_index: int_field(&sentence, "sentence_index"),
+            content: str_field(&sentence, "content").to_string(),
+            polyphones,
+        });
+    }
+
+    Ok(ChapterPolyphoneList {
+        chapter_id: chapter_id.to_string(),
+        chapter_title,
+        sentence_count: items.len(),
+        total,
+        items,
+    })
+}
+
+fn ensure_chapter_sentence(
+    store: &Store,
+    project_id: &str,
+    chapter_id: &str,
+    sentence_id: &str,
+) -> AppResult<()> {
+    let project = get_project(store, project_id, false)?;
+    store
+        .contents
+        .find_by("chapter_id", chapter_id)
+        .filter(|row| str_field(row, "novel_id") == project.file_id)
+        .ok_or_else(|| AppError::file_not_found(format!("章节不存在：{chapter_id}")))?;
+    store
+        .sentences
+        .find_by("sentence_id", sentence_id)
+        .filter(|row| {
+            str_field(row, "novel_id") == project.file_id
+                && str_field(row, "chapter_id") == chapter_id
+        })
+        .ok_or_else(|| {
+            AppError::file_not_found(format!("句子不存在或不属于该章节：{sentence_id}"))
+        })?;
+    Ok(())
+}
+
+/// 获取章节下指定句子的多音字标注。
+pub fn get_chapter_sentence_polyphones(
+    store: &Store,
+    project_id: &str,
+    chapter_id: &str,
+    sentence_id: &str,
+) -> AppResult<Vec<SentencePolyphoneInfo>> {
+    ensure_chapter_sentence(store, project_id, chapter_id, sentence_id)?;
+    get_sentence_polyphones(store, project_id, sentence_id)
+}
+
+/// 保存章节下指定句子的多音字标注。
+pub fn save_chapter_sentence_polyphones(
+    store: &mut Store,
+    project_id: &str,
+    chapter_id: &str,
+    sentence_id: &str,
+    annotations: &[super::schema::PolyphoneAnnotation],
+) -> AppResult<Vec<SentencePolyphoneInfo>> {
+    ensure_chapter_sentence(store, project_id, chapter_id, sentence_id)?;
+    save_sentence_polyphones(store, project_id, sentence_id, annotations)
+}
+
+/// 清空章节下指定句子的多音字标注。
+pub fn delete_chapter_sentence_polyphones(
+    store: &mut Store,
+    project_id: &str,
+    chapter_id: &str,
+    sentence_id: &str,
+) -> AppResult<usize> {
+    ensure_chapter_sentence(store, project_id, chapter_id, sentence_id)?;
+    delete_sentence_polyphones(store, project_id, sentence_id)
+}
+
+/// 删除章节下指定句子中的单条多音字标注。
+pub fn delete_chapter_sentence_polyphone(
+    store: &mut Store,
+    project_id: &str,
+    chapter_id: &str,
+    sentence_id: &str,
+    char_index: i64,
+) -> AppResult<SentencePolyphoneItemDeleteInfo> {
+    ensure_chapter_sentence(store, project_id, chapter_id, sentence_id)?;
+
+    let record = store
+        .polyphones
+        .find_all()
+        .iter()
+        .find(|row| {
+            str_field(row, "sentence_id") == sentence_id
+                && int_field(row, "char_index") == char_index
+        })
+        .cloned()
+        .ok_or_else(|| {
+            AppError::file_not_found(format!(
+                "多音字标注不存在：sentence_id={sentence_id}, char_index={char_index}"
+            ))
+        })?;
+
+    let polyphone_id = str_field(&record, "polyphone_id").to_string();
+    store.polyphones.delete_by("polyphone_id", &polyphone_id);
+    store.save_polyphones()?;
+
+    Ok(SentencePolyphoneItemDeleteInfo {
+        polyphone_id,
+        sentence_id: sentence_id.to_string(),
+        char_index,
+        deleted: true,
     })
 }
 

@@ -166,6 +166,13 @@ pub fn cn_to_int(num_str: &str) -> Option<i64> {
     Some(value)
 }
 
+/// 提取章节标题中的章节序号，支持阿拉伯数字与中文数字。
+pub fn chapter_number(title: &str) -> Option<i64> {
+    let captures = CHAPTER_NUM_RE.captures(title.trim()).ok().flatten()?;
+    let raw = captures.get(1).or_else(|| captures.get(2))?;
+    cn_to_int(raw.as_str())
+}
+
 /// 提取章节归一化匹配指纹键，用于防脏数据覆盖比对。
 pub fn resolve_chapter_key(title: &str) -> String {
     let clean_title = title.trim();

@@ -1,10 +1,10 @@
 # 保存多音字标注
 
-以全量覆盖方式保存指定句子的多音字标注。
+以全量覆盖方式保存指定章节下指定句子的多音字标注。
 
 | 属性 | 值 |
 | --- | --- |
-| **接口地址** | `PUT /api/v2/projects/{project_id}/sentences/{sentence_id}/polyphones` |
+| **接口地址** | `PUT /api/v2/projects/{project_id}/chapters/{chapter_id}/sentences/{sentence_id}/polyphones` |
 | **所属模块** | 多音字标注（`polyphones`） |
 | **请求格式** | `application/json` |
 | **响应格式** | `application/json` |
@@ -13,7 +13,8 @@
 
 ## 接口描述
 
-先删除该句子已有的全部标注，再按请求写入新标注。服务端会校验：
+先校验项目、章节存在，再校验句子属于该章节，然后删除该句子已有的全部标注，
+再按请求写入新标注。服务端会校验：
 
 - `pinyin` 非空。
 - `character` 为单个字符。
@@ -29,6 +30,7 @@
 | 名称 | 类型 | 必填 | 说明 |
 | --- | --- | --- | --- |
 | `project_id` | `string` | **是** | 项目唯一标识 |
+| `chapter_id` | `string` | **是** | 章节唯一标识 |
 | `sentence_id` | `string` | **是** | 切句唯一标识 |
 
 ### Header
@@ -70,7 +72,7 @@
 ## 代码示例
 
 ```bash
-curl -X PUT "http://127.0.0.1:58685/api/v2/projects/9f8c12a4b3e2489c91d8e5f2a1b3c4d5/sentences/s_0001/polyphones" \
+curl -X PUT "http://127.0.0.1:58685/api/v2/projects/9f8c12a4b3e2489c91d8e5f2a1b3c4d5/chapters/ch_0001/sentences/s_0001/polyphones" \
   -H "Content-Type: application/json" \
   -d '{
     "annotations": [
@@ -120,12 +122,23 @@ curl -X PUT "http://127.0.0.1:58685/api/v2/projects/9f8c12a4b3e2489c91d8e5f2a1b3
 }
 ```
 
-### 404 句子不存在
+### 404 句子不存在或不属于该章节
 
 ```json
 {
   "code": 40400,
-  "message": "句子不存在：s_9999",
+  "message": "句子不存在或不属于该章节：s_9999",
+  "data": null,
+  "request_id": "b3f1c2d4e5a60718293a4b5c6d7e8f90"
+}
+```
+
+### 404 章节不存在
+
+```json
+{
+  "code": 40400,
+  "message": "章节不存在：ch_9999",
   "data": null,
   "request_id": "b3f1c2d4e5a60718293a4b5c6d7e8f90"
 }

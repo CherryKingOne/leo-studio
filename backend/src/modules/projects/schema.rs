@@ -1,6 +1,9 @@
 use serde::{Deserialize, Serialize};
 
-use super::model::{ProjectChapterAppendInfo, ProjectInfo};
+use super::model::{
+    ChapterDeleteInfo, ChapterPolyphoneList, ProjectChapterAppendInfo, ProjectInfo,
+    SentencePolyphoneItemDeleteInfo,
+};
 
 /// 更新项目请求体（重命名）。
 #[derive(Debug, Clone, Deserialize)]
@@ -86,6 +89,9 @@ pub struct ChapterOutlineListResponse {
 /// 项目追加章节响应。
 pub type ProjectChapterAppendResponse = ProjectChapterAppendInfo;
 
+/// 章节删除响应。
+pub type ChapterDeleteResponse = ChapterDeleteInfo;
+
 /// 句子多音字标注列表响应。
 #[derive(Debug, Clone, Serialize)]
 pub struct SentencePolyphoneListResponse {
@@ -94,6 +100,9 @@ pub struct SentencePolyphoneListResponse {
     pub items: Vec<super::model::SentencePolyphoneInfo>,
 }
 
+/// 章节多音字标注列表响应。
+pub type ChapterPolyphoneListResponse = ChapterPolyphoneList;
+
 /// 删除句子多音字标注响应。
 #[derive(Debug, Clone, Serialize)]
 pub struct SentencePolyphoneDeleteResponse {
@@ -101,3 +110,6 @@ pub struct SentencePolyphoneDeleteResponse {
     pub deleted_count: usize,
     pub deleted: bool,
 }
+
+/// 删除单条多音字标注响应。
+pub type SentencePolyphoneItemDeleteResponse = SentencePolyphoneItemDeleteInfo;

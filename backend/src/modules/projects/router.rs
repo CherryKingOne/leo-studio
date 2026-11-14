@@ -334,7 +334,7 @@ async fn append_project_chapters(
 
     let message = if dry_run {
         format!(
-            "预检完成：预计新增 {} 章，跳过 {} 章，冲突 {} 处",
+            "预检完成（未写入）：预计新增 {} 章，跳过 {} 章，冲突 {} 处",
             info.added_chapters,
             info.skipped_chapters,
             info.conflicts.len()

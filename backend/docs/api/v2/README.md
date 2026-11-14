@@ -115,14 +115,17 @@ curl http://127.0.0.1:58685/api/v2/health
 | 查询章节大纲 | `GET /api/v2/projects/{project_id}/chapters` | [list.md](./chapters/list.md) |
 | 追加上传章节 | `POST /api/v2/projects/{project_id}/chapters` | [append.md](./chapters/append.md) |
 | 查询章节内容 | `GET /api/v2/projects/{project_id}/chapters/{chapter_id}` | [get.md](./chapters/get.md) |
+| 删除章节 | `DELETE /api/v2/projects/{project_id}/chapters/{chapter_id}` | [delete.md](./chapters/delete.md) |
 
 ### 多音字标注（`polyphones`）
 
 | 接口 | 方法 | 文档 |
 | --- | --- | --- |
-| 查询多音字标注 | `GET /api/v2/projects/{project_id}/sentences/{sentence_id}/polyphones` | [list.md](./polyphones/list.md) |
-| 保存多音字标注 | `PUT /api/v2/projects/{project_id}/sentences/{sentence_id}/polyphones` | [save.md](./polyphones/save.md) |
-| 清空多音字标注 | `DELETE /api/v2/projects/{project_id}/sentences/{sentence_id}/polyphones` | [delete.md](./polyphones/delete.md) |
+| 查询章节多音字标注 | `GET /api/v2/projects/{project_id}/chapters/{chapter_id}/polyphones` | [list.md](./polyphones/list.md) |
+| 查询句子多音字标注 | `GET /api/v2/projects/{project_id}/chapters/{chapter_id}/sentences/{sentence_id}/polyphones` | [sentence-list.md](./polyphones/sentence-list.md) |
+| 保存多音字标注 | `PUT /api/v2/projects/{project_id}/chapters/{chapter_id}/sentences/{sentence_id}/polyphones` | [save.md](./polyphones/save.md) |
+| 清空多音字标注 | `DELETE /api/v2/projects/{project_id}/chapters/{chapter_id}/sentences/{sentence_id}/polyphones` | [delete.md](./polyphones/delete.md) |
+| 删除单条多音字标注 | `DELETE /api/v2/projects/{project_id}/chapters/{chapter_id}/sentences/{sentence_id}/polyphones/{char_index}` | [delete-item.md](./polyphones/delete-item.md) |
 
 ## 通用约定
 

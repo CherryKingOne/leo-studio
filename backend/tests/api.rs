@@ -339,10 +339,19 @@ async fn append_chapters_dry_run_and_overwrite() {
         )
         .await;
     assert_eq!(status, 200);
+    assert_eq!(body["data"]["dry_run"], true);
     assert_eq!(body["data"]["has_conflicts"], true);
     assert_eq!(body["data"]["conflicts"][0]["incoming_word_count"], 5);
     assert!(body["data"]["conflicts"][0]["word_diff"].as_i64().unwrap() < 0);
     assert_eq!(body["data"]["total_chapters"], 3);
+    let dry_added = body["data"]["chapters"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|item| item["action"] == "added")
+        .unwrap();
+    assert!(dry_added["chapter_id"].is_null());
+    assert!(dry_added["chapter_index"].is_null());
 
     let (_, body) = app
         .get(&format!("/api/v1/projects/{project_id}/chapters"))
@@ -357,8 +366,29 @@ async fn append_chapters_dry_run_and_overwrite() {
         )
         .await;
     assert_eq!(status, 200);
+    assert_eq!(body["data"]["dry_run"], false);
     assert_eq!(body["data"]["skipped_chapters"], 1);
     assert_eq!(body["data"]["added_chapters"], 1);
+    let added = body["data"]["chapters"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|item| item["action"] == "added")
+        .unwrap();
+    assert!(added["chapter_id"].as_str().is_some());
+    assert_eq!(added["chapter_index"], 2);
+
+    let (_, body) = app
+        .get(&format!("/api/v1/projects/{project_id}/chapters"))
+        .await;
+    assert_eq!(body["data"]["total"], 3);
+    assert!(
+        body["data"]["items"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|item| item["chapter_title"] == "第3章 新世界")
+    );
 }
 
 #[tokio::test]

@@ -9,9 +9,11 @@ use crate::error::{AppError, AppResult};
 use crate::http::page_count;
 use crate::modules::projects::model::{ChapterContentInfo, ProjectChapterAppendInfo, ProjectInfo};
 use crate::modules::projects::schema::{
-    ChapterOutlineListResponse, ProjectClearRecycleBinResponse, ProjectDeleteResponse,
-    ProjectHardDeleteResponse, ProjectListResponse, ProjectRestoreResponse,
-    SentencePolyphoneDeleteResponse, SentencePolyphoneListResponse, SentencePolyphoneSaveRequest,
+    ChapterDeleteResponse, ChapterOutlineListResponse, ChapterPolyphoneListResponse,
+    ProjectClearRecycleBinResponse, ProjectDeleteResponse, ProjectHardDeleteResponse,
+    ProjectListResponse, ProjectRestoreResponse, SentencePolyphoneDeleteResponse,
+    SentencePolyphoneItemDeleteResponse, SentencePolyphoneListResponse,
+    SentencePolyphoneSaveRequest,
 };
 use crate::modules::projects::service as project_service;
 use crate::response::ApiResponse;
@@ -46,7 +48,21 @@ fn projects_router() -> Router<AppState> {
         )
         .route(
             "/{project_id}/chapters/{chapter_id}",
-            get(get_chapter_content),
+            get(get_chapter_content).delete(delete_chapter),
+        )
+        .route(
+            "/{project_id}/chapters/{chapter_id}/polyphones",
+            get(get_chapter_polyphones),
+        )
+        .route(
+            "/{project_id}/chapters/{chapter_id}/sentences/{sentence_id}/polyphones",
+            get(get_chapter_sentence_polyphones)
+                .put(save_chapter_sentence_polyphones)
+                .delete(delete_chapter_sentence_polyphones),
+        )
+        .route(
+            "/{project_id}/chapters/{chapter_id}/sentences/{sentence_id}/polyphones/{char_index}",
+            delete(delete_chapter_sentence_polyphone),
         )
         .route(
             "/{project_id}/sentences/{sentence_id}/polyphones",
@@ -380,6 +396,109 @@ async fn get_chapter_content(
     Ok(Json(ApiResponse::success(info)))
 }
 
+async fn delete_chapter(
+    State(state): State<AppState>,
+    Path((project_id, chapter_id)): Path<(String, String)>,
+) -> AppResult<Json<ApiResponse<ChapterDeleteResponse>>> {
+    let mut store = state.store.lock().await;
+    let info = project_service::delete_chapter(&mut store, &project_id, &chapter_id)?;
+    Ok(Json(ApiResponse::success_with_message(
+        info,
+        "章节删除成功",
+    )))
+}
+
+async fn get_chapter_polyphones(
+    State(state): State<AppState>,
+    Path((project_id, chapter_id)): Path<(String, String)>,
+) -> AppResult<Json<ApiResponse<ChapterPolyphoneListResponse>>> {
+    let store = state.store.lock().await;
+    let info = project_service::get_chapter_polyphones(&store, &project_id, &chapter_id)?;
+    Ok(Json(ApiResponse::success(info)))
+}
+
+async fn get_chapter_sentence_polyphones(
+    State(state): State<AppState>,
+    Path((project_id, chapter_id, sentence_id)): Path<(String, String, String)>,
+) -> AppResult<Json<ApiResponse<SentencePolyphoneListResponse>>> {
+    let store = state.store.lock().await;
+    let items = project_service::get_chapter_sentence_polyphones(
+        &store,
+        &project_id,
+        &chapter_id,
+        &sentence_id,
+    )?;
+    let total = items.len();
+    Ok(Json(ApiResponse::success(SentencePolyphoneListResponse {
+        sentence_id,
+        total,
+        items,
+    })))
+}
+
+async fn save_chapter_sentence_polyphones(
+    State(state): State<AppState>,
+    Path((project_id, chapter_id, sentence_id)): Path<(String, String, String)>,
+    Json(payload): Json<SentencePolyphoneSaveRequest>,
+) -> AppResult<Json<ApiResponse<SentencePolyphoneListResponse>>> {
+    let mut store = state.store.lock().await;
+    let items = project_service::save_chapter_sentence_polyphones(
+        &mut store,
+        &project_id,
+        &chapter_id,
+        &sentence_id,
+        &payload.annotations,
+    )?;
+    let total = items.len();
+    Ok(Json(ApiResponse::success_with_message(
+        SentencePolyphoneListResponse {
+            sentence_id,
+            total,
+            items,
+        },
+        "多音字标注保存成功",
+    )))
+}
+
+async fn delete_chapter_sentence_polyphones(
+    State(state): State<AppState>,
+    Path((project_id, chapter_id, sentence_id)): Path<(String, String, String)>,
+) -> AppResult<Json<ApiResponse<SentencePolyphoneDeleteResponse>>> {
+    let mut store = state.store.lock().await;
+    let deleted_count = project_service::delete_chapter_sentence_polyphones(
+        &mut store,
+        &project_id,
+        &chapter_id,
+        &sentence_id,
+    )?;
+    Ok(Json(ApiResponse::success_with_message(
+        SentencePolyphoneDeleteResponse {
+            sentence_id,
+            deleted_count,
+            deleted: true,
+        },
+        format!("已成功清空多音字标注，共删除 {deleted_count} 条"),
+    )))
+}
+
+async fn delete_chapter_sentence_polyphone(
+    State(state): State<AppState>,
+    Path((project_id, chapter_id, sentence_id, char_index)): Path<(String, String, String, i64)>,
+) -> AppResult<Json<ApiResponse<SentencePolyphoneItemDeleteResponse>>> {
+    let mut store = state.store.lock().await;
+    let info = project_service::delete_chapter_sentence_polyphone(
+        &mut store,
+        &project_id,
+        &chapter_id,
+        &sentence_id,
+        char_index,
+    )?;
+    Ok(Json(ApiResponse::success_with_message(
+        info,
+        "多音字标注删除成功",
+    )))
+}
+
 async fn append_chapters(
     State(state): State<AppState>,
     Path(project_id): Path<String>,
@@ -408,7 +527,7 @@ async fn append_chapters(
 
     let message = if dry_run {
         format!(
-            "预检完成：预计新增 {} 章，跳过 {} 章，冲突 {} 处",
+            "预检完成（未写入）：预计新增 {} 章，跳过 {} 章，冲突 {} 处",
             info.added_chapters,
             info.skipped_chapters,
             info.conflicts.len()
