@@ -36,8 +36,6 @@ fn mcp_settings(write: bool, destructive: bool) -> McpSettings {
         token: String::new(),
         write_tools: write,
         destructive_tools: destructive,
-        allow_file_path: false,
-        allowed_roots: Vec::new(),
         max_chars: 20_000,
         max_page_size: 100,
     }

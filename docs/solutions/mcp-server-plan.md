@@ -163,8 +163,8 @@ MCP 层只做四件事：
 
 | 工具 | 入参 | 返回 | 复用服务 | 危险级别 |
 | --- | --- | --- | --- | --- |
-| `leo_create_project` | `name, text \| file_path, description?` | `ProjectInfo` | `create_project` | 新增数据 |
-| `leo_append_chapters` | `project_id, text \| file_path, overwrite_existing=false, dry_run=true, confirm=false` | `ProjectChapterAppendInfo` | `append_chapters` | 覆盖时危险 |
+| `leo_create_project` | `name, text` | `ProjectInfo` | `create_project` | 新增数据 |
+| `leo_append_chapters` | `project_id, text, overwrite_existing=false, dry_run=true, confirm=false` | `ProjectChapterAppendInfo` | `append_chapters` | 覆盖时危险 |
 | `leo_rename_project` | `project_id, name` | `ProjectInfo` | `update_project` | 低 |
 | `leo_update_project` | `project_id, name?, status?` | `ProjectInfo` | `update_project_fields`（v2 服务） | 低 |
 | `leo_save_sentence_polyphones` | `project_id, sentence_id, annotations[]` | 保存后的标注数组 | `save_sentence_polyphones` | 覆盖整句标注 |
@@ -192,16 +192,9 @@ MCP 层只做四件事：
 
 > 注解只是给客户端的提示，客户端必须把它当不可信输入；真正的保护在工具执行前的服务端校验。
 
-### 4.6 文件入参策略
+### 4.6 正文入参
 
-`text` 与 `file_path` 二选一：
-
-- `text`：直接传 UTF-8 正文，任何传输都可用，推荐。
-- `file_path`：默认禁用，开启后必须满足：
-  - 规范化后位于 `LEO_MCP_ALLOWED_ROOTS` 之内；
-  - 拒绝符号链接逃逸、拒绝目录；
-  - 单文件大小 ≤ `LEO_MAX_UPLOAD_SIZE_MB`；
-  - 服务端路径对远端客户端无意义，且是路径穿越入口，因此默认关闭，需要时显式开 `LEO_MCP_ALLOW_FILE_PATH=true`。
+导入与追更只接受 `text`（UTF-8 正文）。不提供 `file_path`：MCP 客户端可能在远端，服务端路径没有意义，且会引入路径穿越风险。
 
 ---
 
@@ -347,18 +340,13 @@ mcp-server/
 
 | 环境变量 | 默认值 | 说明 |
 | --- | --- | --- |
-| `LEO_MCP_ENABLED` | `false` | 是否挂载 MCP 能力 |
+| `LEO_MCP_HTTP_ENABLED` | `false` | 是否挂载 `/mcp` |
 | `LEO_MCP_HTTP_PATH` | `/mcp` | Streamable HTTP 端点 |
-| `LEO_MCP_HOST` | `127.0.0.1` | HTTP 监听地址（与 REST 共用 host 时取 REST 的） |
 | `LEO_MCP_TOKEN` | 空 | 非空时要求 `Authorization: Bearer` |
 | `LEO_MCP_WRITE_TOOLS` | `false` | 注册写入工具 |
 | `LEO_MCP_DESTRUCTIVE_TOOLS` | `false` | 注册破坏性工具 |
-| `LEO_MCP_ALLOW_FILE_PATH` | `false` | 允许 `file_path` 入参 |
-| `LEO_MCP_ALLOWED_ROOTS` | 空 | `file_path` 允许的根目录（逗号分隔） |
-| `LEO_MCP_MAX_PAGE_SIZE` | `100` | 工具/资源分页上限 |
-| `LEO_MCP_MAX_CHARS` | `20000` | 单文本字段返回上限 |
-| `LEO_MCP_RATE_LIMIT_PER_MIN` | `60` | 单客户端限流 |
-| `LEO_MCP_LOG_LEVEL` | `info` | MCP 审计与调试日志级别 |
+
+监听地址沿用 `LEO_HOST` / `LEO_PORT`；文本上限与分页上限固定为 20,000 字符和 100 条，不做成配置项。
 
 配置解析放在 `mcp/config.rs`，与现有 `config.rs` 风格保持一致（环境变量 → 结构体 → 校验），启动时校验失败直接拒绝启动并给出明确原因。
 
@@ -388,7 +376,6 @@ mcp-server/
 | 无状态 HTTP + 内存 CSV | 多实例部署时各自持有全量数据，写冲突 | 单实例部署；如需多实例，先补文件锁/SQLite，不把 MCP 当多活入口 |
 | 工具返回整章正文 | 上下文爆炸、成本飙升 | `max_chars` 截断 + 分页 + 资源按需读取 |
 | 写工具被模型误用 | 数据被覆盖/删除 | 双层开关 + `confirm` + `dry_run` 默认 true + 审计 |
-| `file_path` 路径穿越 | 读到任意文件 | 规范化 + 根目录白名单 + 拒绝符号链接 + 默认关闭 |
 | MCP 响应被 `request_id` 中间件改写 | 协议不合规 | `/mcp` 路由单独挂载，不套用该中间件 |
 | 客户端版本碎片化 | 行为差异 | 只维护 `2026-07-28` 一套契约；旧客户端需升级 |
 | 业务服务没有 `search_chapters` / `get_stats` | 需要补 service | 在 `projects::service` 增加只读函数，MCP 只调用不实现 |
@@ -402,7 +389,7 @@ mcp-server/
 1. **协议**：只支持 `2026-07-28`，不做旧版兼容。
 2. **传输**：只提供 Streamable HTTP（`POST /mcp`），不做 stdio。
 3. **写工具**：默认关闭；`leo_append_chapters` 默认 `dry_run=true`，真正写入需 `confirm=true`。
-4. **`file_path`**：默认关闭，仅允许 `LEO_MCP_ALLOWED_ROOTS` 内的普通文件。
+4. **正文入参**：只接受 `text`，不读取服务器本地文件。
 
 待确认：
 

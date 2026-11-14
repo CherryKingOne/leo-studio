@@ -1,4 +1,3 @@
-use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use rmcp::model::{JsonObject, Tool, ToolAnnotations};
@@ -208,11 +207,10 @@ fn write_tools() -> Vec<Tool> {
         tool(
             "leo_create_project",
             "新建剧目",
-            "用 UTF-8 正文新建剧目，服务端自动清洗与分章。text 与 file_path 二选一。",
+            "用 UTF-8 正文新建剧目，服务端自动清洗与分章。",
             json!({
                 "name": str_prop("剧目名称"),
-                "text": str_prop("小说正文（UTF-8 纯文本）"),
-                "file_path": str_prop("服务器本地 .txt 路径（需开启 file_path 且位于允许目录）")
+                "text": str_prop("小说正文（UTF-8 纯文本）")
             }),
             &["name"],
             annotations("新建剧目", false, false, false),
@@ -224,7 +222,6 @@ fn write_tools() -> Vec<Tool> {
             json!({
                 "project_id": str_prop("剧目 ID"),
                 "text": str_prop("新章节正文（UTF-8 纯文本）"),
-                "file_path": str_prop("服务器本地 .txt 路径（需开启 file_path 且位于允许目录）"),
                 "overwrite_existing": bool_prop("是否覆盖同名/同序号章节，默认 false（防脏数据覆盖）"),
                 "dry_run": bool_prop("是否只做预检不落盘，默认 true"),
                 "confirm": bool_prop("dry_run=false 时必须为 true")
@@ -440,59 +437,9 @@ impl McpHandler {
         self.tools.iter().any(|tool| tool.name.as_ref() == name)
     }
 
-    async fn read_text_input(&self, args: &JsonObject) -> Result<(String, String), AppError> {
-        if let Some(text) = opt_string(args, "text") {
-            return Ok((text, "model.txt".to_string()));
-        }
-
-        let raw_path = req_string(args, "file_path")?;
-        let path = self.resolve_input_path(&raw_path)?;
-        let filename = path
-            .file_name()
-            .and_then(|name| name.to_str())
-            .unwrap_or("model.txt")
-            .to_string();
-        let bytes = std::fs::read(&path)
-            .map_err(|err| crate::error::storage_io("读取上传文件失败", err))?;
-        if bytes.len() > self.settings.max_bytes() {
-            return Err(AppError::file_too_large(format!(
-                "文件大小超出限制（最大 {} MB）",
-                self.settings.max_bytes() / (1024 * 1024)
-            )));
-        }
-        let text = crate::modules::text_files::service::decode_text(&bytes);
-        Ok((text, filename))
-    }
-
-    fn resolve_input_path(&self, raw: &str) -> Result<PathBuf, AppError> {
-        if !self.mcp.allow_file_path {
-            return Err(AppError::invalid_parameter(
-                "当前服务未开启 file_path，请改用 text 传入正文",
-            ));
-        }
-
-        let absolute = crate::config::resolve_path(Path::new(raw));
-        let canonical = absolute
-            .canonicalize()
-            .map_err(|_| AppError::file_not_found(format!("文件不存在：{raw}")))?;
-        if !canonical.is_file() {
-            return Err(AppError::invalid_parameter(format!("不是文件：{raw}")));
-        }
-
-        if !self.mcp.allowed_roots.is_empty() {
-            let allowed = self.mcp.allowed_roots.iter().any(|root| {
-                root.canonicalize()
-                    .map(|base| canonical.starts_with(base))
-                    .unwrap_or(false)
-            });
-            if !allowed {
-                return Err(AppError::invalid_parameter(
-                    "文件路径不在 LEO_MCP_ALLOWED_ROOTS 允许的目录内",
-                ));
-            }
-        }
-
-        Ok(canonical)
+    fn read_text_input(&self, args: &JsonObject) -> Result<(String, String), AppError> {
+        let text = req_string(args, "text")?;
+        Ok((text, "model.txt".to_string()))
     }
 
     /// 执行工具调用；错误由调用方包装成工具执行错误。
@@ -636,7 +583,7 @@ impl McpHandler {
             }
             "leo_create_project" => {
                 let name = req_string(args, "name")?;
-                let (text, filename) = self.read_text_input(args).await?;
+                let (text, filename) = self.read_text_input(args)?;
                 let info = project_service::create_project(
                     &mut *self.store.lock().await,
                     &self.settings,
@@ -649,7 +596,7 @@ impl McpHandler {
             }
             "leo_append_chapters" => {
                 let project_id = req_string(args, "project_id")?;
-                let (text, filename) = self.read_text_input(args).await?;
+                let (text, filename) = self.read_text_input(args)?;
                 let overwrite_existing = opt_bool(args, "overwrite_existing", false);
                 let dry_run = opt_bool(args, "dry_run", true);
                 if !dry_run {

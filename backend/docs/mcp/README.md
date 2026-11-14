@@ -20,7 +20,7 @@
 ```bash
 cd backend
 LEO_DATA_DIR=./.data \
-LEO_MCP_ENABLED=true \
+LEO_MCP_HTTP_ENABLED=true \
 LEO_MCP_TOKEN=replace-me \
 cargo run --bin leo-studio-backend
 ```
@@ -50,15 +50,13 @@ curl -sS -X POST http://127.0.0.1:58685/mcp \
 
 | 环境变量 | 默认值 | 说明 |
 | --- | --- | --- |
-| `LEO_MCP_ENABLED` | `false` | 是否挂载 `/mcp` |
+| `LEO_MCP_HTTP_ENABLED` | `false` | 是否挂载 `/mcp` |
 | `LEO_MCP_HTTP_PATH` | `/mcp` | HTTP 端点路径 |
 | `LEO_MCP_TOKEN` | 空 | 非空时要求 `Authorization: Bearer <token>` |
 | `LEO_MCP_WRITE_TOOLS` | `false` | 注册写入工具 |
 | `LEO_MCP_DESTRUCTIVE_TOOLS` | `false` | 注册破坏性工具 |
-| `LEO_MCP_ALLOW_FILE_PATH` | `false` | 允许工具读取服务器本地 `.txt` |
-| `LEO_MCP_ALLOWED_ROOTS` | 空 | `file_path` 允许的根目录（逗号分隔） |
-| `LEO_MCP_MAX_CHARS` | `20000` | 单文本字段返回上限 |
-| `LEO_MCP_MAX_PAGE_SIZE` | `100` | 分页上限 |
+
+文本返回上限固定 20,000 字符，分页上限固定 100，不再单独配置。
 
 ## 工具
 
@@ -92,7 +90,7 @@ curl -sS -X POST http://127.0.0.1:58685/mcp \
 - 默认只监听 `127.0.0.1`；对外暴露需显式修改监听地址并配置 Token。
 - 写工具与破坏性工具是双层开关；破坏性操作必须显式 `confirm=true`。
 - `leo_append_chapters` 默认 `dry_run=true`，先预检再写。
-- `file_path` 只读取允许目录内的普通文件，拒绝符号链接逃逸。
+- 导入只接受 `text` 参数，不读取服务器本地文件，避免路径穿越。
 - `/mcp` 路由不套用 `X-Request-ID` 中间件，避免改写 JSON-RPC 响应。
 - 当前版本不支持多实例共享：MCP 与 REST 共用进程内 CSV 存储，多实例部署需先补共享存储。
 

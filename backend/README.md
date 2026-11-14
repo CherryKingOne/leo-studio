@@ -38,7 +38,7 @@ curl http://127.0.0.1:58685/health
 MCP 层是 REST 之外的第二个入口，复用同一套 `projects` 业务服务，挂载在现有 Axum 进程内。当前只支持最新协议 `2026-07-28`（无状态核心），不兼容旧版握手。
 
 ```bash
-LEO_MCP_ENABLED=true LEO_MCP_TOKEN=replace-me \
+LEO_MCP_HTTP_ENABLED=true LEO_MCP_TOKEN=replace-me \
   cargo run --bin leo-studio-backend
 ```
 

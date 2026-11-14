@@ -86,7 +86,7 @@ pub async fn render(
         "leo_import_novel" => {
             let name = arg(args, "name").unwrap_or("未命名剧目");
             format!(
-                "请使用 leo_create_project 新建剧目「{name}」，正文通过 text 参数传入（或确认服务器已开启 file_path）。\n\
+                "请使用 leo_create_project 新建剧目「{name}」，正文通过 text 参数传入。\n\
                  创建成功后调用 leo_list_chapters 汇报章节数量，并说明清洗与分章结果。\n\
                  如果章节与预期不符，不要直接覆盖；改用 leo_append_chapters 并先以 dry_run=true 预检。"
             )

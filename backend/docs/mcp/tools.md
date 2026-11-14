@@ -10,11 +10,11 @@
 | 参数 | 说明 |
 | --- | --- |
 | `page` | 页码，默认 1 |
-| `page_size` | 每页数量，默认 20，上限取 `LEO_MCP_MAX_PAGE_SIZE` |
+| `page_size` | 每页数量，默认 20，上限 100 |
 | `project_id` | 剧目 ID |
 | `chapter_id` | 章节 ID |
 | `sentence_id` | 句子 ID |
-| `max_chars` | 正文字符上限，默认 `LEO_MCP_MAX_CHARS`；超出会截断并返回 `truncated: true` |
+| `max_chars` | 正文字符上限，默认 20,000；超出会截断并返回 `truncated: true` |
 | `confirm` | 破坏性工具必须为 `true` |
 
 ## 只读工具（默认开启）
@@ -36,8 +36,8 @@
 
 | 工具 | 参数 | 说明 |
 | --- | --- | --- |
-| `leo_create_project` | `name`, `text` 或 `file_path` | 新建剧目，自动清洗与分章 |
-| `leo_append_chapters` | `project_id`, `text`/`file_path`, `overwrite_existing=false`, `dry_run=true`, `confirm=false` | `dry_run=false` 时必须 `confirm=true`；默认不覆盖同名章节 |
+| `leo_create_project` | `name`, `text` | 新建剧目，自动清洗与分章 |
+| `leo_append_chapters` | `project_id`, `text`, `overwrite_existing=false`, `dry_run=true`, `confirm=false` | `dry_run=false` 时必须 `confirm=true`；默认不覆盖同名章节 |
 | `leo_rename_project` | `project_id, name` | 重命名 |
 | `leo_update_project` | `project_id, name?, status?` | 更新名称/状态 |
 | `leo_save_sentence_polyphones` | `project_id, sentence_id, annotations[]` | 全量覆盖保存；`annotations[]` 元素为 `{ char_index, character, pinyin, pinyin_base?, tone?, tts_pinyin? }` |
