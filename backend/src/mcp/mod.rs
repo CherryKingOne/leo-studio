@@ -21,7 +21,7 @@ pub fn http_router(mcp: Arc<McpSettings>, state: AppState) -> Router {
     let handler = McpHandler::new(state.settings.clone(), state.store.clone(), mcp.clone());
 
     let config = StreamableHttpServerConfig::default()
-        .with_legacy_session_mode(false)
+        .with_legacy_session_mode(true)
         .with_json_response(true)
         .with_stateless_protocol_metadata_required(true);
 

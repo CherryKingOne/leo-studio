@@ -24,8 +24,8 @@
 
 | 编号 | 目标 | 验收口径 |
 | --- | --- | --- |
-| G1 | 只支持**当前最新** MCP 规范 `2026-07-28`（无状态核心） | 官方 conformance 场景通过；`server/discover`、无 `_meta` 拒绝、`Mcp-Method` 校验生效 |
-| G2 | 旧协议（`2025-11-25` 及更早）明确拒绝 | 旧客户端收到 `-32022` 与 `supported=["2026-07-28"]`，不会误连 |
+| G1 | 支持**当前最新** MCP 规范 `2026-07-28`（无状态，首选） | 官方 conformance 场景通过；`server/discover`、无 `_meta` 拒绝、`Mcp-Method` 校验生效 |
+| G2 | 兼容 `2025-11-25` / `2025-06-18` 的 `initialize` 握手 | 旧客户端可完成握手、会话与工具调用 |
 | G3 | 复用现有 `projects` / `text_files` 业务服务，**不复制业务规则** | MCP 工具最终都落到 `projects::service` / `text_files::service` |
 | G4 | 只读能力默认可用，写能力受配置开关与工具注解约束 | 默认配置下模型只能查询，不能改数据 |
 | G5 | 提供 Streamable HTTP 入口 | `POST /mcp` 可完成工具、资源与提示词调用 |
@@ -55,11 +55,11 @@ MCP **没有「v2」这种大版本号**。它用日期作为协议版本：
 | `2025-11-25` | 有状态 | 图标、URL 模式 Elicitation、Tasks（实验） |
 | **`2026-07-28`** | **无状态（当前最新）** | 去掉 `initialize` 与会话、强制 `server/discover`、MRTR、`subscriptions/listen`、结果带 `resultType` |
 
-本期**只支持 `2026-07-28`**。旧协议（`2025-11-25` 及更早）直接拒绝，不做兼容层：
+本期**首选 `2026-07-28`（无状态）**，同时兼容 `2025-11-25` / `2025-06-18` 的 `initialize` 握手：
 
-- HTTP：不支持的版本返回 `400` + `-32022`，`data.supported = ["2026-07-28"]`；
-- 所有请求只接受 `2026-07-28`；旧客户端发 `initialize` 时返回 `-32022`；
-- HTTP+SSE（`2024-11-05`）与旧版会话头一律不支持。
+- 现代请求：按 `2026-07-28` 校验头部与 `_meta`；不支持的版本返回 `400` + `-32022`；
+- 旧客户端：走 `initialize`，响应头返回 `Mcp-Session-Id`，启用 legacy session/SSE；
+- `2024-11-05` 的 HTTP+SSE 入口不提供。
 
 ### 2.2 方法矩阵
 
@@ -68,8 +68,8 @@ MCP **没有「v2」这种大版本号**。它用日期作为协议版本：
 | 方法 | `2026-07-28` | 本期 |
 | --- | --- | --- |
 | `server/discover` | ✅ 必须 | ✅ |
-| `initialize` / `notifications/initialized` | ➖（已移除） | ❌ |
-| `ping` | ➖（已移除） | ❌ |
+| `initialize` / `notifications/initialized` | ➖（已移除） | ✅ 旧版 |
+| `ping` | ➖（已移除） | ✅ 旧版 |
 | `tools/list` | ✅ | ✅ |
 | `tools/call` | ✅ | ✅ |
 | `resources/list` | ✅ | ✅ |
@@ -83,7 +83,7 @@ MCP **没有「v2」这种大版本号**。它用日期作为协议版本：
 | `elicitation/create` | 🟡 | ❌（用工具参数 `confirm`） |
 | `sampling/createMessage` / `roots/list` | 已弃用 | ❌ |
 | Tasks 扩展 / MCP Apps | 扩展 | ❌ |
-| HTTP GET SSE 流 | ➖ | 405 |
+| HTTP GET SSE 流 | ➖ | ✅ 旧版 |
 | HTTP+SSE（`2024-11-05`） | 已弃用 | ❌ |
 
 HTTP 侧还要满足 `2026-07-28` 的请求元数据要求：
@@ -376,7 +376,7 @@ mcp-server/
 | 工具返回整章正文 | 上下文爆炸、成本飙升 | `max_chars` 截断 + 分页 + 资源按需读取 |
 | 写工具被模型误用 | 数据被覆盖/删除 | 双层开关 + `confirm` + `dry_run` 默认 true + 审计 |
 | MCP 响应被 `request_id` 中间件改写 | 协议不合规 | `/mcp` 路由单独挂载，不套用该中间件 |
-| 客户端版本碎片化 | 行为差异 | 只维护 `2026-07-28` 一套契约；旧客户端需升级 |
+| 客户端版本碎片化 | 行为差异 | 现代走 `2026-07-28`，旧版走握手；工具契约保持一致 |
 | 业务服务没有 `search_chapters` / `get_stats` | 需要补 service | 在 `projects::service` 增加只读函数，MCP 只调用不实现 |
 
 ---
@@ -385,7 +385,7 @@ mcp-server/
 
 已决策：
 
-1. **协议**：只支持 `2026-07-28`，不做旧版兼容。
+1. **协议**：首选 `2026-07-28`，兼容 `2025-11-25` / `2025-06-18`。
 2. **传输**：只提供 Streamable HTTP（`POST /mcp`），不做 stdio。
 3. **写工具**：默认关闭；`leo_append_chapters` 默认 `dry_run=true`，真正写入需 `confirm=true`。
 4. **正文入参**：只接受 `text`，不读取服务器本地文件。

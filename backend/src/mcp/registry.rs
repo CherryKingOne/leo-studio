@@ -450,7 +450,7 @@ impl McpHandler {
                 "server": "leo-studio",
                 "app": self.settings.app_name,
                 "version": self.settings.app_version,
-                "protocol_versions": ["2026-07-28"],
+                "protocol_versions": ["2026-07-28", "2025-11-25", "2025-06-18"],
                 "write_tools": self.mcp.write_tools,
                 "destructive_tools": self.mcp.destructive_tools
             })),

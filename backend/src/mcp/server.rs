@@ -61,7 +61,12 @@ impl ServerHandler for McpHandler {
     }
 
     fn supported_protocol_versions(&self) -> Cow<'static, [ProtocolVersion]> {
-        Cow::Owned(vec![ProtocolVersion::V_2026_07_28])
+        // 现代无状态版本优先；保留旧版握手，兼容只支持 2025-06-18 的客户端。
+        Cow::Owned(vec![
+            ProtocolVersion::V_2026_07_28,
+            ProtocolVersion::V_2025_11_25,
+            ProtocolVersion::V_2025_06_18,
+        ])
     }
 
     async fn list_tools(

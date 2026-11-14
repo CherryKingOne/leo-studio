@@ -2,9 +2,10 @@
 
 MCP 端点：`http://<主机>:58685/mcp`（与 REST 同进程，默认开启，无鉴权）
 
-- 协议：`2026-07-28`（Streamable HTTP，无会话）
-- 不需要 `initialize`，每个请求都要带 `_meta`
-- 不支持旧版握手与 SSE
+- 协议：`2026-07-28`（无状态，首选）、`2025-11-25` / `2025-06-18`（旧版握手）
+- `2026-07-28` 不需要 `initialize`，每个请求带 `_meta`
+- 旧版客户端走 `initialize` + `Mcp-Session-Id` + `notifications/initialized`
+- 不提供 stdio 进程
 
 ## 一、客户端 JSON 配置
 
@@ -231,6 +232,39 @@ curl -sS -X POST http://127.0.0.1:58685/mcp \
       }
     }
   }'
+```
+
+## 二·补、旧版客户端（2025-06-18 / 2025-11-25）
+
+旧版不需要 `MCP-Protocol-Version` / `Mcp-Method` / `_meta`，走握手：
+
+1. `POST /mcp` 发 `initialize`；
+2. 从响应头 `Mcp-Session-Id` 取会话 ID；
+3. 发 `notifications/initialized`（带 `Mcp-Session-Id`）；
+4. 后续请求带 `Mcp-Session-Id` 与 `MCP-Protocol-Version`。
+
+```bash
+# 1. initialize
+curl -sS -D - -X POST http://127.0.0.1:58685/mcp \
+  -H 'Content-Type: application/json' \
+  -H 'Accept: application/json, text/event-stream' \
+  -d '{"jsonrpc":"2.0","id":0,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"old-client","version":"1.0"}}}'
+
+# 2. 取响应头 mcp-session-id，然后：
+curl -sS -X POST http://127.0.0.1:58685/mcp \
+  -H 'Content-Type: application/json' \
+  -H 'Accept: application/json, text/event-stream' \
+  -H 'Mcp-Session-Id: <sid>' \
+  -H 'MCP-Protocol-Version: 2025-06-18' \
+  -d '{"jsonrpc":"2.0","method":"notifications/initialized"}'
+
+# 3. 调用工具
+curl -sS -X POST http://127.0.0.1:58685/mcp \
+  -H 'Content-Type: application/json' \
+  -H 'Accept: application/json, text/event-stream' \
+  -H 'Mcp-Session-Id: <sid>' \
+  -H 'MCP-Protocol-Version: 2025-06-18' \
+  -d '{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{}}'
 ```
 
 ## 三、错误码

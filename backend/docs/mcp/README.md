@@ -2,14 +2,14 @@
 
 把 Leo Studio 的剧目、章节、切句与多音字标注能力，以 **Model Context Protocol** 暴露给 AI 客户端（Claude、Cursor、VS Code、Cherry Studio 等）。
 
-当前实现**只支持最新协议 `2026-07-28`（无状态核心）**，通过 **Streamable HTTP** 挂载在现有 Axum 进程内；不提供 stdio 进程，也不兼容旧版 `initialize` 握手。
+当前实现支持 **`2026-07-28`（无状态，首选）** 与 **`2025-11-25` / `2025-06-18`（旧版握手）**，通过 Streamable HTTP 挂载在现有 Axum 进程内；不提供 stdio 进程。
 
 ## 能力
 
 | 类别 | 内容 |
 | --- | --- |
 | 传输 | Streamable HTTP：`POST /mcp`，与 REST 同进程 |
-| 协议 | `server/discover`、`tools/list`、`tools/call`、`resources/*`、`prompts/*`；结果带 `resultType: "complete"` |
+| 协议 | `2026-07-28`（无状态）+ `2025-11-25` / `2025-06-18`（握手）；`tools/resources/prompts`；现代结果带 `resultType` |
 | 工具 | 10 个只读；7 个写入（默认关闭）；4 个破坏性（额外开关 + `confirm`） |
 | 资源 | `leo://projects`、`leo://stats` 及剧目/章节参数化资源 |
 | 提示词 | 剧目总览、导入小说、章节摘要 |
@@ -35,12 +35,14 @@ curl -sS -X POST http://127.0.0.1:58685/mcp \
   -d '{"jsonrpc":"2.0","id":1,"method":"server/discover","params":{"_meta":{"io.modelcontextprotocol/protocolVersion":"2026-07-28","io.modelcontextprotocol/clientInfo":{"name":"curl","version":"1.0"},"io.modelcontextprotocol/clientCapabilities":{}}}}'
 ```
 
-`2026-07-28` 要求：
+使用 `2026-07-28` 时要求：
 
 - `MCP-Protocol-Version` 请求头；
 - `Mcp-Method` 请求头，`tools/call` / `resources/read` / `prompts/get` 还要带 `Mcp-Name`；
 - 请求 `params._meta` 内的 `io.modelcontextprotocol/protocolVersion`、`clientInfo`、`clientCapabilities`；
 - 缺头返回 `400` + `-32020`，版本不符返回 `-32020`，不支持的版本返回 `400` + `-32022`。
+
+旧版客户端（`2025-06-18` / `2025-11-25`）不需要上述头与 `_meta`：先 `initialize`，从响应头取 `Mcp-Session-Id`，再发 `notifications/initialized`，后续请求带 `Mcp-Session-Id` 即可。
 
 ## 客户端配置
 
@@ -129,6 +131,7 @@ Claude Desktop 原生只支持 stdio，需要额外桥接。完整配置、JSON-
 
 - HTTP：`server/discover` → `tools/list` → `tools/call`。
 - 缺 `Mcp-Method` 返回 `-32020`；旧版本返回 `-32022`。
+- 旧版握手：`initialize`（2025-06-18）→ `Mcp-Session-Id` → `notifications/initialized` → `tools/list` 正常返回。
 - 集成测试：`cargo test --test mcp`（6 例，覆盖工具开关、创建/查询/搜索/统计、追更预检与确认、多音字往返、破坏性确认）。
 
 ## 未实现
