@@ -14,9 +14,9 @@ use crate::text::processor::create_sentence_records;
 
 use super::model::{
     ChapterAppendItem, ChapterConflictInfo, ChapterContentInfo, ChapterDeleteInfo,
-    ChapterOutlineInfo, ChapterPolyphoneList, ChapterPolyphoneSentence, ChapterSentenceInfo,
-    ProjectChapterAppendInfo, ProjectInfo, STATUS_IN_PROGRESS, SentencePolyphoneInfo,
-    SentencePolyphoneItemDeleteInfo,
+    ChapterOutlineInfo, ChapterPolyphoneList, ChapterPolyphoneSentence, ChapterSearchHit,
+    ChapterSentenceInfo, ProjectChapterAppendInfo, ProjectInfo, ProjectStats, STATUS_IN_PROGRESS,
+    SentencePolyphoneInfo, SentencePolyphoneItemDeleteInfo,
 };
 
 /// 将 CSV 记录转换为项目领域模型。
@@ -438,6 +438,120 @@ pub fn get_project_chapter_content(
         content: str_field(chapter_row, "content").to_string(),
         sentences,
     })
+}
+
+/// 修改章节标题与/或正文。正文变更时会重建切句，并清理该章原有的多音字标注。
+pub fn update_chapter(
+    store: &mut Store,
+    project_id: &str,
+    chapter_id: &str,
+    chapter_title: Option<&str>,
+    content: Option<&str>,
+) -> AppResult<ChapterContentInfo> {
+    let project = get_project(store, project_id, false)?;
+    let chapter_row = store
+        .contents
+        .find_by("chapter_id", chapter_id)
+        .filter(|row| str_field(row, "novel_id") == project.file_id)
+        .cloned()
+        .ok_or_else(|| AppError::file_not_found(format!("章节不存在：{chapter_id}")))?;
+
+    let new_title = match chapter_title {
+        Some(title) => {
+            let title = title.trim();
+            if title.is_empty() {
+                return Err(AppError::invalid_parameter("章节标题不能为空"));
+            }
+            title.to_string()
+        }
+        None => str_field(&chapter_row, "chapter_title").to_string(),
+    };
+
+    let new_content = match content {
+        Some(value) => {
+            if value.trim().is_empty() {
+                return Err(AppError::invalid_parameter("章节正文不能为空"));
+            }
+            Some(value.to_string())
+        }
+        None => None,
+    };
+
+    let content_changed = new_content
+        .as_deref()
+        .is_some_and(|value| value != str_field(&chapter_row, "content"));
+    let word_count = match &new_content {
+        Some(value) => count_words(value) as i64,
+        None => int_field(&chapter_row, "word_count"),
+    };
+
+    store.contents.update_by(
+        "chapter_id",
+        chapter_id,
+        &[
+            ("chapter_title", new_title.clone()),
+            (
+                "content",
+                new_content
+                    .clone()
+                    .unwrap_or_else(|| str_field(&chapter_row, "content").to_string()),
+            ),
+            ("word_count", word_count.to_string()),
+        ],
+    );
+
+    if content_changed {
+        let new_content = new_content.as_deref().unwrap_or_default();
+        let sentence_ids: Vec<String> = store
+            .sentences
+            .find_all()
+            .iter()
+            .filter(|row| str_field(row, "chapter_id") == chapter_id)
+            .map(|row| str_field(row, "sentence_id").to_string())
+            .collect();
+        for sentence_id in &sentence_ids {
+            store.polyphones.delete_by("sentence_id", sentence_id);
+        }
+        store.sentences.delete_by("chapter_id", chapter_id);
+        if !new_content.is_empty() {
+            let records = create_sentence_records(&project.file_id, chapter_id, new_content);
+            store.sentences.insert_batch(records);
+        }
+    }
+
+    let all_chapters = text_service::get_novel_chapters(store, &project.file_id);
+    let total_chapters = all_chapters.len() as i64;
+    let total_words: i64 = all_chapters
+        .iter()
+        .map(|row| int_field(row, "word_count"))
+        .sum();
+    let now = Utc::now();
+
+    store.novels.update_by(
+        "novel_id",
+        &project.file_id,
+        &[
+            ("chapter_count", total_chapters.to_string()),
+            ("total_words", total_words.to_string()),
+        ],
+    );
+    store.projects.update_by(
+        "project_id",
+        &project.project_id,
+        &[
+            ("chapter_count", total_chapters.to_string()),
+            ("total_words", total_words.to_string()),
+            ("updated_at", now.to_rfc3339()),
+        ],
+    );
+
+    store.save_polyphones()?;
+    store.save_sentences()?;
+    store.save_contents()?;
+    store.save_novels()?;
+    store.save_projects()?;
+
+    get_project_chapter_content(store, project_id, chapter_id)
 }
 
 /// 删除项目中的指定章节及其切句、多音字标注，并刷新项目统计。
@@ -1271,4 +1385,73 @@ pub fn update_project_fields(
 /// 兼容旧版辅助：解析时间字符串。
 pub fn parse_time(value: &str) -> DateTime<Utc> {
     text_service::parse_datetime(value)
+}
+
+/// 在项目内按关键词搜索章节（标题或正文命中），返回章节元信息与摘要。
+pub fn search_chapters(
+    store: &Store,
+    project_id: &str,
+    keyword: &str,
+    limit: usize,
+) -> AppResult<Vec<ChapterSearchHit>> {
+    let project = get_project(store, project_id, false)?;
+    let needle = keyword.trim();
+    if needle.is_empty() || limit == 0 {
+        return Ok(Vec::new());
+    }
+
+    let mut items: Vec<ChapterSearchHit> = store
+        .contents
+        .find_all()
+        .iter()
+        .filter(|row| str_field(row, "novel_id") == project.file_id)
+        .filter_map(|row| {
+            let title = str_field(row, "chapter_title");
+            let content = str_field(row, "content");
+            let position = title
+                .find(needle)
+                .map(|index| (true, index))
+                .or_else(|| content.find(needle).map(|index| (false, index)))?;
+            let (in_title, byte_index) = position;
+            let source = if in_title { title } else { content };
+            let chars: Vec<char> = source.chars().collect();
+            let start = source[..byte_index].chars().count().min(chars.len());
+            let from = start.saturating_sub(40);
+            let to = (start + needle.chars().count() + 40).min(chars.len());
+            let excerpt: String = chars[from..to].iter().collect();
+            Some(ChapterSearchHit {
+                chapter_id: str_field(row, "chapter_id").to_string(),
+                chapter_index: int_field(row, "chapter_index"),
+                chapter_title: title.to_string(),
+                word_count: int_field(row, "word_count"),
+                excerpt,
+            })
+        })
+        .collect();
+
+    items.sort_by_key(|item| item.chapter_index);
+    items.truncate(limit);
+    Ok(items)
+}
+
+/// 全库统计：剧目数、章节数、总字数与回收站数量。
+pub fn get_stats(store: &Store) -> ProjectStats {
+    let mut stats = ProjectStats {
+        projects: 0,
+        chapters: 0,
+        words: 0,
+        recycle_bin: 0,
+    };
+
+    for record in store.projects.find_all() {
+        if bool_field(record, "is_deleted") {
+            stats.recycle_bin += 1;
+        } else {
+            stats.projects += 1;
+            stats.chapters += int_field(record, "chapter_count");
+            stats.words += int_field(record, "total_words");
+        }
+    }
+
+    stats
 }

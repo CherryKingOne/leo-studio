@@ -23,6 +23,13 @@ backend/
 │   ├── middleware.rs              # X-Request-ID 请求头与响应体注入
 │   ├── response.rs                # 统一响应包装 ApiResponse<T>
 │   ├── state.rs                   # AppState：配置 + 线程安全存储
+│   ├── mcp/                       # MCP 入口（仅协议 2026-07-28）
+│   │   ├── mod.rs                 # 导出与 Axum Streamable HTTP 挂载
+│   │   ├── config.rs              # LEO_MCP_* 配置
+│   │   ├── server.rs              # ServerHandler：discover / tools / resources / prompts
+│   │   ├── registry.rs            # 21 个工具定义、参数校验与分发
+│   │   ├── resources.rs           # leo:// 资源与模板
+│   │   └── prompts.rs             # 工作流提示词
 │   ├── modules/                   # 功能模块（按业务边界拆分）
 │   │   ├── mod.rs
 │   │   ├── system.rs              # /health、/api/v1/system/health、/
@@ -162,7 +169,8 @@ ApiResponse<T>   统一 { code, message, data, request_id }
 | text_files 模块 | `router` / `service` / `schema` / `model` | 约 930 |
 | 存储层 | `csv_table` / `store` | 约 420 |
 | 文本处理 | `kaomoji` / `parsers` / `processor` | 约 1170 |
-| 测试 | `api.rs` / `v2.rs` / `parsers.rs` / `common` | 约 800 |
+| MCP | `config` / `server` / `registry` / `resources` / `prompts` | 约 1100 |
+| 测试 | `api.rs` / `v2.rs` / `parsers.rs` / `mcp.rs` / `common` | 约 900 |
 
 ## 端口与启动
 
@@ -173,6 +181,7 @@ cd backend
 cargo run --release --bin leo-studio-backend
 # 监听 http://0.0.0.0:58685
 # 开发模式：cargo run --bin leo-studio-backend
+
 ```
 
 前端 `desktop/.env.local`：

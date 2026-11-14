@@ -11,6 +11,7 @@ Leo Studio 后端服务，使用 **Rust + Axum + Tokio** 实现，前后端通�
 - 行级切句与颜文字 / 分隔线 / 省略号清洗
 - 项目软删除、回收站、恢复、物理级联删除
 - 句子多音字标注的校验、全量覆盖保存与级联清理
+- **MCP Server**：把剧目/章节/切句/多音字能力暴露给 AI 客户端（`2026-07-28` 首选，兼容 `2025-11-25` / `2025-06-18`）
 - 默认监听 `58685`
 
 ## 快速开始
@@ -31,6 +32,23 @@ cargo run --bin leo-studio-backend             # 开发模式启动
 ```bash
 curl http://127.0.0.1:58685/health
 ```
+
+## MCP Server
+
+MCP 层是 REST 之外的第二个入口，复用同一套 `projects` 业务服务，挂载在现有 Axum 进程内，**默认开启**。支持 `2026-07-28`（首选）与 `2025-11-25` / `2025-06-18` 旧版握手。
+
+```bash
+cargo run --bin leo-studio-backend
+# REST: http://0.0.0.0:58685
+# MCP:  http://0.0.0.0:58685/mcp
+```
+
+- 不需要额外进程、端口或 Token；MCP 与 REST 共用 `LEO_HOST` / `LEO_PORT`。
+- 需要 `MCP-Protocol-Version`、`Mcp-Method` 头与请求内 `_meta`。
+- 22 个工具默认全部启用（查询/新增/修改/删除）；可用 `LEO_MCP_WRITE_TOOLS=false` 或 `LEO_MCP_DESTRUCTIVE_TOOLS=false` 收回权限。
+- 客户端需支持 Streamable HTTP。
+
+详见 [docs/mcp/README.md](docs/mcp/README.md) 与 [docs/mcp/tools.md](docs/mcp/tools.md)。
 
 ## 常用配置
 
