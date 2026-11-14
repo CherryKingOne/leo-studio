@@ -42,6 +42,42 @@ curl -sS -X POST http://127.0.0.1:58685/mcp \
 - 请求 `params._meta` 内的 `io.modelcontextprotocol/protocolVersion`、`clientInfo`、`clientCapabilities`；
 - 缺头返回 `400` + `-32020`，版本不符返回 `-32020`，不支持的版本返回 `400` + `-32022`。
 
+## 客户端配置
+
+端点固定为 `http://<主机>:58685/mcp`。
+
+Cursor（`.cursor/mcp.json`）：
+
+```json
+{
+  "mcpServers": {
+    "leo-studio": { "url": "http://127.0.0.1:58685/mcp" }
+  }
+}
+```
+
+VS Code（`.vscode/mcp.json`）：
+
+```json
+{
+  "servers": {
+    "leo-studio": { "type": "http", "url": "http://127.0.0.1:58685/mcp" }
+  }
+}
+```
+
+Claude Code（`.mcp.json`）：
+
+```json
+{
+  "mcpServers": {
+    "leo-studio": { "type": "http", "url": "http://127.0.0.1:58685/mcp" }
+  }
+}
+```
+
+Claude Desktop 原生只支持 stdio，需要额外桥接。完整配置、JSON-RPC 请求示例与错误码见 [clients.md](clients.md)。
+
 ## 配置
 
 | 环境变量 | 默认值 | 说明 |
