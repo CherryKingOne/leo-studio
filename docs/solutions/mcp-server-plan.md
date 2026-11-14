@@ -159,7 +159,7 @@ MCP 层只做四件事：
 | `leo_list_chapter_polyphones` | `project_id, chapter_id` | 章节全部标注（按句分组） | `get_chapter_polyphones` | 无 |
 | `leo_get_stats` | — | 剧目数 / 章节数 / 总字数 / 回收站数 | 由 `store` 聚合（新增只读函数） | 无 |
 
-### 4.3 写入工具（`LEO_MCP_WRITE_TOOLS=true` 才注册）
+### 4.3 写入工具（默认启用，`LEO_MCP_WRITE_TOOLS=false` 关闭）
 
 | 工具 | 入参 | 返回 | 复用服务 | 危险级别 |
 | --- | --- | --- | --- | --- |
@@ -167,11 +167,12 @@ MCP 层只做四件事：
 | `leo_append_chapters` | `project_id, text, overwrite_existing=false, dry_run=true, confirm=false` | `ProjectChapterAppendInfo` | `append_chapters` | 覆盖时危险 |
 | `leo_rename_project` | `project_id, name` | `ProjectInfo` | `update_project` | 低 |
 | `leo_update_project` | `project_id, name?, status?` | `ProjectInfo` | `update_project_fields`（v2 服务） | 低 |
+| `leo_update_chapter` | `project_id, chapter_id, title?, content?, confirm?` | `ChapterContentInfo` | `update_chapter` | 覆盖正文时危险 |
 | `leo_save_sentence_polyphones` | `project_id, sentence_id, annotations[]` | 保存后的标注数组 | `save_sentence_polyphones` | 覆盖整句标注 |
 | `leo_clear_sentence_polyphones` | `project_id, sentence_id` | `deleted_count` | `delete_sentence_polyphones` | 低（可重标） |
 | `leo_restore_project` | `project_id` | `ProjectInfo` | `restore_project` | 低 |
 
-### 4.4 破坏性工具（额外要求 `LEO_MCP_DESTRUCTIVE_TOOLS=true` + `confirm=true`）
+### 4.4 破坏性工具（默认启用，且必须 `confirm=true`）
 
 | 工具 | 入参 | 返回 | 复用服务 | 说明 |
 | --- | --- | --- | --- | --- |
@@ -342,8 +343,8 @@ mcp-server/
 | --- | --- | --- |
 | `LEO_MCP_ENABLED` | `true` | 是否挂载 `/mcp`（默认开启） |
 | `LEO_MCP_HTTP_PATH` | `/mcp` | Streamable HTTP 端点 |
-| `LEO_MCP_WRITE_TOOLS` | `false` | 注册写入工具 |
-| `LEO_MCP_DESTRUCTIVE_TOOLS` | `false` | 注册破坏性工具 |
+| `LEO_MCP_WRITE_TOOLS` | `true` | 注册写入工具（`false` 则只读） |
+| `LEO_MCP_DESTRUCTIVE_TOOLS` | `true` | 注册破坏性工具（`false` 则不含删除/清空） |
 
 监听地址沿用 `LEO_HOST` / `LEO_PORT`；文本上限与分页上限固定为 20,000 字符和 100 条，不做成配置项。
 
@@ -387,7 +388,7 @@ mcp-server/
 
 1. **协议**：首选 `2026-07-28`，兼容 `2025-11-25` / `2025-06-18`。
 2. **传输**：只提供 Streamable HTTP（`POST /mcp`），不做 stdio。
-3. **写工具**：默认关闭；`leo_append_chapters` 默认 `dry_run=true`，真正写入需 `confirm=true`。
+3. **写工具**：默认全部启用；`leo_append_chapters` 默认 `dry_run=true`，真正写入需 `confirm=true`。
 4. **正文入参**：只接受 `text`，不读取服务器本地文件。
 
 待确认：

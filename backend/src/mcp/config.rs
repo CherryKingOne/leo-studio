@@ -29,8 +29,8 @@ impl McpSettings {
         Self {
             enabled: env_bool("LEO_MCP_ENABLED", true),
             http_path,
-            write_tools: env_bool("LEO_MCP_WRITE_TOOLS", false),
-            destructive_tools: env_bool("LEO_MCP_DESTRUCTIVE_TOOLS", false),
+            write_tools: env_bool("LEO_MCP_WRITE_TOOLS", true),
+            destructive_tools: env_bool("LEO_MCP_DESTRUCTIVE_TOOLS", true),
             max_chars: 20_000,
             max_page_size: 100,
         }

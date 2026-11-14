@@ -311,3 +311,85 @@ async fn unknown_tool_is_rejected() {
     let message = call_err(&handler, "leo_not_exists", json!({})).await;
     assert!(message.contains("未知工具"));
 }
+
+#[tokio::test]
+async fn chapter_update_and_delete() {
+    let dir = temp_dir("chapter-crud");
+    let handler = make_handler(&dir, mcp_settings(true, true));
+
+    let project = call(
+        &handler,
+        "leo_create_project",
+        json!({ "name": "章节改删测试", "text": SAMPLE }),
+    )
+    .await;
+    let project_id = project["project_id"].as_str().unwrap().to_string();
+    let chapters = call(
+        &handler,
+        "leo_list_chapters",
+        json!({ "project_id": project_id }),
+    )
+    .await;
+    let chapter_id = chapters["items"][0]["chapter_id"]
+        .as_str()
+        .unwrap()
+        .to_string();
+
+    let renamed = call(
+        &handler,
+        "leo_update_chapter",
+        json!({
+            "project_id": project_id,
+            "chapter_id": chapter_id,
+            "title": "第一章 改名"
+        }),
+    )
+    .await;
+    assert_eq!(renamed["chapter_title"], "第一章 改名");
+
+    let message = call_err(
+        &handler,
+        "leo_update_chapter",
+        json!({
+            "project_id": project_id,
+            "chapter_id": chapter_id,
+            "content": "新的正文内容。"
+        }),
+    )
+    .await;
+    assert!(message.contains("confirm"));
+
+    let updated = call(
+        &handler,
+        "leo_update_chapter",
+        json!({
+            "project_id": project_id,
+            "chapter_id": chapter_id,
+            "content": "新的正文内容。",
+            "confirm": true
+        }),
+    )
+    .await;
+    assert_eq!(updated["content"], "新的正文内容。");
+    assert!(!updated["sentences"].as_array().unwrap().is_empty());
+
+    let deleted = call(
+        &handler,
+        "leo_delete_chapter",
+        json!({
+            "project_id": project_id,
+            "chapter_id": chapter_id,
+            "confirm": true
+        }),
+    )
+    .await;
+    assert_eq!(deleted["deleted"], true);
+
+    let chapters = call(
+        &handler,
+        "leo_list_chapters",
+        json!({ "project_id": project_id }),
+    )
+    .await;
+    assert_eq!(chapters["total"], 1);
+}

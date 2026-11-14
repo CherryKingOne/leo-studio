@@ -253,6 +253,20 @@ fn write_tools() -> Vec<Tool> {
             annotations("更新剧目", false, false, true),
         ),
         tool(
+            "leo_update_chapter",
+            "更新章节",
+            "修改章节标题与/或正文。正文变更会重建切句并清空该章多音字标注；传 content 时必须 confirm=true。",
+            json!({
+                "project_id": str_prop("剧目 ID"),
+                "chapter_id": str_prop("章节 ID"),
+                "title": str_prop("新章节标题"),
+                "content": str_prop("新正文（UTF-8 纯文本）"),
+                "confirm": bool_prop("修改正文时必须为 true")
+            }),
+            &["project_id", "chapter_id"],
+            annotations("更新章节", false, false, false),
+        ),
+        tool(
             "leo_save_sentence_polyphones",
             "保存多音字标注",
             "全量覆盖保存某个句子的多音字标注；char_index 为字符下标，必须与句子实际字符一致。",
@@ -631,6 +645,26 @@ impl McpHandler {
                     &project_id,
                     opt_string(args, "name").as_deref(),
                     opt_string(args, "status").as_deref(),
+                )?;
+                Ok(value_of(&info)?)
+            }
+            "leo_update_chapter" => {
+                let project_id = req_string(args, "project_id")?;
+                let chapter_id = req_string(args, "chapter_id")?;
+                let title = opt_string(args, "title");
+                let content = opt_string(args, "content");
+                if title.is_none() && content.is_none() {
+                    return Err(AppError::invalid_parameter("请至少提供 title 或 content"));
+                }
+                if content.is_some() {
+                    require_confirm(args, "覆盖章节正文")?;
+                }
+                let info = project_service::update_chapter(
+                    &mut *self.store.lock().await,
+                    &project_id,
+                    &chapter_id,
+                    title.as_deref(),
+                    content.as_deref(),
                 )?;
                 Ok(value_of(&info)?)
             }

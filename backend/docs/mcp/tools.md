@@ -32,7 +32,7 @@
 | `leo_list_chapter_polyphones` | `project_id, chapter_id` | `ChapterPolyphoneList` |
 | `leo_get_stats` | — | `{ projects, chapters, words, recycle_bin }` |
 
-## 写入工具（`LEO_MCP_WRITE_TOOLS=true`）
+## 写入工具（默认启用，`LEO_MCP_WRITE_TOOLS=false` 可关闭）
 
 | 工具 | 参数 | 说明 |
 | --- | --- | --- |
@@ -40,6 +40,7 @@
 | `leo_append_chapters` | `project_id`, `text`, `overwrite_existing=false`, `dry_run=true`, `confirm=false` | `dry_run=false` 时必须 `confirm=true`；默认不覆盖同名章节 |
 | `leo_rename_project` | `project_id, name` | 重命名 |
 | `leo_update_project` | `project_id, name?, status?` | 更新名称/状态 |
+| `leo_update_chapter` | `project_id, chapter_id, title?, content?, confirm?` | 改标题/正文；改正文需 `confirm=true`，会重建切句并清空该章多音字 |
 | `leo_save_sentence_polyphones` | `project_id, sentence_id, annotations[]` | 全量覆盖保存；`annotations[]` 元素为 `{ char_index, character, pinyin, pinyin_base?, tone?, tts_pinyin? }` |
 | `leo_clear_sentence_polyphones` | `project_id, sentence_id` | 清空某句标注 |
 | `leo_restore_project` | `project_id` | 从回收站恢复 |
@@ -59,7 +60,7 @@
 }
 ```
 
-## 破坏性工具（`LEO_MCP_DESTRUCTIVE_TOOLS=true` + `confirm=true`）
+## 破坏性工具（默认启用 + `confirm=true`；`LEO_MCP_DESTRUCTIVE_TOOLS=false` 可关闭）
 
 | 工具 | 参数 | 说明 |
 | --- | --- | --- |

@@ -10,7 +10,7 @@
 | --- | --- |
 | 传输 | Streamable HTTP：`POST /mcp`，与 REST 同进程 |
 | 协议 | `2026-07-28`（无状态）+ `2025-11-25` / `2025-06-18`（握手）；`tools/resources/prompts`；现代结果带 `resultType` |
-| 工具 | 10 个只读；7 个写入（默认关闭）；4 个破坏性（额外开关 + `confirm`） |
+| 工具 | 22 个：10 只读、8 写入、4 破坏性；默认全部启用，破坏性操作需 `confirm` |
 | 资源 | `leo://projects`、`leo://stats` 及剧目/章节参数化资源 |
 | 提示词 | 剧目总览、导入小说、章节摘要 |
 
@@ -86,8 +86,8 @@ Claude Desktop 原生只支持 stdio，需要额外桥接。完整配置、JSON-
 | --- | --- | --- |
 | `LEO_MCP_ENABLED` | `true` | 是否挂载 `/mcp`（默认开启） |
 | `LEO_MCP_HTTP_PATH` | `/mcp` | HTTP 端点路径 |
-| `LEO_MCP_WRITE_TOOLS` | `false` | 注册写入工具 |
-| `LEO_MCP_DESTRUCTIVE_TOOLS` | `false` | 注册破坏性工具 |
+| `LEO_MCP_WRITE_TOOLS` | `true` | 注册写入工具（设为 `false` 则只读） |
+| `LEO_MCP_DESTRUCTIVE_TOOLS` | `true` | 注册破坏性工具（设为 `false` 则不含删除/清空） |
 
 文本返回上限固定 20,000 字符，分页上限固定 100，不再单独配置。
 
@@ -97,11 +97,11 @@ Claude Desktop 原生只支持 stdio，需要额外桥接。完整配置、JSON-
 
 `leo_health`、`leo_list_projects`、`leo_get_project`、`leo_list_chapters`、`leo_get_chapter`、`leo_search_chapters`、`leo_list_recycle_bin`、`leo_get_sentence_polyphones`、`leo_list_chapter_polyphones`、`leo_get_stats`
 
-写入工具（`LEO_MCP_WRITE_TOOLS=true`）：
+写入工具（默认启用，`LEO_MCP_WRITE_TOOLS=false` 可关闭）：
 
-`leo_create_project`、`leo_append_chapters`、`leo_rename_project`、`leo_update_project`、`leo_save_sentence_polyphones`、`leo_clear_sentence_polyphones`、`leo_restore_project`
+`leo_create_project`、`leo_append_chapters`、`leo_rename_project`、`leo_update_project`、`leo_update_chapter`、`leo_save_sentence_polyphones`、`leo_clear_sentence_polyphones`、`leo_restore_project`
 
-破坏性工具（同时 `LEO_MCP_DESTRUCTIVE_TOOLS=true`，且必须传 `confirm=true`）：
+破坏性工具（默认启用，且必须传 `confirm=true`；`LEO_MCP_DESTRUCTIVE_TOOLS=false` 可关闭）：
 
 `leo_delete_chapter`、`leo_move_to_trash`、`leo_purge_project`、`leo_empty_recycle_bin`
 
@@ -121,7 +121,7 @@ Claude Desktop 原生只支持 stdio，需要额外桥接。完整配置、JSON-
 ## 安全边界
 
 - 与 REST 共用 `LEO_HOST` / `LEO_PORT`（默认 `0.0.0.0:58685`），不做额外鉴权。
-- 写工具与破坏性工具是双层开关；破坏性操作必须显式 `confirm=true`。
+- 写入与破坏性工具默认全部启用；破坏性操作必须显式 `confirm=true`，`leo_append_chapters` 默认 `dry_run=true`。
 - `leo_append_chapters` 默认 `dry_run=true`，先预检再写。
 - 导入只接受 `text` 参数，不读取服务器本地文件，避免路径穿越。
 - `/mcp` 路由不套用 `X-Request-ID` 中间件，避免改写 JSON-RPC 响应。

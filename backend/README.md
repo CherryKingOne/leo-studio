@@ -45,7 +45,7 @@ cargo run --bin leo-studio-backend
 
 - 不需要额外进程、端口或 Token；MCP 与 REST 共用 `LEO_HOST` / `LEO_PORT`。
 - 需要 `MCP-Protocol-Version`、`Mcp-Method` 头与请求内 `_meta`。
-- 只读工具默认可用；写入/破坏性工具分别由 `LEO_MCP_WRITE_TOOLS`、`LEO_MCP_DESTRUCTIVE_TOOLS` 控制。
+- 22 个工具默认全部启用（查询/新增/修改/删除）；可用 `LEO_MCP_WRITE_TOOLS=false` 或 `LEO_MCP_DESTRUCTIVE_TOOLS=false` 收回权限。
 - 客户端需支持 Streamable HTTP。
 
 详见 [docs/mcp/README.md](docs/mcp/README.md) 与 [docs/mcp/tools.md](docs/mcp/tools.md)。
