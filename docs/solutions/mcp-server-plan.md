@@ -1,0 +1,486 @@
+# Leo Studio MCP Server 建设规划
+
+> 状态：**规划中，尚未编码**
+> 目标：为 Leo Studio 增加 MCP（Model Context Protocol）能力，让 Claude Desktop、Cursor、VS Code、Cherry Studio 等 MCP 客户端可以直接查询与操作剧目、章节、切句与多音字标注。
+> 本文只定义范围、协议策略、工具契约与目录结构，不含实现代码。
+
+---
+
+## 1. 背景与目标
+
+### 1.1 现状
+
+仓库已经是「Rust + Axum 后端 + Next.js 前端」的分离结构，业务侧已经具备：
+
+- 剧目（项目）CRUD、软删除、回收站、恢复、物理删除
+- 章节大纲、章节正文、逐句切分
+- 章节追加上传（`dry_run` 预检 + 防污染覆盖）
+- 句子级多音字标注（全量覆盖保存、清空）
+- 统一响应包装 `{ code, message, data, request_id }`
+
+但**只有 HTTP/JSON 一个出口**：浏览器和前端服务端能调，AI 客户端无法直接使用。MCP 的价值是把这些能力以「工具 + 资源 + 提示词」的形式标准化暴露，让模型在对话里直接完成「看一下我的剧目 → 打开某章 → 标出多音字 → 追更第 101 章」这类工作。
+
+### 1.2 目标
+
+| 编号 | 目标 | 验收口径 |
+| --- | --- | --- |
+| G1 | 兼容**当前最新** MCP 规范 `2026-07-28`（无状态核心） | 官方 conformance 场景通过；`server/discover`、无 `_meta` 拒绝、`Mcp-Method` 校验生效 |
+| G2 | 同时兼容**上一代** `2025-11-25` 及更早（`initialize` 握手） | 旧客户端（Claude Desktop / Cursor 现有版本）可正常完成握手与调用 |
+| G3 | 复用现有 `projects` / `text_files` 业务服务，**不复制业务规则** | MCP 工具最终都落到 `projects::service` / `text_files::service` |
+| G4 | 只读能力默认可用，写能力受配置开关与工具注解约束 | 默认配置下模型只能查询，不能改数据 |
+| G5 | 支持 stdio 与 Streamable HTTP 两种传输 | 两种入口都能跑通同一套工具清单 |
+| G6 | 破坏性操作有二次确认与审计日志 | 清空回收站、物理删除、覆盖章节必须带 `confirm` |
+
+### 1.3 非目标（本期不做）
+
+- 不做 MCP **客户端**（不代理别的 MCP Server）。
+- 不做 OAuth 2.1 / 多租户鉴权（本期只用静态 Bearer Token + 本机绑定）。
+- 不实现 Sampling / Roots / Logging（`2026-07-28` 已弃用）。
+- 不实现 Tasks 扩展、MCP Apps 扩展。
+- 不做音频合成、母带导出等尚未落地的业务能力。
+
+---
+
+## 2. 协议版本：到底要支持哪几版
+
+### 2.1 先澄清一个说法
+
+MCP **没有「v2」这种大版本号**。它用日期作为协议版本：
+
+| 版本 | 形态 | 关键变化 |
+| --- | --- | --- |
+| `2024-11-05` | 有状态，HTTP+SSE | 初版，已弃用 |
+| `2025-03-26` | 有状态，Streamable HTTP | 引入 OAuth、工具注解 |
+| `2025-06-18` | 有状态 | 去掉 JSON-RPC 批量、结构化输出、Elicitation |
+| `2025-11-25` | 有状态 | 图标、URL 模式 Elicitation、Tasks（实验） |
+| **`2026-07-28`** | **无状态（当前最新）** | 去掉 `initialize` 与会话、强制 `server/discover`、MRTR、`subscriptions/listen`、结果带 `resultType` |
+
+「最新版」= **`2026-07-28`**；「上一版」= **`2025-11-25`**。本文说的「新旧兼容」就是这两代同时支持（规范里叫 **dual-era**）。
+
+### 2.2 兼容结论
+
+**可以做到同时兼容，且成本可控**：
+
+- 官方 Rust SDK **`rmcp` 3.x** 已同时实现 `2026-07-28` 与 `2025-11-25` 及更早版本，并按协商结果自动切换线格式（新版结果带 `resultType`，旧版不带）。
+- 差异主要在 HTTP 传输层：新版无 `Mcp-Session-Id`、无 GET SSE、无 `Last-Event-ID` 续传；旧版反之。SDK 的 `legacy_session_mode` 只影响旧协议会话。
+- stdio 侧不需要猜：按规范用 `server/discover` 探测，失败再回落到 `initialize`。
+
+所以策略是：
+
+```
+客户端
+  │
+  ├─ 2026-07-28（modern）→ server/discover → 无 _meta 则拒绝 → 正常调用
+  │
+  └─ ≤2025-11-25（legacy）→ initialize → notifications/initialized → 正常调用
+```
+
+### 2.3 我们要实现的协议方法矩阵
+
+图例：✅ 必须/已实现；🟡 可选；➖ 该版本没有；❌ 本期不做。
+
+| 方法 | `2026-07-28` | `≤ 2025-11-25` | 本期 |
+| --- | --- | --- | --- |
+| `server/discover` | ✅ 必须 | ➖ | ✅ |
+| `initialize` | ➖（已移除） | ✅ 必须 | ✅ 仅 legacy |
+| `notifications/initialized` | ➖ | ✅ | ✅ 仅 legacy |
+| `ping` | ➖（已移除） | ✅ | ✅ 仅 legacy |
+| `tools/list` | ✅ | ✅ | ✅ |
+| `tools/call` | ✅ | ✅ | ✅ |
+| `resources/list` | ✅（声明能力后） | ✅ | ✅ |
+| `resources/templates/list` | ✅（声明后） | ✅ | ✅ |
+| `resources/read` | ✅ | ✅ | ✅ |
+| `prompts/list` | ✅（声明后） | ✅ | ✅ |
+| `prompts/get` | ✅ | ✅ | ✅ |
+| `resources/subscribe` / `unsubscribe` | ➖（被 `subscriptions/listen` 取代） | ✅ | ✅ 仅 legacy |
+| `subscriptions/listen` | ✅（声明 `listChanged` 后） | ➖ | ✅ |
+| `notifications/tools/list_changed` | ✅ SHOULD | ✅ SHOULD | ✅ |
+| `notifications/resources/updated` | ✅ SHOULD | ✅ SHOULD | ✅ |
+| `notifications/progress` | ✅（请求级 SSE） | ✅ | ✅ 上传/导入长任务 |
+| `notifications/cancelled` | 🟡（仅 stdio） | ✅ | ✅ stdio |
+| `logging/setLevel` | ➖（已移除） | 🟡 | 🟡 仅 legacy 空实现 |
+| `completion/complete` | 🟡 | 🟡 | 🟡 第二版 |
+| `elicitation/create` | 🟡（MRTR 形式） | 🟡 | ❌ 用工具参数 `confirm` 代替 |
+| `sampling/createMessage` | ➖（已弃用） | 🟡 | ❌ |
+| `roots/list` | ➖（已弃用） | 🟡 | ❌ |
+| Tasks 扩展 | 🟡 扩展 | 🟡 实验 | ❌ |
+| HTTP GET SSE 流 | ➖（已移除，返回 405） | 🟡 | 🟡 旧版兼容时返回 405 |
+| HTTP+SSE（`2024-11-05`） | 已弃用 | ✅ 老客户端 | ❌ 返回 405 + 说明 |
+
+HTTP 侧还要满足 `2026-07-28` 的请求元数据要求：
+
+- `MCP-Protocol-Version` 头必带，且与 `_meta["io.modelcontextprotocol/protocolVersion"]` 一致，否则 `400` + `-32020 HeaderMismatch`；
+- `Mcp-Method` 必带，`tools/call` / `resources/read` / `prompts/get` 额外带 `Mcp-Name`；
+- `_meta` 里的 `protocolVersion`、`clientInfo`、`clientCapabilities` 必读；
+- 不支持的版本返回 `400` + `-32022 UnsupportedProtocolVersion`，并在 `data.supported` 里列出支持的版本；
+- `Origin` 校验失败返回 `403`；本机部署只绑 `127.0.0.1`。
+
+### 2.4 技术选型
+
+| 选项 | 结论 | 理由 |
+| --- | --- | --- |
+| `rmcp` 3.x（官方 Rust SDK） | **采用** | 同时覆盖两代协议、MRTR、无状态 HTTP、订阅、缓存提示；与现有 Axum/Tokio 栈一致 |
+| 自己手写 JSON-RPC 分发 | 不采用 | 版本差异多，容易在 `resultType`、头部校验、订阅流上踩坑 |
+| 独立 Node/Python MCP 服务 | 不采用 | 会变成第二个业务入口，还要再实现一遍 projects 服务 |
+
+> 注意：`rmcp` 3.x 的 MSRV 是 **Rust 1.88**。仓库当前用 edition 2024（≥1.85），实施前需确认 CI 与本地工具链版本。
+
+---
+
+## 3. 定位：MCP 是第三个入口，不是新业务
+
+```
+                    ┌──────────────────────────────┐
+                    │  projects / text_files 服务层  │  ← 唯一的业务规则
+                    └──────────────┬───────────────┘
+                                   │
+        ┌──────────────────────────┼──────────────────────────┐
+        │                          │                          │
+┌───────▼────────┐        ┌────────▼────────┐        ┌────────▼────────┐
+│ REST /api/v1   │        │ REST /api/v2    │        │ MCP /mcp + stdio│  ← 新增
+│ 前端 / 脚本     │        │ 结构化客户端     │        │ AI 客户端        │
+└────────────────┘        └─────────────────┘        └─────────────────┘
+```
+
+MCP 层只做四件事：
+
+1. 把工具参数映射成 `service` 调用；
+2. 把领域模型映射成 MCP 的 `content` + `structuredContent`；
+3. 把 `AppError` 映射成「工具执行错误」（`isError: true`，让模型自我纠正）或协议错误；
+4. 鉴权、开关、限流、审计。
+
+**禁止**在 MCP 层写章节切分、防污染比对、多音字校验等规则——这些必须留在 `service`。
+
+---
+
+## 4. 对外暴露的工具清单
+
+### 4.1 命名与通用约定
+
+- 统一前缀 `leo_`，全小写 + 下划线，长度 ≤ 128，符合规范建议的字符集。
+- 每个工具都有 `title`、`description`、`inputSchema`、`outputSchema`、`annotations`。
+- 返回同时给：
+  - `content: [{ type: "text", text: "<人类可读中文摘要>" }]`（兼容不支持结构化输出的客户端）；
+  - `structuredContent: { ... }`（与 `outputSchema` 一致）。
+- 文本字段默认截断到 **20,000 字符**，返回 `truncated` 与 `returned_chars`，避免一次性把整章塞进上下文。
+- 分页游标统一用 `cursor`（不透明 Base64），默认 `page_size = 20`，上限 100。
+
+### 4.2 只读工具（默认开启）
+
+| 工具 | 入参 | 返回 | 复用服务 | 危险级别 |
+| --- | --- | --- | --- | --- |
+| `leo_health` | — | `status / app / version / supported_versions` | `system::health` | 无 |
+| `leo_list_projects` | `page, page_size, status, keyword, sort, order` | `items[] / total / page / page_size / pages` | `projects::service::query_projects` | 无 |
+| `leo_get_project` | `project_id` | `ProjectInfo` | `projects::service::get_project` | 无 |
+| `leo_list_chapters` | `project_id, keyword?, limit?` | 章节大纲数组（含 `word_count`） | `get_project_chapters` | 无 |
+| `leo_get_chapter` | `project_id, chapter_id, include_sentences=true, max_chars=20000` | 章节正文 + 逐句 + 多音字 | `get_project_chapter_content` | 无 |
+| `leo_search_chapters` | `project_id, keyword, limit=50` | 命中章节（标题/正文片段、字数） | **新增** `search_chapters`（service 层） | 无 |
+| `leo_list_recycle_bin` | `page, page_size` | 回收站剧目 + `deleted_at` | `list_projects(in_recycle_bin=true)` | 无 |
+| `leo_get_sentence_polyphones` | `project_id, sentence_id` | 标注数组 | `get_sentence_polyphones` | 无 |
+| `leo_list_chapter_polyphones` | `project_id, chapter_id` | 章节全部标注（按句分组） | `get_chapter_polyphones` | 无 |
+| `leo_get_stats` | — | 剧目数 / 章节数 / 总字数 / 回收站数 | 由 `store` 聚合（新增只读函数） | 无 |
+
+### 4.3 写入工具（`LEO_MCP_WRITE_TOOLS=true` 才注册）
+
+| 工具 | 入参 | 返回 | 复用服务 | 危险级别 |
+| --- | --- | --- | --- | --- |
+| `leo_create_project` | `name, text \| file_path, description?` | `ProjectInfo` | `create_project` | 新增数据 |
+| `leo_append_chapters` | `project_id, text \| file_path, overwrite_existing=false, dry_run=true, confirm=false` | `ProjectChapterAppendInfo` | `append_chapters` | 覆盖时危险 |
+| `leo_rename_project` | `project_id, name` | `ProjectInfo` | `update_project` | 低 |
+| `leo_update_project` | `project_id, name?, status?` | `ProjectInfo` | `update_project_fields`（v2 服务） | 低 |
+| `leo_save_sentence_polyphones` | `project_id, sentence_id, annotations[]` | 保存后的标注数组 | `save_sentence_polyphones` | 覆盖整句标注 |
+| `leo_clear_sentence_polyphones` | `project_id, sentence_id` | `deleted_count` | `delete_sentence_polyphones` | 低（可重标） |
+| `leo_restore_project` | `project_id` | `ProjectInfo` | `restore_project` | 低 |
+
+### 4.4 破坏性工具（额外要求 `LEO_MCP_DESTRUCTIVE_TOOLS=true` + `confirm=true`）
+
+| 工具 | 入参 | 返回 | 复用服务 | 说明 |
+| --- | --- | --- | --- | --- |
+| `leo_delete_chapter` | `project_id, chapter_id, confirm` | 删除结果 + 新统计 | `delete_chapter`（v2 服务） | 级联删切句与标注 |
+| `leo_move_to_trash` | `project_id, confirm` | 软删除结果 | `delete_project` | 可恢复 |
+| `leo_purge_project` | `project_id, confirm` | 硬删除结果 | `hard_delete_project` | **不可逆** |
+| `leo_empty_recycle_bin` | `confirm` | `cleared_count` | `clear_recycle_bin` | **不可逆** |
+
+### 4.5 工具注解（annotations）
+
+| 工具类别 | `readOnlyHint` | `destructiveHint` | `idempotentHint` | `openWorldHint` |
+| --- | --- | --- | --- | --- |
+| 只读 | `true` | `false` | `true` | `false` |
+| 创建 / 追加 | `false` | `false` | `false` | `false` |
+| 重命名 / 标注 | `false` | `false` | `true` | `false` |
+| 删除章节 / 移入回收站 | `false` | `true` | `true` | `false` |
+| 物理删除 / 清空 | `false` | `true` | `true` | `false` |
+
+> 注解只是给客户端的提示，客户端必须把它当不可信输入；真正的保护在工具执行前的服务端校验。
+
+### 4.6 文件入参策略
+
+`text` 与 `file_path` 二选一：
+
+- `text`：直接传 UTF-8 正文，任何传输都可用，推荐。
+- `file_path`：**仅 stdio 传输默认允许**，且必须满足：
+  - 规范化后位于 `LEO_MCP_ALLOWED_ROOTS` 之内；
+  - 拒绝符号链接逃逸、拒绝目录；
+  - 单文件大小 ≤ `LEO_MAX_UPLOAD_SIZE_MB`；
+  - HTTP 传输下默认禁用（服务端路径对远端客户端无意义，且是路径穿越入口），需要时显式开 `LEO_MCP_ALLOW_FILE_PATH=true`。
+
+---
+
+## 5. 资源（Resources）
+
+| URI | 内容 | MIME |
+| --- | --- | --- |
+| `leo://projects` | 剧目列表（前 100 条） | `application/json` |
+| `leo://projects/{project_id}` | 剧目详情 | `application/json` |
+| `leo://projects/{project_id}/chapters` | 章节大纲 | `application/json` |
+| `leo://projects/{project_id}/chapters/{chapter_id}` | 章节详情（含逐句） | `application/json` |
+| `leo://projects/{project_id}/chapters/{chapter_id}/text` | 清洗后的章节正文 | `text/plain; charset=utf-8` |
+| `leo://stats` | 全库统计 | `application/json` |
+
+- 同时实现 `resources/templates/list`，让客户端能自动发现参数化 URI。
+- 资源默认只读；`notifications/resources/updated` 在写操作成功后通过 `subscriptions/listen` 流推送。
+- 大数据资源同样截断，并在 `annotations` 里标 `audience`。
+
+---
+
+## 6. 提示词（Prompts）
+
+| 名称 | 参数 | 作用 |
+| --- | --- | --- |
+| `leo_project_overview` | `project_id?` | 汇总剧目数量、章节进度、回收站状态，给出下一步建议 |
+| `leo_import_novel` | `name, text?` | 引导模型：创建剧目 → 拉章节 → 报告分章结果 |
+| `leo_chapter_digest` | `project_id, chapter_id` | 拉取章节正文与逐句，要求输出结构化摘要（人物/事件/待确认词） |
+| `leo_polyphone_review` | `project_id, chapter_id` | 找出多音字候选，逐句确认后调用标注工具 |
+| `leo_update_check` | `project_id, text` | 先 `dry_run` 追更预检，解释冲突，再询问是否覆盖 |
+
+提示词只返回 `messages`，不直接改数据；真正的写入仍由模型调用工具完成。
+
+---
+
+## 7. 传输与安全
+
+### 7.1 两种传输
+
+| 传输 | 入口 | 适用 | 备注 |
+| --- | --- | --- | --- |
+| **stdio** | `leo-studio-mcp --transport stdio` | Claude Desktop、Cursor 本地、CLI | 单用户、低延迟；`file_path` 可用 |
+| **Streamable HTTP** | `POST /mcp`（复用现有 Axum 服务） | 团队共享、远程客户端、网关 | 无会话；`subscriptions/listen` 提供变更流 |
+
+### 7.2 安全基线
+
+- 默认绑定 `127.0.0.1`；对外暴露必须显式改 `LEO_MCP_HOST`。
+- `Origin` 校验：缺失或不在白名单 → `403`。
+- 可选 Bearer Token：`LEO_MCP_TOKEN` 非空时，所有 `/mcp` 请求必须带 `Authorization: Bearer ...`。
+- 写工具与破坏性工具默认关闭，分别由两个开关控制。
+- 所有写操作记审计日志：`request_id / clientInfo / tool / 参数摘要 / 结果 / 耗时`，只记元数据，不记正文全文。
+- 速率限制：单客户端 `60 req/min`，超限返回 `429`。
+- 错误信息不外泄内部路径与 SQL/CSV 细节；`AppError` 的 `details` 不直接透传给模型，只保留可操作的说明。
+
+### 7.3 与现有 `request_id` 中间件的关系
+
+现有 `middleware.rs` 会把 `request_id` 注入所有 JSON 响应。MCP 的 JSON-RPC 响应**不能**被二次改写（会破坏 schema），因此：
+
+- `/mcp` 路由在挂载 MCP 路由时**跳过**该中间件；
+- MCP 自己生成 `request_id` 并写入审计日志与 `_meta`（若客户端提供 `X-Request-ID` 则复用）。
+
+---
+
+## 8. 目录结构
+
+### 8.1 现状（相关部分）
+
+```text
+backend/
+├── Cargo.toml
+├── src/
+│   ├── app.rs              # 路由装配（v1 / v2）
+│   ├── config.rs           # 环境变量
+│   ├── error.rs
+│   ├── lib.rs
+│   ├── main.rs
+│   ├── middleware.rs       # request_id
+│   ├── modules/
+│   │   ├── projects/       # router / service / schema / model
+│   │   ├── system.rs
+│   │   ├── text_files/
+│   │   └── v2/
+│   ├── storage/
+│   └── text/
+├── docs/api/{v1,v2}/
+└── tests/{api.rs, v2.rs, parsers.rs}
+```
+
+### 8.2 新增后的结构（方案 A：并入现有 backend crate）
+
+```text
+backend/
+├── Cargo.toml                     # 增加 rmcp / schemars；新增 [[bin]] leo-studio-mcp
+├── src/
+│   ├── bin/
+│   │   └── leo-studio-mcp.rs      # stdio 进程入口（复用 lib）
+│   ├── mcp/                       # ★ 新增模块
+│   │   ├── mod.rs                 # 导出 build_mcp_service() / mcp_router()
+│   │   ├── config.rs              # LEO_MCP_* 配置与校验
+│   │   ├── server.rs              # ServerHandler：discover / list / call / read / get
+│   │   ├── registry.rs            # 工具注册表（名字 → 定义 + 执行器）
+│   │   ├── error.rs               # AppError → 工具执行错误 / 协议错误
+│   │   ├── pagination.rs          # cursor 编解码与 page_size 校验
+│   │   ├── audit.rs               # 审计日志（谁、调了什么、结果）
+│   │   ├── tools/
+│   │   │   ├── mod.rs
+│   │   │   ├── projects.rs        # list/get/create/rename/update
+│   │   │   ├── chapters.rs        # list/get/search/append/delete
+│   │   │   ├── polyphones.rs      # get/save/clear
+│   │   │   ├── trash.rs           # list/restore/purge/clear
+│   │   │   └── system.rs          # health/stats
+│   │   ├── resources/
+│   │   │   ├── mod.rs
+│   │   │   └── leo_uri.rs         # leo:// 解析、模板匹配、截断
+│   │   ├── prompts/
+│   │   │   ├── mod.rs
+│   │   │   └── workflows.rs       # 五个工作流提示词
+│   │   └── transport/
+│   │       ├── mod.rs
+│   │       ├── stdio.rs           # tokio stdio + discover 探测
+│   │       └── http.rs            # /mcp 路由、头部校验、Origin、鉴权
+│   ├── modules/                   # 现有业务模块（只增不改）
+│   ├── ...
+│   └── app.rs                     # ★ 仅挂一行：.merge(mcp::router(...))
+├── docs/
+│   ├── api/                       # 现有 REST 文档
+│   └── mcp/                       # ★ 新增 MCP 文档
+│       ├── README.md              # 总览、启动方式、客户端配置
+│       ├── tools.md               # 工具契约（入参/出参/权限/示例）
+│       ├── protocol.md            # 版本兼容矩阵、方法映射、错误码
+│       ├── resources-prompts.md   # URI 与提示词
+│       ├── security.md            # 鉴权、路径限制、审计
+│       └── examples.md            # Claude Desktop / Cursor 配置与对话示例
+└── tests/
+    ├── api.rs
+    ├── v2.rs
+    ├── parsers.rs
+    └── mcp/                       # ★ 新增
+        ├── mod.rs
+        ├── common.rs              # 构造测试用 Store / 临时目录
+        ├── discovery.rs           # server/discover、版本协商、-32022
+        ├── tools.rs               # 每个工具的契约与错误映射
+        ├── legacy.rs              # initialize 握手与旧客户端兼容
+        └── http.rs                # 头部校验 -32020、Origin 403、鉴权 401
+```
+
+### 8.3 根目录与前端的变化
+
+```text
+.
+├── README.md                      # 增加「MCP 能力」一节
+├── docs/solutions/
+│   └── mcp-server-plan.md         # 本文
+├── backend/STRUCTURE.md           # 增加 mcp/ 与 docs/mcp/ 说明
+└── desktop/
+    ├── app/settings/mcp/page.tsx  # 可选：生成客户端配置片段（不内置密钥）
+    └── lib/mcp-config.ts          # 可选：按操作系统拼配置 JSON
+```
+
+> 说明：`desktop/` 的改动是**可选**的便利功能，不属于 MCP Server 本体；不实现也不影响 MCP 可用性。
+
+### 8.4 方案 B（备选）：独立 crate
+
+```text
+mcp-server/
+├── Cargo.toml          # depends on leo-studio-backend (path)
+├── src/main.rs
+└── src/lib.rs
+```
+
+| 维度 | 方案 A（并入 backend） | 方案 B（独立 crate） |
+| --- | --- | --- |
+| 部署 | 单进程，一个端口 | 可独立部署/扩缩容 |
+| 复用 service | 直接调用 | 通过 lib 调用 |
+| 依赖 | 一份依赖树 | 两份，编译更慢 |
+| 风险 | `rmcp` 与 Axum 版本耦合 | 需要稳定 lib 边界 |
+| 结论 | **本期采用** | 等需要独立发布时再拆 |
+
+---
+
+## 9. 配置项
+
+| 环境变量 | 默认值 | 说明 |
+| --- | --- | --- |
+| `LEO_MCP_ENABLED` | `false` | 是否挂载 MCP 能力 |
+| `LEO_MCP_TRANSPORT` | `stdio` | `stdio` / `http` / `both`（HTTP 与 REST 同进程时生效） |
+| `LEO_MCP_HTTP_PATH` | `/mcp` | Streamable HTTP 端点 |
+| `LEO_MCP_HOST` | `127.0.0.1` | HTTP 监听地址（与 REST 共用 host 时取 REST 的） |
+| `LEO_MCP_TOKEN` | 空 | 非空时要求 `Authorization: Bearer` |
+| `LEO_MCP_WRITE_TOOLS` | `false` | 注册写入工具 |
+| `LEO_MCP_DESTRUCTIVE_TOOLS` | `false` | 注册破坏性工具 |
+| `LEO_MCP_ALLOW_FILE_PATH` | `false` | 允许 `file_path` 入参 |
+| `LEO_MCP_ALLOWED_ROOTS` | 空 | `file_path` 允许的根目录（逗号分隔） |
+| `LEO_MCP_MAX_PAGE_SIZE` | `100` | 工具/资源分页上限 |
+| `LEO_MCP_MAX_CHARS` | `20000` | 单文本字段返回上限 |
+| `LEO_MCP_RATE_LIMIT_PER_MIN` | `60` | 单客户端限流 |
+| `LEO_MCP_LOG_LEVEL` | `info` | MCP 审计与调试日志级别 |
+
+配置解析放在 `mcp/config.rs`，与现有 `config.rs` 风格保持一致（环境变量 → 结构体 → 校验），启动时校验失败直接拒绝启动并给出明确原因。
+
+---
+
+## 10. 实施阶段
+
+| 阶段 | 内容 | 产出 | 验收 |
+| --- | --- | --- | --- |
+| P0 | 规划与契约评审（本文） | 本文档 + 工具清单定稿 | 评审通过 |
+| P1 | 骨架与发现 | `mcp/` 模块、stdio 入口、`server/discover`、`leo_health` | `server/discover` 返回两代版本；旧客户端可握手 |
+| P2 | 只读工具 + 资源 | 4.2 全部工具、第 5 节资源 | 契约测试覆盖每个工具的正常/404/参数错误 |
+| P3 | HTTP 传输 | `/mcp`、头部校验、Origin、Token | `-32020` / `-32022` / `403` / `401` 用例通过 |
+| P4 | 写入与破坏性工具 | 4.3 / 4.4 工具、审计、`confirm` | 默认关闭时 `tools/list` 不出现；开启后危险操作留痕 |
+| P5 | 提示词与订阅 | 第 6 节提示词、`subscriptions/listen` | 变更通知能推到订阅流 |
+| P6 | 文档与联调 | `docs/mcp/*`、Claude/Cursor 实测 | 至少两个真实客户端跑通端到端 |
+
+预估工作量（不含联调等待）：P1 2~3 人日，P2 3~4 人日，P3 2~3 人日，P4 3~4 人日，P5 2 人日，P6 2 人日。
+
+---
+
+## 11. 风险与对策
+
+| 风险 | 影响 | 对策 |
+| --- | --- | --- |
+| `rmcp` MSRV 1.88 高于当前工具链 | 无法编译 | 先升级 CI/本地 Rust；或锁定 `rmcp` 2.x（但 2.x 不支持 2026-07-28） |
+| 无状态 HTTP + 内存 CSV | 多实例部署时各自持有全量数据，写冲突 | 单实例部署；如需多实例，先补文件锁/SQLite，不把 MCP 当多活入口 |
+| 工具返回整章正文 | 上下文爆炸、成本飙升 | `max_chars` 截断 + 分页 + 资源按需读取 |
+| 写工具被模型误用 | 数据被覆盖/删除 | 双层开关 + `confirm` + `dry_run` 默认 true + 审计 |
+| `file_path` 路径穿越 | 读到任意文件 | 规范化 + 根目录白名单 + 拒绝符号链接 + 默认关闭 |
+| MCP 响应被 `request_id` 中间件改写 | 协议不合规 | `/mcp` 路由单独挂载，不套用该中间件 |
+| 客户端版本碎片化 | 行为差异 | 用 `server/discover` 与 `initialize` 双路径；在 `docs/mcp/protocol.md` 维护兼容矩阵 |
+| 业务服务没有 `search_chapters` / `get_stats` | 需要补 service | 在 `projects::service` 增加只读函数，MCP 只调用不实现 |
+
+---
+
+## 12. 待确认
+
+1. **传输范围**：首期只做 stdio，还是同时做 HTTP？（建议：P1 先做 stdio，P3 再补 HTTP）
+2. **写工具默认值**：`leo_append_chapters` 这类低风险写入是否默认开启？（建议：`dry_run` 默认 true，真正写入需 `confirm`）
+3. **`file_path` 入参**：是否允许模型读服务器本地文件？（建议：仅 stdio + 白名单）
+4. **鉴权**：是否需要 OAuth（多用户、企业网关），还是静态 Token 足够？
+5. **返回语言**：`content` 文本用中文摘要 + `structuredContent` 结构化，是否符合客户端预期？
+6. **桌面端配置页**：是否要做「一键复制 Claude Desktop / Cursor 配置」的设置页？
+7. **能力边界**：是否需要把「声线绑定 / 配音参数」等 mock 数据也暴露（目前后端没有对应接口，建议不做）。
+
+---
+
+## 13. 附：与现有 REST 接口的映射
+
+| MCP 工具 | 对应 REST | 对应 service |
+| --- | --- | --- |
+| `leo_list_projects` | `GET /api/v2/projects` | `query_projects` |
+| `leo_get_project` | `GET /api/v1/projects/{id}` | `get_project` |
+| `leo_list_chapters` | `GET /api/v1/projects/{id}/chapters` | `get_project_chapters` |
+| `leo_get_chapter` | `GET /api/v1/projects/{id}/chapters/{cid}` | `get_project_chapter_content` |
+| `leo_append_chapters` | `POST /api/v1/projects/{id}/chapters/upload` | `append_chapters` |
+| `leo_delete_chapter` | `DELETE /api/v2/projects/{id}/chapters/{cid}` | `delete_chapter` |
+| `leo_get_sentence_polyphones` | `GET .../sentences/{sid}/polyphones` | `get_sentence_polyphones` |
+| `leo_save_sentence_polyphones` | `PUT .../sentences/{sid}/polyphones` | `save_sentence_polyphones` |
+| `leo_clear_sentence_polyphones` | `DELETE .../sentences/{sid}/polyphones` | `delete_sentence_polyphones` |
+| `leo_move_to_trash` | `DELETE /api/v1/projects/{id}` | `delete_project` |
+| `leo_restore_project` | `POST /api/v1/projects/{id}/restore` | `restore_project` |
+| `leo_purge_project` | `DELETE /api/v1/projects/{id}/hard` | `hard_delete_project` |
+| `leo_empty_recycle_bin` | `DELETE /api/v1/projects/recycle-bin` | `clear_recycle_bin` |
