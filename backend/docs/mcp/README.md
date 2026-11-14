@@ -1,14 +1,14 @@
 # Leo Studio MCP Server
 
-把 Leo Studio 的剧目、章节、切句与多音字标注能力，以 **Model Context Protocol** 暴露给 AI 客户端（Claude Desktop、Cursor、VS Code、Cherry Studio 等）。
+把 Leo Studio 的剧目、章节、切句与多音字标注能力，以 **Model Context Protocol** 暴露给 AI 客户端（Claude、Cursor、VS Code、Cherry Studio 等）。
 
-当前实现**只支持最新协议 `2026-07-28`（无状态核心）**，不做旧版 `initialize` 握手兼容。
+当前实现**只支持最新协议 `2026-07-28`（无状态核心）**，通过 **Streamable HTTP** 挂载在现有 Axum 进程内；不提供 stdio 进程，也不兼容旧版 `initialize` 握手。
 
 ## 能力
 
 | 类别 | 内容 |
 | --- | --- |
-| 传输 | stdio（`leo-studio-mcp`）+ Streamable HTTP（`POST /mcp`） |
+| 传输 | Streamable HTTP：`POST /mcp`，与 REST 同进程 |
 | 协议 | `server/discover`、`tools/list`、`tools/call`、`resources/*`、`prompts/*`；结果带 `resultType: "complete"` |
 | 工具 | 10 个只读；7 个写入（默认关闭）；4 个破坏性（额外开关 + `confirm`） |
 | 资源 | `leo://projects`、`leo://stats` 及剧目/章节参数化资源 |
@@ -17,37 +17,10 @@
 
 ## 启动
 
-### stdio（推荐给本地客户端）
-
 ```bash
 cd backend
-LEO_DATA_DIR=./.data cargo run --bin leo-studio-mcp
-```
-
-Claude Desktop 配置示例：
-
-```json
-{
-  "mcpServers": {
-    "leo-studio": {
-      "command": "/path/to/backend/target/release/leo-studio-mcp",
-      "env": {
-        "LEO_DATA_DIR": "/path/to/leo-data",
-        "LEO_MCP_WRITE_TOOLS": "false"
-      }
-    }
-  }
-}
-```
-
-> stdout 是协议通道，日志固定写 stderr，不要重定向 stdout。
-
-### HTTP（与 REST 同进程）
-
-```bash
 LEO_DATA_DIR=./.data \
 LEO_MCP_ENABLED=true \
-LEO_MCP_TRANSPORT=http \
 LEO_MCP_TOKEN=replace-me \
 cargo run --bin leo-studio-backend
 ```
@@ -77,8 +50,7 @@ curl -sS -X POST http://127.0.0.1:58685/mcp \
 
 | 环境变量 | 默认值 | 说明 |
 | --- | --- | --- |
-| `LEO_MCP_ENABLED` | `false` | 是否在 Axum 进程挂载 `/mcp` |
-| `LEO_MCP_TRANSPORT` | `stdio` | `stdio` / `http` / `both` |
+| `LEO_MCP_ENABLED` | `false` | 是否挂载 `/mcp` |
 | `LEO_MCP_HTTP_PATH` | `/mcp` | HTTP 端点路径 |
 | `LEO_MCP_TOKEN` | 空 | 非空时要求 `Authorization: Bearer <token>` |
 | `LEO_MCP_WRITE_TOOLS` | `false` | 注册写入工具 |
@@ -87,7 +59,6 @@ curl -sS -X POST http://127.0.0.1:58685/mcp \
 | `LEO_MCP_ALLOWED_ROOTS` | 空 | `file_path` 允许的根目录（逗号分隔） |
 | `LEO_MCP_MAX_CHARS` | `20000` | 单文本字段返回上限 |
 | `LEO_MCP_MAX_PAGE_SIZE` | `100` | 分页上限 |
-| `LEO_MCP_LOG_LEVEL` | `info` | stdio 日志级别（写 stderr） |
 
 ## 工具
 
@@ -127,8 +98,8 @@ curl -sS -X POST http://127.0.0.1:58685/mcp \
 
 ## 已验证
 
-- stdio：`server/discover` → `tools/list` → `tools/call`。
-- HTTP：正常调用、缺 `Mcp-Method` 返回 `-32020`、旧版本返回 `-32022`、Token 缺失返回 `401`。
+- HTTP：`server/discover` → `tools/list` → `tools/call`。
+- 缺 `Mcp-Method` 返回 `-32020`；旧版本返回 `-32022`；Token 缺失返回 `401`。
 - 集成测试：`cargo test --test mcp`（6 例，覆盖工具开关、创建/查询/搜索/统计、追更预检与确认、多音字往返、破坏性确认）。
 
 ## 未实现

@@ -28,7 +28,7 @@
 | G2 | 旧协议（`2025-11-25` 及更早）明确拒绝 | 旧客户端收到 `-32022` 与 `supported=["2026-07-28"]`，不会误连 |
 | G3 | 复用现有 `projects` / `text_files` 业务服务，**不复制业务规则** | MCP 工具最终都落到 `projects::service` / `text_files::service` |
 | G4 | 只读能力默认可用，写能力受配置开关与工具注解约束 | 默认配置下模型只能查询，不能改数据 |
-| G5 | 支持 stdio 与 Streamable HTTP 两种传输 | 两种入口都能跑通同一套工具清单 |
+| G5 | 提供 Streamable HTTP 入口 | `POST /mcp` 可完成工具、资源与提示词调用 |
 | G6 | 破坏性操作有二次确认与审计日志 | 清空回收站、物理删除、覆盖章节必须带 `confirm` |
 
 ### 1.3 非目标（本期不做）
@@ -58,7 +58,7 @@ MCP **没有「v2」这种大版本号**。它用日期作为协议版本：
 本期**只支持 `2026-07-28`**。旧协议（`2025-11-25` 及更早）直接拒绝，不做兼容层：
 
 - HTTP：不支持的版本返回 `400` + `-32022`，`data.supported = ["2026-07-28"]`；
-- stdio：旧客户端发 `initialize` 时协商不到支持的版本，返回 `-32022`；
+- 所有请求只接受 `2026-07-28`；旧客户端发 `initialize` 时返回 `-32022`；
 - HTTP+SSE（`2024-11-05`）与旧版会话头一律不支持。
 
 ### 2.2 方法矩阵
@@ -116,7 +116,7 @@ HTTP 侧还要满足 `2026-07-28` 的请求元数据要求：
         ┌──────────────────────────┼──────────────────────────┐
         │                          │                          │
 ┌───────▼────────┐        ┌────────▼────────┐        ┌────────▼────────┐
-│ REST /api/v1   │        │ REST /api/v2    │        │ MCP /mcp + stdio│  ← 新增
+│ REST /api/v1   │        │ REST /api/v2    │        │ MCP /mcp│  ← 新增
 │ 前端 / 脚本     │        │ 结构化客户端     │        │ AI 客户端        │
 └────────────────┘        └─────────────────┘        └─────────────────┘
 ```
@@ -197,11 +197,11 @@ MCP 层只做四件事：
 `text` 与 `file_path` 二选一：
 
 - `text`：直接传 UTF-8 正文，任何传输都可用，推荐。
-- `file_path`：**仅 stdio 传输默认允许**，且必须满足：
+- `file_path`：默认禁用，开启后必须满足：
   - 规范化后位于 `LEO_MCP_ALLOWED_ROOTS` 之内；
   - 拒绝符号链接逃逸、拒绝目录；
   - 单文件大小 ≤ `LEO_MAX_UPLOAD_SIZE_MB`；
-  - HTTP 传输下默认禁用（服务端路径对远端客户端无意义，且是路径穿越入口），需要时显式开 `LEO_MCP_ALLOW_FILE_PATH=true`。
+  - 服务端路径对远端客户端无意义，且是路径穿越入口，因此默认关闭，需要时显式开 `LEO_MCP_ALLOW_FILE_PATH=true`。
 
 ---
 
@@ -238,12 +238,11 @@ MCP 层只做四件事：
 
 ## 7. 传输与安全
 
-### 7.1 两种传输
+### 7.1 传输
 
 | 传输 | 入口 | 适用 | 备注 |
 | --- | --- | --- | --- |
-| **stdio** | `leo-studio-mcp --transport stdio` | Claude Desktop、Cursor 本地、CLI | 单用户、低延迟；`file_path` 可用 |
-| **Streamable HTTP** | `POST /mcp`（复用现有 Axum 服务） | 团队共享、远程客户端、网关 | 无会话；`subscriptions/listen` 提供变更流 |
+| **Streamable HTTP** | `POST /mcp`（复用现有 Axum 服务） | 团队共享、远程客户端、网关 | 无会话、无 `Mcp-Session-Id`；不提供 stdio 进程 |
 
 ### 7.2 安全基线
 
@@ -293,58 +292,21 @@ backend/
 
 ```text
 backend/
-├── Cargo.toml                     # 增加 rmcp / schemars；新增 [[bin]] leo-studio-mcp
+├── Cargo.toml                     # 增加 rmcp；仅 Streamable HTTP 相关 feature
 ├── src/
-│   ├── bin/
-│   │   └── leo-studio-mcp.rs      # stdio 进程入口（复用 lib）
 │   ├── mcp/                       # ★ 新增模块
-│   │   ├── mod.rs                 # 导出 build_mcp_service() / mcp_router()
+│   │   ├── mod.rs                 # 导出与 Axum /mcp 挂载、Bearer 鉴权
 │   │   ├── config.rs              # LEO_MCP_* 配置与校验
-│   │   ├── server.rs              # ServerHandler：discover / list / call / read / get
-│   │   ├── registry.rs            # 工具注册表（名字 → 定义 + 执行器）
-│   │   ├── error.rs               # AppError → 工具执行错误 / 协议错误
-│   │   ├── pagination.rs          # cursor 编解码与 page_size 校验
-│   │   ├── audit.rs               # 审计日志（谁、调了什么、结果）
-│   │   ├── tools/
-│   │   │   ├── mod.rs
-│   │   │   ├── projects.rs        # list/get/create/rename/update
-│   │   │   ├── chapters.rs        # list/get/search/append/delete
-│   │   │   ├── polyphones.rs      # get/save/clear
-│   │   │   ├── trash.rs           # list/restore/purge/clear
-│   │   │   └── system.rs          # health/stats
-│   │   ├── resources/
-│   │   │   ├── mod.rs
-│   │   │   └── leo_uri.rs         # leo:// 解析、模板匹配、截断
-│   │   ├── prompts/
-│   │   │   ├── mod.rs
-│   │   │   └── workflows.rs       # 五个工作流提示词
-│   │   └── transport/
-│   │       ├── mod.rs
-│   │       ├── stdio.rs           # tokio stdio + discover 探测
-│   │       └── http.rs            # /mcp 路由、头部校验、Origin、鉴权
-│   ├── modules/                   # 现有业务模块（只增不改）
-│   ├── ...
-│   └── app.rs                     # ★ 仅挂一行：.merge(mcp::router(...))
-├── docs/
-│   ├── api/                       # 现有 REST 文档
-│   └── mcp/                       # ★ 新增 MCP 文档
-│       ├── README.md              # 总览、启动方式、客户端配置
-│       ├── tools.md               # 工具契约（入参/出参/权限/示例）
-│       ├── protocol.md            # 版本兼容矩阵、方法映射、错误码
-│       ├── resources-prompts.md   # URI 与提示词
-│       ├── security.md            # 鉴权、路径限制、审计
-│       └── examples.md            # Claude Desktop / Cursor 配置与对话示例
-└── tests/
-    ├── api.rs
-    ├── v2.rs
-    ├── parsers.rs
-    └── mcp/                       # ★ 新增
-        ├── mod.rs
-        ├── common.rs              # 构造测试用 Store / 临时目录
-        ├── discovery.rs           # server/discover、版本协商、-32022
-        ├── tools.rs               # 每个工具的契约与错误映射
-        ├── protocol.rs            # discover、版本拒绝、-32020
-        └── http.rs                # 头部校验 -32020、Origin 403、鉴权 401
+│   │   ├── server.rs              # ServerHandler：discover / tools / resources / prompts
+│   │   ├── registry.rs            # 21 个工具定义、参数校验与分发
+│   │   ├── resources.rs           # leo:// 资源与模板
+│   │   └── prompts.rs             # 三个工作流提示词
+│   ├── app.rs                     # 挂载 /mcp；request_id 中间件只作用于 REST
+│   └── modules/                   # 现有业务模块（只增不改）
+├── docs/mcp/
+│   ├── README.md                  # 总览、启动方式、配置、安全
+│   └── tools.md                   # 工具契约（入参/出参/权限/示例）
+└── tests/mcp.rs                   # 工具开关、CRUD、追更、多音字、破坏性确认
 ```
 
 ### 8.3 根目录与前端的变化
@@ -386,7 +348,6 @@ mcp-server/
 | 环境变量 | 默认值 | 说明 |
 | --- | --- | --- |
 | `LEO_MCP_ENABLED` | `false` | 是否挂载 MCP 能力 |
-| `LEO_MCP_TRANSPORT` | `stdio` | `stdio` / `http` / `both`（HTTP 与 REST 同进程时生效） |
 | `LEO_MCP_HTTP_PATH` | `/mcp` | Streamable HTTP 端点 |
 | `LEO_MCP_HOST` | `127.0.0.1` | HTTP 监听地址（与 REST 共用 host 时取 REST 的） |
 | `LEO_MCP_TOKEN` | 空 | 非空时要求 `Authorization: Bearer` |
@@ -408,7 +369,7 @@ mcp-server/
 | 阶段 | 内容 | 产出 | 验收 |
 | --- | --- | --- | --- |
 | P0 | 规划与契约评审（本文） | 本文档 + 工具清单定稿 | 评审通过 |
-| P1 | 骨架与发现 | `mcp/` 模块、stdio 入口、`server/discover`、`leo_health` | `server/discover` 返回 `2026-07-28`；旧协议返回 `-32022` |
+| P1 | 骨架与发现 | `mcp/` 模块、HTTP 入口、`server/discover`、`leo_health` | `server/discover` 返回 `2026-07-28`；旧协议返回 `-32022` |
 | P2 | 只读工具 + 资源 | 4.2 全部工具、第 5 节资源 | 契约测试覆盖每个工具的正常/404/参数错误 |
 | P3 | HTTP 传输 | `/mcp`、头部校验、Origin、Token | `-32020` / `-32022` / `403` / `401` 用例通过 |
 | P4 | 写入与破坏性工具 | 4.3 / 4.4 工具、审计、`confirm` | 默认关闭时 `tools/list` 不出现；开启后危险操作留痕 |
@@ -439,7 +400,7 @@ mcp-server/
 已决策：
 
 1. **协议**：只支持 `2026-07-28`，不做旧版兼容。
-2. **传输**：stdio 与 Streamable HTTP 均已实现，同一套工具清单。
+2. **传输**：只提供 Streamable HTTP（`POST /mcp`），不做 stdio。
 3. **写工具**：默认关闭；`leo_append_chapters` 默认 `dry_run=true`，真正写入需 `confirm=true`。
 4. **`file_path`**：默认关闭，仅允许 `LEO_MCP_ALLOWED_ROOTS` 内的普通文件。
 

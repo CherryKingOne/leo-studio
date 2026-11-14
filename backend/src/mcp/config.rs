@@ -2,34 +2,10 @@ use std::path::PathBuf;
 
 use crate::config::resolve_path;
 
-/// MCP 传输方式。
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum McpTransport {
-    Stdio,
-    Http,
-    Both,
-}
-
-impl McpTransport {
-    pub fn parse(value: &str) -> Self {
-        match value.trim().to_ascii_lowercase().as_str() {
-            "http" => Self::Http,
-            "both" => Self::Both,
-            _ => Self::Stdio,
-        }
-    }
-
-    /// 是否需要在 Axum 进程内挂载 `/mcp` 端点。
-    pub fn serves_http(self) -> bool {
-        matches!(self, Self::Http | Self::Both)
-    }
-}
-
 /// MCP 运行期配置，全部来自 `LEO_MCP_*` 环境变量。
 #[derive(Debug, Clone)]
 pub struct McpSettings {
     pub enabled: bool,
-    pub transport: McpTransport,
     pub http_path: String,
     pub token: String,
     pub write_tools: bool,
@@ -65,7 +41,6 @@ impl McpSettings {
 
         Self {
             enabled: env_bool("LEO_MCP_ENABLED", false),
-            transport: McpTransport::parse(&env_string("LEO_MCP_TRANSPORT", "stdio")),
             http_path,
             token: env_string("LEO_MCP_TOKEN", ""),
             write_tools: env_bool("LEO_MCP_WRITE_TOOLS", false),

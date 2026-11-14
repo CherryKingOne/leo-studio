@@ -22,7 +22,7 @@ use super::config::McpSettings;
 use super::registry::definitions;
 use super::{prompts, resources};
 
-/// MCP 服务处理器；同一进程内的 stdio 与 HTTP 入口共用。
+/// MCP 服务处理器；挂载在现有 Axum 进程内。
 #[derive(Clone)]
 pub struct McpHandler {
     pub(crate) settings: Arc<Settings>,
@@ -52,10 +52,7 @@ impl ServerHandler for McpHandler {
                 .enable_prompts()
                 .build(),
         )
-        .with_server_info(Implementation::new(
-            "leo-studio-mcp",
-            env!("CARGO_PKG_VERSION"),
-        ))
+        .with_server_info(Implementation::new("leo-studio", env!("CARGO_PKG_VERSION")))
         .with_instructions(
             "Leo Studio 的 MCP 服务：查询与制作有声书剧目、章节、切句与多音字标注。\n\
              只读工具默认可用；写入与破坏性工具需服务端开启对应开关。\n\

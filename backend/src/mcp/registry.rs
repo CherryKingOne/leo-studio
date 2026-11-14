@@ -500,7 +500,7 @@ impl McpHandler {
         match name {
             "leo_health" => Ok(json!({
                 "status": "ok",
-                "server": "leo-studio-mcp",
+                "server": "leo-studio",
                 "app": self.settings.app_name,
                 "version": self.settings.app_version,
                 "protocol_versions": ["2026-07-28"],

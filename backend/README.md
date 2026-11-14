@@ -35,20 +35,16 @@ curl http://127.0.0.1:58685/health
 
 ## MCP Server
 
-MCP 层是 REST 之外的第三个入口，复用同一套 `projects` 业务服务。当前只支持最新协议 `2026-07-28`（无状态核心），不兼容旧版握手。
+MCP 层是 REST 之外的第二个入口，复用同一套 `projects` 业务服务，挂载在现有 Axum 进程内。当前只支持最新协议 `2026-07-28`（无状态核心），不兼容旧版握手。
 
 ```bash
-# stdio：给 Claude Desktop / Cursor 等本地客户端
-cargo run --bin leo-studio-mcp
-
-# Streamable HTTP：与 REST 同进程
-LEO_MCP_ENABLED=true LEO_MCP_TRANSPORT=http LEO_MCP_TOKEN=replace-me \
+LEO_MCP_ENABLED=true LEO_MCP_TOKEN=replace-me \
   cargo run --bin leo-studio-backend
 ```
 
-- stdio 的 stdout 是协议通道，日志写 stderr。
-- HTTP 端点默认 `/mcp`，需要 `MCP-Protocol-Version`、`Mcp-Method` 头与请求内 `_meta`。
+- 端点默认 `/mcp`，需要 `MCP-Protocol-Version`、`Mcp-Method` 头与请求内 `_meta`。
 - 只读工具默认可用；写入/破坏性工具分别由 `LEO_MCP_WRITE_TOOLS`、`LEO_MCP_DESTRUCTIVE_TOOLS` 控制。
+- 不提供 stdio 进程；客户端需支持 Streamable HTTP。
 
 详见 [docs/mcp/README.md](docs/mcp/README.md) 与 [docs/mcp/tools.md](docs/mcp/tools.md)。
 

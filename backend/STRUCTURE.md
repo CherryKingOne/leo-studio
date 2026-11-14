@@ -30,8 +30,6 @@ backend/
 │   │   ├── registry.rs            # 21 个工具定义、参数校验与分发
 │   │   ├── resources.rs           # leo:// 资源与模板
 │   │   └── prompts.rs             # 工作流提示词
-│   ├── bin/
-│   │   └── leo-studio-mcp.rs      # stdio 进程入口
 │   ├── modules/                   # 功能模块（按业务边界拆分）
 │   │   ├── mod.rs
 │   │   ├── system.rs              # /health、/api/v1/system/health、/
@@ -184,8 +182,6 @@ cargo run --release --bin leo-studio-backend
 # 监听 http://0.0.0.0:58685
 # 开发模式：cargo run --bin leo-studio-backend
 
-# MCP stdio 进程
-cargo run --release --bin leo-studio-mcp
 ```
 
 前端 `desktop/.env.local`：

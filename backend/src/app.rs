@@ -70,7 +70,7 @@ pub fn build_router(settings: Arc<Settings>, store: Store) -> Router {
 
     let mut router = api;
     let mcp = Arc::new(crate::mcp::McpSettings::from_env());
-    if mcp.enabled && mcp.transport.serves_http() {
+    if mcp.enabled {
         let path = mcp.http_path.clone();
         router = router.nest(&path, crate::mcp::http_router(mcp, state));
     }

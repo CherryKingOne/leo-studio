@@ -4,7 +4,7 @@ pub mod registry;
 pub mod resources;
 pub mod server;
 
-pub use config::{McpSettings, McpTransport};
+pub use config::McpSettings;
 pub use server::McpHandler;
 
 use std::sync::Arc;

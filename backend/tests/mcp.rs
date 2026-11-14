@@ -2,7 +2,7 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use leo_studio_backend::config::Settings;
-use leo_studio_backend::mcp::{McpHandler, McpSettings, McpTransport};
+use leo_studio_backend::mcp::{McpHandler, McpSettings};
 use leo_studio_backend::storage::store::Store;
 use serde_json::{Map, Value, json};
 use tokio::sync::Mutex;
@@ -32,7 +32,6 @@ fn settings(dir: &Path) -> Settings {
 fn mcp_settings(write: bool, destructive: bool) -> McpSettings {
     McpSettings {
         enabled: true,
-        transport: McpTransport::Stdio,
         http_path: "/mcp".to_string(),
         token: String::new(),
         write_tools: write,
