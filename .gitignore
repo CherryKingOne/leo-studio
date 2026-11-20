@@ -20,5 +20,9 @@ wheels/
 _dump.py
 _dump_out.txt
 
+# Rust build artifacts
+target/
+Cargo.lock
+
 # Leo Studio 运行时数据（CSV 索引与小说内容）
 .leo-studio/
