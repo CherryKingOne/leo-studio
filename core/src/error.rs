@@ -19,6 +19,24 @@ pub enum CoreError {
     #[error("插件冲突：插件 ID {0} 已注册")]
     PluginConflict(String),
 
+    #[error("插件未找到或未挂载：{0}")]
+    PluginNotFound(String),
+
+    #[error("插件 {plugin_id} 缺少依赖：{dependency} 未注册")]
+    DependencyMissing {
+        plugin_id: String,
+        dependency: String,
+    },
+
+    #[error("插件 {plugin_id} 的依赖 {dependency} 未能挂载")]
+    DependencyFailed {
+        plugin_id: String,
+        dependency: String,
+    },
+
+    #[error("插件依赖存在循环：{0}")]
+    DependencyCycle(String),
+
     #[error("管线调度失败：{0}")]
     Pipeline(String),
 

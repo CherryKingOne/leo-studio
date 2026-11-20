@@ -15,6 +15,11 @@ pub trait Plugin: Send + Sync {
 
     /// 挂载插件：在此方法内向 Context 注册服务、监听事件或注入中间件
     async fn apply(&self, ctx: &Context) -> CoreResult<()>;
+
+    /// 卸载插件：释放 apply 阶段持有的外部资源；其注册的服务由 PluginManager 自动撤销
+    async fn dispose(&self, _ctx: &Context) -> CoreResult<()> {
+        Ok(())
+    }
 }
 
 /// 文本清洗扩展点

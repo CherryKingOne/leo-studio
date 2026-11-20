@@ -10,6 +10,7 @@ pub const DEFAULT_SERVICE_NAME: &str = "default";
 #[derive(Clone)]
 struct ServiceEntry {
     name: String,
+    owner: Option<String>,
     service: Arc<dyn Any + Send + Sync>,
 }
 
@@ -58,6 +59,16 @@ impl ServiceContainer {
         name: impl Into<String>,
         service: Arc<T>,
     ) -> CoreResult<()> {
+        self.register_owned(name, service, None)
+    }
+
+    /// 以指定名称注册服务并记录提供它的插件，插件卸载时据此撤销
+    pub fn register_owned<T: Send + Sync + 'static>(
+        &mut self,
+        name: impl Into<String>,
+        service: Arc<T>,
+        owner: Option<String>,
+    ) -> CoreResult<()> {
         let name = name.into();
         let slot = self.services.entry(TypeId::of::<T>()).or_default();
         if slot.find(&name).is_some() {
@@ -66,7 +77,11 @@ impl ServiceContainer {
                 name,
             });
         }
-        slot.entries.push(ServiceEntry { name, service });
+        slot.entries.push(ServiceEntry {
+            name,
+            owner,
+            service,
+        });
         Ok(())
     }
 
@@ -142,6 +157,24 @@ impl ServiceContainer {
             slot.default = None;
         }
         before != slot.entries.len()
+    }
+
+    /// 撤销某插件注册的全部服务，返回撤销数量
+    pub fn remove_owned_by(&mut self, owner: &str) -> usize {
+        let mut removed = 0;
+        for slot in self.services.values_mut() {
+            let before = slot.entries.len();
+            slot.entries.retain(|entry| entry.owner.as_deref() != Some(owner));
+            removed += before - slot.entries.len();
+            if slot
+                .default
+                .as_deref()
+                .is_some_and(|name| slot.entries.iter().all(|entry| entry.name != name))
+            {
+                slot.default = None;
+            }
+        }
+        removed
     }
 
     /// 检查是否存在某服务

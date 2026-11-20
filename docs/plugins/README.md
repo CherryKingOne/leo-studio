@@ -93,7 +93,8 @@ sequenceDiagram
     
     Note over Mgr,Ctx: 2. 装配与挂载阶段
     Host->>Mgr: apply_all(ctx)
-    Mgr->>Plugin: manifest() 读取插件元信息
+    Mgr->>Plugin: manifest() 读取插件元信息与依赖
+    Mgr->>Mgr: 依赖拓扑排序 / 缺失依赖检测
     Mgr->>Plugin: apply(ctx) 挂载初始化
     Plugin->>Ctx: ctx.provide(service) 注册能力
     Plugin->>Ctx: ctx.events.on(...) 监听事件
@@ -103,11 +104,12 @@ sequenceDiagram
 ```
 
 1. **注册阶段 (`register`)**：宿主读取配置或依赖，将 `Arc<dyn Plugin>` 注册到 `PluginManager`。插件按注册顺序保存与挂载；插件 ID 重复时 `register` 返回 `CoreError::PluginConflict`。
-2. **挂载阶段 (`apply`)**：内核调用 `apply(ctx)`，插件在此阶段执行：
+2. **挂载阶段 (`apply`)**：`apply_all(ctx)` 按 `manifest.dependencies` 的拓扑序（同层保持注册顺序）调用 `apply(ctx)`；依赖缺失、循环依赖或任一插件挂载失败时默认立即报错并回滚（可改为 `FailurePolicy::SkipFailed`）。插件在此阶段执行：
    - 向 `Context` 注册具体 SPI 实现（如 `Importer`, `TTSProvider`）。
    - 向 `EventBus` 订阅关心的系统事件。
    - 初始化本地资源（如检查缓存目录、校验本地二进制依赖等）。
 3. **运行阶段 (`runtime`)**：传输层（API / MCP / CLI）根据业务请求，通过 `Context` 获取已注册的插件服务执行实际业务。
+4. **卸载阶段 (`dispose`)**：`unload(id, ctx)` / `dispose_all(ctx)` 调用插件的 `dispose(ctx)`，并自动撤销该插件注册的服务。宿主 `app` 在退出时调用 `dispose_all`。
 
 ---
 

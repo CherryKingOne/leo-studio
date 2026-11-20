@@ -1,5 +1,7 @@
 use std::path::{Path, PathBuf};
 
+use leo_core::plugin::FailurePolicy;
+
 /// 应用运行期配置。
 ///
 /// 所有配置项均可通过环境变量覆盖，应用级前缀为 `LEO_`，
@@ -26,6 +28,8 @@ pub struct Settings {
     pub novel_dialogues_csv_filename: String,
     pub novel_polyphones_csv_filename: String,
     pub max_filename_length: usize,
+    /// 插件装配失败策略：默认 fail_fast（启动报错退出），`skip` 时跳过失败插件继续启动
+    pub plugin_failure_policy: FailurePolicy,
 }
 
 impl Default for Settings {
@@ -85,6 +89,10 @@ impl Settings {
                 "novel_polyphones.csv",
             ),
             max_filename_length: env_u64("LEO_TEXT_FILES_MAX_FILENAME_LENGTH", 255) as usize,
+            plugin_failure_policy: FailurePolicy::parse(&env_string(
+                "LEO_PLUGIN_FAILURE_POLICY",
+                "fail_fast",
+            )),
         }
     }
 

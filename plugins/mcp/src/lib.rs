@@ -47,6 +47,7 @@ impl Plugin for McpPlugin {
             "mcp:prompts".into(),
             "mcp:streamable-http".into(),
         ];
+        manifest.dependencies = vec!["leo-plugin-api".into()];
         manifest
     }
 

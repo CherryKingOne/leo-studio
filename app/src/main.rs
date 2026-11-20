@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use leo_plugin_api::{
-    ApiPlugin, Settings, Store, build_app_state, build_router_from_state, require_api_token,
+    Settings, Store, build_app_state_with, build_router_from_state, require_api_token,
 };
 use leo_plugin_mcp::{McpPlugin, McpSettings, http_router};
 
@@ -33,21 +33,22 @@ async fn main() {
         }
     };
 
-    let state = build_app_state(settings.clone(), store).await;
-
-    // 挂载 API 与 MCP 插件清单
-    let api_plugin = Arc::new(ApiPlugin::new(settings.clone()));
-    state.plugin_manager.register(api_plugin).await.expect("注册 ApiPlugin 失败");
-
+    // 官方插件、ApiPlugin 与 McpPlugin 统一注册并按依赖顺序挂载
     let mcp_settings = Arc::new(McpSettings::from_env());
     let mcp_plugin = Arc::new(McpPlugin::new(mcp_settings.clone()));
-    state.plugin_manager.register(mcp_plugin).await.expect("注册 McpPlugin 失败");
+    let state = match build_app_state_with(settings.clone(), store, vec![mcp_plugin]).await {
+        Ok(state) => state,
+        Err(err) => {
+            tracing::error!("插件装配失败，服务未启动：{err}");
+            std::process::exit(1);
+        }
+    };
 
     let mut router = build_router_from_state(state.clone());
     if mcp_settings.enabled {
         let path = mcp_settings.http_path.clone();
         tracing::info!("挂载 MCP HTTP 服务端点: {path}");
-        let mcp = http_router(mcp_settings, state).layer(axum::middleware::from_fn_with_state(
+        let mcp = http_router(mcp_settings, state.clone()).layer(axum::middleware::from_fn_with_state(
             settings.clone(),
             require_api_token,
         ));
@@ -60,7 +61,17 @@ async fn main() {
 
     tracing::info!("Leo Studio 后端微内核已启动：http://{address}");
 
-    if let Err(err) = axum::serve(listener, router).await {
+    let served = axum::serve(listener, router)
+        .with_graceful_shutdown(async {
+            let _ = tokio::signal::ctrl_c().await;
+            tracing::info!("收到退出信号，正在关闭服务");
+        })
+        .await;
+
+    if let Err(err) = state.plugin_manager.dispose_all(&state.context).await {
+        tracing::error!("卸载插件时出错：{err}");
+    }
+    if let Err(err) = served {
         tracing::error!("服务异常退出：{err}");
         std::process::exit(1);
     }

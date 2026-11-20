@@ -16,6 +16,8 @@ pub struct Context {
     pub events: EventBus,
     /// 作用域 ID（全局或项目 ID）
     pub scope: String,
+    /// 当前正在挂载的插件 ID，用于记录服务归属
+    owner: Option<String>,
 }
 
 impl Default for Context {
@@ -30,13 +32,21 @@ impl Context {
             services: Arc::new(RwLock::new(ServiceContainer::new())),
             events: EventBus::new(),
             scope: scope.into(),
+            owner: None,
+        }
+    }
+
+    /// 返回以指定插件身份注册服务的上下文视图，共享同一服务容器与事件总线
+    pub fn for_plugin(&self, plugin_id: &str) -> Self {
+        Self {
+            owner: Some(plugin_id.to_string()),
+            ..self.clone()
         }
     }
 
     /// 以默认名称注册一个服务；重复注册返回冲突错误
     pub async fn provide<T: Send + Sync + 'static>(&self, service: T) -> CoreResult<()> {
-        let mut services = self.services.write().await;
-        services.register(Arc::new(service))
+        self.provide_named(DEFAULT_SERVICE_NAME, service).await
     }
 
     /// 以指定名称注册一个服务提供者，允许同类型多个提供者并存
@@ -46,7 +56,7 @@ impl Context {
         service: T,
     ) -> CoreResult<()> {
         let mut services = self.services.write().await;
-        services.register_named(name, Arc::new(service))
+        services.register_owned(name, Arc::new(service), self.owner.clone())
     }
 
     /// 获取一个服务的默认提供者（显式默认值，否则为最先登记者）
@@ -84,6 +94,7 @@ impl Context {
             services: self.services.clone(),
             events: self.events.clone(),
             scope: scope.into(),
+            owner: self.owner.clone(),
         }
     }
 }

@@ -210,8 +210,9 @@ pub trait StoragePlugin: Send + Sync {
 ### 4.1 插件装配与生命周期（借鉴 Cordis）
 每个插件挂载时获得一个独立的 `PluginContext`：
 1. **`apply(ctx)`**：插件在此方法内注册能力、提供 Service、监听 Hook。
-2. **`on_unload`**：插件被禁用或卸载时，微内核自动将该插件注册的事件监听和扩展路由**安全注销**，不影响系统其它部分。
-3. **空间隔离（Scoped Context）**：
+2. **`dispose(ctx)`**：插件被卸载（`PluginManager::unload` / `dispose_all`）时调用，微内核自动撤销该插件注册的服务，不影响系统其它部分；仍被其他插件依赖的插件拒绝卸载。（事件监听的自动注销与热重载尚未实现。）
+3. **依赖顺序**：`PluginManifest.dependencies` 声明依赖的插件 ID，`apply_all` 按拓扑序挂载；缺失依赖、循环依赖或挂载失败默认直接报错并回滚，可配置为跳过失败插件（`LEO_PLUGIN_FAILURE_POLICY=skip`）。
+4. **空间隔离（Scoped Context）**：
    - 全局级：如系统存储插件、系统日志；
    - 剧目级（Project-Scope）：某本古风小说可以专门启用“古风音色插件”和“文言虚词分句插件”，不污染其它剧目。
 
@@ -257,7 +258,7 @@ leo-studio/
 │       │   ├── mod.rs
 │       │   ├── manifest.rs                # 插件清单与元数据
 │       │   ├── traits.rs                  # Clean, Split, TTS, Storage SPI
-│       │   └── manager.rs                 # 插件注册、拓扑排序与热重载
+│       │   └── manager.rs                 # 插件注册、依赖拓扑排序、失败策略与卸载
 │       └── error.rs
 │
 ├── plugins/                               # 【分类归集插件集】

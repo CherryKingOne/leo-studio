@@ -60,6 +60,7 @@ impl TestApp {
             novel_dialogues_csv_filename: "novel_dialogues.csv".to_string(),
             novel_polyphones_csv_filename: "novel_polyphones.csv".to_string(),
             max_filename_length: 255,
+            plugin_failure_policy: Default::default(),
         };
         configure(&mut settings);
 
@@ -75,7 +76,9 @@ impl TestApp {
         .unwrap();
 
         Self {
-            router: build_router(Arc::new(settings), store).await,
+            router: build_router(Arc::new(settings), store)
+                .await
+                .expect("插件装配失败"),
         }
     }
 

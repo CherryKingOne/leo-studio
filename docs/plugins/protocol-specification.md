@@ -21,13 +21,19 @@ pub trait Plugin: Send + Sync {
 
     /// 挂载插件：向 Context 注入服务、监听事件或初始化环境
     async fn apply(&self, ctx: &Context) -> CoreResult<()>;
+
+    /// 卸载插件：释放 apply 阶段持有的外部资源（默认空实现）
+    async fn dispose(&self, _ctx: &Context) -> CoreResult<()> {
+        Ok(())
+    }
 }
 ```
 
 ### 契约要求：
 1. **线程安全**：实现必须满足 `Send + Sync + 'static`，支持多线程并发安全调用。
 2. **异步初始化**：`apply` 方法为 `async` 异步调用，允许插件在初始化阶段执行异步 I/O 操作（例如建立远程连接池、拉取离线字典等）。
-3. **错误冒泡**：若初始化失败，返回 `CoreResult::Err`，宿主启动器将捕获该错误并安全退出或发出告警，严禁在 `apply` 中直接 `panic!`。
+3. **错误冒泡**：若初始化失败，返回 `CoreResult::Err`，严禁在 `apply` 中直接 `panic!`。默认（`FailurePolicy::FailFast`）下 `apply_all` 立即返回错误，并按逆序 `dispose` 本次已挂载的插件、撤销它们注册的服务，宿主启动器随之报错退出；`FailurePolicy::SkipFailed` 下跳过该插件及依赖它的插件，失败记录可通过 `PluginManager::failures()` 查询。
+4. **卸载**：`PluginManager::unload(id, ctx)` 调用插件的 `dispose`，并自动撤销该插件在 `apply` 中注册的全部服务；仍被其他已挂载插件依赖时拒绝卸载。`dispose_all(ctx)` 按挂载逆序卸载全部插件，宿主退出时调用。
 
 ---
 
@@ -45,6 +51,7 @@ pub struct PluginManifest {
     pub description: String,        // 插件功能简述
     pub category: PluginCategory,   // 插件所属分类
     pub capabilities: Vec<String>,  // 插件暴露的具体能力声明标签
+    pub dependencies: Vec<String>,  // 依赖的其他插件 ID
 }
 ```
 
@@ -58,6 +65,7 @@ pub struct PluginManifest {
 | `description` | `String` | 1-2 句话阐述插件的核心作用和适用场景。 | `"基于微软 Edge 神经语音的免费高品质 TTS 插件，提供多种小说声线。"` |
 | `category` | `PluginCategory` | 枚举分类（见下节）。 | `PluginCategory::Tts` |
 | `capabilities` | `Vec<String>` | 能力标签列表，格式为 `<domain>:<action>`。便于前端或 MCP 智能体按能力索引。 | `vec!["tts:synthesize".into(), "tts:list_voices".into()]` |
+| `dependencies` | `Vec<String>` | 依赖的插件 ID。`apply_all` 按依赖拓扑序挂载（无依赖关系时保持注册顺序）；依赖未注册返回 `CoreError::DependencyMissing`，循环依赖返回 `CoreError::DependencyCycle`。 | `vec!["leo-plugin-api".into()]`（McpPlugin） |
 
 ---
 

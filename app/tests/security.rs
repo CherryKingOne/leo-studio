@@ -172,7 +172,7 @@ async fn mcp_endpoint_requires_token_when_configured() {
         ..Settings::default()
     });
     let store = Store::new(&settings).unwrap();
-    let state = build_app_state(settings.clone(), store).await;
+    let state = build_app_state(settings.clone(), store).await.unwrap();
     let mcp = Arc::new(McpSettings::default());
     let router = axum::Router::new().nest(
         "/mcp",

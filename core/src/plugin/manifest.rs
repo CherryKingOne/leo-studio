@@ -26,6 +26,9 @@ pub struct PluginManifest {
     pub description: String,
     pub category: PluginCategory,
     pub capabilities: Vec<String>,
+    /// 依赖的其他插件 ID：装配时这些插件必须已注册且先于本插件挂载
+    #[serde(default)]
+    pub dependencies: Vec<String>,
 }
 
 impl PluginManifest {
@@ -42,6 +45,7 @@ impl PluginManifest {
             description: String::new(),
             category,
             capabilities: Vec::new(),
+            dependencies: Vec::new(),
         }
     }
 }

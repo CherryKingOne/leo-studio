@@ -6,6 +6,8 @@ use axum::http::header::AUTHORIZATION;
 use axum::http::{HeaderName, HeaderValue, Method};
 use axum::middleware::{self, Next};
 use axum::response::{IntoResponse, Response};
+use leo_core::error::CoreResult;
+use leo_core::plugin::{Plugin, PluginManager};
 use tokio::sync::Mutex;
 use tower_http::cors::{AllowOrigin, CorsLayer};
 
@@ -16,23 +18,37 @@ use crate::modules::{system, v2};
 use crate::state::AppState;
 use crate::storage::store::Store;
 
-pub async fn build_app_state(settings: Arc<Settings>, store: Store) -> AppState {
-    let context = leo_core::Context::new("leo_app");
-    let plugin_manager = Arc::new(leo_core::PluginManager::new());
+pub async fn build_app_state(settings: Arc<Settings>, store: Store) -> CoreResult<AppState> {
+    build_app_state_with(settings, store, Vec::new()).await
+}
 
-    // 注册并激活官方内置插件
-    if let Err(err) =
-        crate::plugins::setup_default_plugins(&context, &plugin_manager, &settings.csv_dir).await
-    {
-        tracing::warn!("装配官方插件时出现警告: {err}");
+/// 注册官方内置插件与宿主额外提供的插件（如 McpPlugin），统一按依赖顺序挂载。
+/// 默认任一插件装配失败即返回错误；`LEO_PLUGIN_FAILURE_POLICY=skip` 时跳过失败插件。
+pub async fn build_app_state_with(
+    settings: Arc<Settings>,
+    store: Store,
+    extra_plugins: Vec<Arc<dyn Plugin>>,
+) -> CoreResult<AppState> {
+    let context = leo_core::Context::new("leo_app");
+    let plugin_manager = Arc::new(PluginManager::with_failure_policy(
+        settings.plugin_failure_policy,
+    ));
+
+    crate::plugins::register_default_plugins(&plugin_manager, &settings).await?;
+    for plugin in extra_plugins {
+        plugin_manager.register(plugin).await?;
+    }
+    plugin_manager.apply_all(&context).await?;
+    for failure in plugin_manager.failures().await {
+        tracing::warn!("插件 {} 未挂载：{}", failure.plugin_id, failure.error);
     }
 
-    AppState {
+    Ok(AppState {
         settings,
         store: Arc::new(Mutex::new(store)),
         context,
         plugin_manager,
-    }
+    })
 }
 
 pub fn create_cors_layer(settings: &Settings) -> CorsLayer {
@@ -120,9 +136,9 @@ fn constant_time_eq(a: &[u8], b: &[u8]) -> bool {
     a.iter().zip(b).fold(0u8, |acc, (x, y)| acc | (x ^ y)) == 0
 }
 
-pub async fn build_router(settings: Arc<Settings>, store: Store) -> Router {
-    let state = build_app_state(settings, store).await;
-    build_router_from_state(state)
+pub async fn build_router(settings: Arc<Settings>, store: Store) -> CoreResult<Router> {
+    let state = build_app_state(settings, store).await?;
+    Ok(build_router_from_state(state))
 }
 
 pub fn build_router_from_state(state: AppState) -> Router {

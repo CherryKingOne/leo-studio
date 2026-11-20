@@ -399,3 +399,40 @@ async fn chapter_update_and_delete() {
     .await;
     assert_eq!(chapters["total"], 1);
 }
+
+#[tokio::test]
+async fn api_and_mcp_plugins_go_through_unified_install() {
+    use leo_app::build_app_state_with;
+    use leo_app::mcp::McpPlugin;
+
+    let dir = temp_dir("plugin-install");
+    let settings = Arc::new(settings(&dir));
+    let store = Store::new(&settings).expect("初始化 Store 失败");
+    let mcp = Arc::new(McpPlugin::new(Arc::new(mcp_settings(false, false))));
+
+    let state = build_app_state_with(settings, store, vec![mcp])
+        .await
+        .expect("插件装配失败");
+    let loaded = state.plugin_manager.loaded_ids().await;
+    let api_at = loaded.iter().position(|id| id == "leo-plugin-api");
+    let mcp_at = loaded.iter().position(|id| id == "leo-plugin-mcp");
+    assert!(api_at.is_some(), "ApiPlugin::apply 未执行: {loaded:?}");
+    assert!(mcp_at.is_some(), "McpPlugin::apply 未执行: {loaded:?}");
+    assert!(api_at < mcp_at, "McpPlugin 依赖 ApiPlugin，应在其后挂载");
+    assert!(state.plugin_manager.failures().await.is_empty());
+}
+
+#[tokio::test]
+async fn mcp_plugin_without_api_plugin_fails_loudly() {
+    use leo_app::mcp::McpPlugin;
+    use leo_core::plugin::{Plugin, PluginManager};
+
+    let manager = PluginManager::new();
+    let mcp: Arc<dyn Plugin> = Arc::new(McpPlugin::new(Arc::new(mcp_settings(false, false))));
+    manager.register(mcp).await.unwrap();
+    let err = manager
+        .apply_all(&leo_core::Context::new("mcp_only"))
+        .await
+        .expect_err("缺少 leo-plugin-api 时应报错");
+    assert!(err.to_string().contains("leo-plugin-api"), "{err}");
+}
