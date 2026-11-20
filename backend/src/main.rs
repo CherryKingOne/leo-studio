@@ -39,7 +39,7 @@ async fn main() {
         }
     };
 
-    let app = build_router(Arc::new(settings.clone()), store);
+    let app = build_router(Arc::new(settings.clone()), store).await;
     tracing::info!("Leo Studio API 已启动：http://{address}");
 
     if let Err(err) = axum::serve(listener, app).await {

@@ -360,6 +360,27 @@ fn destructive_tools() -> Vec<Tool> {
             &["confirm"],
             annotations("清空回收站", false, true, true),
         ),
+        tool(
+            "leo_list_voices",
+            "声线列表",
+            "查询系统当前支持的所有配音角色声线（如云希、晓晓、云健、晓伊等）。",
+            json!({}),
+            &[],
+            annotations("声线列表", true, false, true),
+        ),
+        tool(
+            "leo_synthesize_chapter",
+            "章节人声合成",
+            "为指定章节批量合成真人配音音频切片，生成真实 MP3 音频文件。",
+            json!({
+                "project_id": str_prop("剧目 ID"),
+                "chapter_id": str_prop("章节 ID"),
+                "voice": str_prop("声线 ID，如 zh-CN-YunxiNeural"),
+                "force": bool_prop("是否强制重新合成已有音频的切片，默认 false")
+            }),
+            &["project_id", "chapter_id"],
+            annotations("章节人声合成", false, false, false),
+        ),
     ]
 }
 
@@ -771,6 +792,32 @@ impl McpHandler {
                 let cleared_count =
                     project_service::clear_recycle_bin(&mut *self.store.lock().await)?;
                 Ok(json!({ "cleared_count": cleared_count, "cleared": true }))
+            }
+            "leo_list_voices" => {
+                let voices =
+                    crate::modules::audio::service::list_voices(&self.to_app_state()).await?;
+                Ok(value_of(&voices)?)
+            }
+            "leo_synthesize_chapter" => {
+                let project_id = req_string(args, "project_id")?;
+                let chapter_id = req_string(args, "chapter_id")?;
+                let voice = opt_string(args, "voice")
+                    .unwrap_or_else(|| "zh-CN-YunxiNeural".to_string());
+                let force = opt_bool(args, "force", false);
+                let req = crate::modules::audio::schema::ChapterSynthesizeRequest {
+                    voice,
+                    speed: 1.0,
+                    pitch: 0.0,
+                    force,
+                };
+                let result = crate::modules::audio::service::synthesize_chapter(
+                    &self.to_app_state(),
+                    &project_id,
+                    &chapter_id,
+                    req,
+                )
+                .await?;
+                Ok(value_of(&result)?)
             }
             _ => Err(AppError::invalid_parameter(format!("未知工具：{name}"))),
         }

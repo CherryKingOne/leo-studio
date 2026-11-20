@@ -13,10 +13,22 @@ use crate::modules::{projects, system, text_files, v2};
 use crate::state::AppState;
 use crate::storage::store::Store;
 
-pub fn build_router(settings: Arc<Settings>, store: Store) -> Router {
+pub async fn build_router(settings: Arc<Settings>, store: Store) -> Router {
+    let context = leo_core::Context::new("leo_app");
+    let plugin_manager = Arc::new(leo_core::PluginManager::new());
+
+    // 注册并激活官方内置插件
+    if let Err(err) =
+        crate::plugins::setup_default_plugins(&context, &plugin_manager, &settings.csv_dir).await
+    {
+        tracing::warn!("装配官方插件时出现警告: {err}");
+    }
+
     let state = AppState {
         settings: settings.clone(),
         store: Arc::new(Mutex::new(store)),
+        context,
+        plugin_manager,
     };
 
     let cors = if settings.cors_origins.iter().any(|origin| origin == "*") {
@@ -63,7 +75,10 @@ pub fn build_router(settings: Arc<Settings>, store: Store) -> Router {
         .nest("/api/v1/text-files", text_files::router())
         .nest("/api/v1/projects", projects::router())
         .nest("/api/v1", system::router())
-        .nest("/api/v2", v2::router())
+        .nest(
+            "/api/v2",
+            v2::router().merge(crate::modules::audio::router()),
+        )
         .merge(system::root_router())
         .layer(middleware::from_fn(request_id_middleware))
         .with_state(state.clone());

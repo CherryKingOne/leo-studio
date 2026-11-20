@@ -55,7 +55,7 @@ impl TestApp {
         .unwrap();
 
         Self {
-            router: build_router(Arc::new(settings), store),
+            router: build_router(Arc::new(settings), store).await,
         }
     }
 
@@ -86,6 +86,7 @@ impl TestApp {
         .await
     }
 
+    #[allow(dead_code)]
     pub async fn delete(&self, path: &str) -> (StatusCode, Value) {
         self.send(
             Request::builder()
@@ -115,6 +116,20 @@ impl TestApp {
         .await
     }
 
+    #[allow(dead_code)]
+    pub async fn post_json(&self, path: &str, payload: &str) -> (StatusCode, Value) {
+        self.send(
+            Request::builder()
+                .method("POST")
+                .uri(path)
+                .header("content-type", "application/json")
+                .body(Body::from(payload.to_string()))
+                .unwrap(),
+        )
+        .await
+    }
+
+    #[allow(dead_code)]
     pub async fn put_json(&self, path: &str, payload: &str) -> (StatusCode, Value) {
         self.send(
             Request::builder()
@@ -127,6 +142,7 @@ impl TestApp {
         .await
     }
 
+    #[allow(dead_code)]
     pub async fn patch_json(&self, path: &str, payload: &str) -> (StatusCode, Value) {
         self.send(
             Request::builder()

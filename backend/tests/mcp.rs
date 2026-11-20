@@ -45,7 +45,13 @@ fn make_handler(dir: &Path, mcp: McpSettings) -> McpHandler {
     let store = Arc::new(Mutex::new(
         Store::new(&settings).expect("初始化 Store 失败"),
     ));
-    McpHandler::new(settings, store, Arc::new(mcp))
+    let state = leo_studio_backend::state::AppState {
+        settings,
+        store,
+        context: leo_core::Context::new("mcp_test"),
+        plugin_manager: Arc::new(leo_core::PluginManager::new()),
+    };
+    McpHandler::new(state, Arc::new(mcp))
 }
 
 fn args(value: Value) -> Map<String, Value> {

@@ -10,4 +10,6 @@ use crate::storage::store::Store;
 pub struct AppState {
     pub settings: Arc<Settings>,
     pub store: Arc<Mutex<Store>>,
+    pub context: leo_core::Context,
+    pub plugin_manager: Arc<leo_core::PluginManager>,
 }

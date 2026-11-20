@@ -9,3 +9,7 @@ members = [
     "plugins/tts-edge",
     "backend",
 ]
+
+[profile.release]
+lto = "thin"
+codegen-units = 1
