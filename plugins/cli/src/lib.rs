@@ -63,15 +63,15 @@ pub async fn setup_cli_runtime(data_dir: &str) -> CoreResult<(Context, Arc<Plugi
     let ctx = Context::new("leo_cli");
     let manager = Arc::new(PluginManager::new());
 
-    manager.register(Arc::new(KaomojiCleanerPlugin::new())).await;
-    manager.register(Arc::new(NovelRegexParserPlugin::new())).await;
-    manager.register(Arc::new(DialogueQuotesPlugin::new())).await;
-    manager.register(Arc::new(CsvStoragePlugin::new(data_dir))).await;
-    manager.register(Arc::new(EdgeTtsPlugin::new())).await;
-    manager.register(Arc::new(TxtImporterPlugin::new())).await;
-    manager.register(Arc::new(CsvExporterPlugin::new())).await;
-    manager.register(Arc::new(JsonExporterPlugin::new())).await;
-    manager.register(Arc::new(CliPlugin::new())).await;
+    manager.register(Arc::new(KaomojiCleanerPlugin::new())).await?;
+    manager.register(Arc::new(NovelRegexParserPlugin::new())).await?;
+    manager.register(Arc::new(DialogueQuotesPlugin::new())).await?;
+    manager.register(Arc::new(CsvStoragePlugin::new(data_dir))).await?;
+    manager.register(Arc::new(EdgeTtsPlugin::new())).await?;
+    manager.register(Arc::new(TxtImporterPlugin::new())).await?;
+    manager.register(Arc::new(CsvExporterPlugin::new())).await?;
+    manager.register(Arc::new(JsonExporterPlugin::new())).await?;
+    manager.register(Arc::new(CliPlugin::new())).await?;
 
     manager.apply_all(&ctx).await?;
     Ok((ctx, manager))

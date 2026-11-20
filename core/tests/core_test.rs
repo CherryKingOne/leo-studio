@@ -17,7 +17,7 @@ impl Plugin for DummyCleanerPlugin {
     }
 
     async fn apply(&self, ctx: &Context) -> CoreResult<()> {
-        ctx.provide(String::from("cleaner_service_ready")).await;
+        ctx.provide(String::from("cleaner_service_ready")).await?;
         Ok(())
     }
 }
@@ -66,7 +66,7 @@ async fn test_cordis_context_and_plugin_manager() -> CoreResult<()> {
     let ctx = Context::new("test_project_1");
     let manager = PluginManager::new();
 
-    manager.register(Arc::new(DummyCleanerPlugin)).await;
+    manager.register(Arc::new(DummyCleanerPlugin)).await.unwrap();
 
     let manifests = manager.list_manifests().await;
     assert_eq!(manifests.len(), 1);

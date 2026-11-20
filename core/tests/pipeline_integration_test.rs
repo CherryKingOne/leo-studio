@@ -18,10 +18,10 @@ async fn test_end_to_end_audiobook_pipeline() {
     let manager = PluginManager::new();
 
     // 2. 注册并装配官方插件四大金刚
-    manager.register(Arc::new(KaomojiCleanerPlugin::new())).await;
-    manager.register(Arc::new(NovelRegexParserPlugin::new())).await;
-    manager.register(Arc::new(DialogueQuotesPlugin::new())).await;
-    manager.register(Arc::new(EdgeTtsPlugin::new())).await;
+    manager.register(Arc::new(KaomojiCleanerPlugin::new())).await.unwrap();
+    manager.register(Arc::new(NovelRegexParserPlugin::new())).await.unwrap();
+    manager.register(Arc::new(DialogueQuotesPlugin::new())).await.unwrap();
+    manager.register(Arc::new(EdgeTtsPlugin::new())).await.unwrap();
 
     // 一键挂载所有插件
     manager.apply_all(&ctx).await.expect("插件批量挂载失败");

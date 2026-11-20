@@ -96,8 +96,8 @@ impl Plugin for CosyVoicePlugin {
         let provider: Arc<dyn TTSProvider> = Arc::new(CosyVoiceProvider {
             api_endpoint: self.api_endpoint.clone(),
         });
-        // 注册到微内核 IoC 容器
-        ctx.provide(provider).await;
+        // 以名称注册到微内核 IoC 容器，可与 edge-tts 等其他 TTSProvider 并存
+        ctx.provide_named("cosyvoice", provider).await?;
         tracing::info!("CosyVoice 插件挂载成功，已注入 TTSProvider");
         Ok(())
     }
@@ -164,7 +164,9 @@ impl TTSProvider for CosyVoiceProvider {
 use leo_plugin_tts_cosyvoice::CosyVoicePlugin;
 
 // 在 plugin_manager 中注册：
-plugin_manager.register(Arc::new(CosyVoicePlugin::new("http://localhost:50000"))).await;
+plugin_manager.register(Arc::new(CosyVoicePlugin::new("http://localhost:50000"))).await?;
+// 可选：让 CosyVoice 成为默认 TTSProvider（否则默认是最先注册的那个）
+ctx.set_default::<Arc<dyn TTSProvider>>("cosyvoice").await?;
 ```
 
 ---
@@ -229,7 +231,7 @@ impl Plugin for EpubImporterPlugin {
 
     async fn apply(&self, ctx: &Context) -> CoreResult<()> {
         let importer: Arc<dyn Importer> = Arc::new(EpubImporter);
-        ctx.provide(importer).await;
+        ctx.provide_named("epub", importer).await?;
         tracing::info!("EPUB 导入器插件已挂载");
         Ok(())
     }

@@ -36,7 +36,7 @@ impl Plugin for JsonExporterPlugin {
 
     async fn apply(&self, ctx: &Context) -> CoreResult<()> {
         let exporter: Arc<dyn Exporter> = Arc::new(JsonExporter);
-        ctx.provide(exporter).await;
+        ctx.provide_named("json", exporter).await?;
         tracing::info!("已挂载 JsonExporterPlugin，提供 Exporter(json) 服务");
         Ok(())
     }

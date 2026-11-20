@@ -37,11 +37,11 @@ async fn main() {
 
     // 挂载 API 与 MCP 插件清单
     let api_plugin = Arc::new(ApiPlugin::new(settings.clone()));
-    state.plugin_manager.register(api_plugin).await;
+    state.plugin_manager.register(api_plugin).await.expect("注册 ApiPlugin 失败");
 
     let mcp_settings = Arc::new(McpSettings::from_env());
     let mcp_plugin = Arc::new(McpPlugin::new(mcp_settings.clone()));
-    state.plugin_manager.register(mcp_plugin).await;
+    state.plugin_manager.register(mcp_plugin).await.expect("注册 McpPlugin 失败");
 
     let mut router = build_router_from_state(state.clone());
     if mcp_settings.enabled {

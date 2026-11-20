@@ -71,3 +71,27 @@ fn test_cli_command_parsing() {
         _ => panic!("解析命令类型错误"),
     }
 }
+
+#[tokio::test]
+async fn test_cli_runtime_keeps_both_exporters() {
+    use std::sync::Arc;
+
+    use leo_core::plugin::Exporter;
+
+    let temp_dir = tempfile::tempdir().unwrap();
+    let (ctx, _manager) = setup_cli_runtime(temp_dir.path().to_str().unwrap())
+        .await
+        .expect("装配 CLI 环境失败");
+
+    let names: Vec<String> = ctx
+        .inject_all::<Arc<dyn Exporter>>()
+        .await
+        .into_iter()
+        .map(|(name, _)| name)
+        .collect();
+    assert_eq!(names, vec!["csv", "json"]);
+    for format in ["csv", "json"] {
+        let exporter = ctx.inject_named::<Arc<dyn Exporter>>(format).await.unwrap();
+        assert_eq!(exporter.format_name(), format);
+    }
+}

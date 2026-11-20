@@ -42,7 +42,7 @@ impl Plugin for EdgeTtsPlugin {
 
     async fn apply(&self, ctx: &Context) -> CoreResult<()> {
         let provider: Arc<dyn TTSProvider> = Arc::new(EdgeTtsProvider::new());
-        ctx.provide(provider).await;
+        ctx.provide_named("edge-tts", provider).await?;
         tracing::info!("Edge-TTS 插件加载完成，已注册 TTSProvider 服务");
         Ok(())
     }

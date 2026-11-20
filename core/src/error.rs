@@ -13,6 +13,12 @@ pub enum CoreError {
     #[error("服务未找到：{0}")]
     ServiceNotFound(String),
 
+    #[error("服务冲突：{service} 已存在名为 {name} 的提供者")]
+    ServiceConflict { service: String, name: String },
+
+    #[error("插件冲突：插件 ID {0} 已注册")]
+    PluginConflict(String),
+
     #[error("管线调度失败：{0}")]
     Pipeline(String),
 

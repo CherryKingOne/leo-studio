@@ -59,8 +59,8 @@ graph TD
 
 ### 2. Cordis 风格的 Context 依赖注入
 插件不需要知道是谁在调用它。当插件挂载时，微内核会调用它的 `apply(&self, ctx: &Context)` 方法：
-- **提供能力（Provide）**：插件通过 `ctx.provide(service).await` 向系统注入具体服务（例如某个 TTSProvider）。
-- **消费能力（Inject）**：插件通过 `ctx.inject::<Arc<dyn TTSProvider>>().await` 获取所需外部能力，若未注入则优雅降级或返回明确错误。
+- **提供能力（Provide）**：插件通过 `ctx.provide_named("edge-tts", service).await?` 以名称向系统注入具体服务（例如某个 TTSProvider）。同一服务类型可以有多个提供者并存（如 csv 与 json 两个 Exporter）；同类型同名称重复注册会返回 `CoreError::ServiceConflict`，不会静默覆盖。
+- **消费能力（Inject）**：插件通过 `ctx.inject_named::<Arc<dyn Exporter>>("csv").await` 按名称获取、`ctx.inject_all::<..>()` 按注册顺序获取全部提供者，或用 `ctx.inject::<Arc<dyn TTSProvider>>().await` 获取默认提供者（`ctx.set_default` 显式指定，否则为最先注册者）。若未注入则优雅降级或返回明确错误。
 
 ### 3. 分类归集规范 (Directory Taxonomy)
 所有插件均归类在 `plugins/` 目录的子类别文件夹中，严禁平铺堆放：
@@ -102,7 +102,7 @@ sequenceDiagram
     Ctx-->>Plugin: 业务调度 / SPI 接口调用
 ```
 
-1. **注册阶段 (`register`)**：宿主读取配置或依赖，将 `Arc<dyn Plugin>` 注册到 `PluginManager`。
+1. **注册阶段 (`register`)**：宿主读取配置或依赖，将 `Arc<dyn Plugin>` 注册到 `PluginManager`。插件按注册顺序保存与挂载；插件 ID 重复时 `register` 返回 `CoreError::PluginConflict`。
 2. **挂载阶段 (`apply`)**：内核调用 `apply(ctx)`，插件在此阶段执行：
    - 向 `Context` 注册具体 SPI 实现（如 `Importer`, `TTSProvider`）。
    - 向 `EventBus` 订阅关心的系统事件。

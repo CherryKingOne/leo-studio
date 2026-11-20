@@ -5,7 +5,7 @@ use std::sync::Arc;
 use tokio::sync::RwLock;
 
 pub use event::EventBus;
-pub use service::ServiceContainer;
+pub use service::{DEFAULT_SERVICE_NAME, ServiceContainer};
 
 use crate::error::CoreResult;
 
@@ -33,16 +33,44 @@ impl Context {
         }
     }
 
-    /// 注册一个服务
-    pub async fn provide<T: Send + Sync + 'static>(&self, service: T) {
+    /// 以默认名称注册一个服务；重复注册返回冲突错误
+    pub async fn provide<T: Send + Sync + 'static>(&self, service: T) -> CoreResult<()> {
         let mut services = self.services.write().await;
-        services.register(Arc::new(service));
+        services.register(Arc::new(service))
     }
 
-    /// 获取一个服务
+    /// 以指定名称注册一个服务提供者，允许同类型多个提供者并存
+    pub async fn provide_named<T: Send + Sync + 'static>(
+        &self,
+        name: impl Into<String>,
+        service: T,
+    ) -> CoreResult<()> {
+        let mut services = self.services.write().await;
+        services.register_named(name, Arc::new(service))
+    }
+
+    /// 获取一个服务的默认提供者（显式默认值，否则为最先登记者）
     pub async fn inject<T: Send + Sync + 'static>(&self) -> CoreResult<Arc<T>> {
         let services = self.services.read().await;
         services.get::<T>()
+    }
+
+    /// 按名称获取服务提供者
+    pub async fn inject_named<T: Send + Sync + 'static>(&self, name: &str) -> CoreResult<Arc<T>> {
+        let services = self.services.read().await;
+        services.get_named::<T>(name)
+    }
+
+    /// 按登记顺序获取某服务类型的全部提供者
+    pub async fn inject_all<T: Send + Sync + 'static>(&self) -> Vec<(String, Arc<T>)> {
+        let services = self.services.read().await;
+        services.get_all::<T>()
+    }
+
+    /// 显式指定某服务类型的默认提供者
+    pub async fn set_default<T: Send + Sync + 'static>(&self, name: &str) -> CoreResult<()> {
+        let mut services = self.services.write().await;
+        services.set_default::<T>(name)
     }
 
     /// 派发事件

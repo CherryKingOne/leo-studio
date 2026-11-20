@@ -43,7 +43,7 @@ impl Plugin for DialogueQuotesPlugin {
 
     async fn apply(&self, ctx: &Context) -> CoreResult<()> {
         let splitter: Arc<dyn DialogueSplitter> = Arc::new(QuotesDialogueSplitter);
-        ctx.provide(splitter).await;
+        ctx.provide_named("quotes", splitter).await?;
         tracing::info!("已挂载 DialogueQuotesPlugin，提供 DialogueSplitter 服务");
         Ok(())
     }

@@ -43,7 +43,7 @@ impl Plugin for NovelRegexParserPlugin {
 
     async fn apply(&self, ctx: &Context) -> CoreResult<()> {
         let splitter: Arc<dyn ChapterSplitter> = Arc::new(NovelRegexSplitter);
-        ctx.provide(splitter).await;
+        ctx.provide_named("novel-regex", splitter).await?;
         tracing::info!("已挂载 NovelRegexParserPlugin，提供 ChapterSplitter 服务");
         Ok(())
     }

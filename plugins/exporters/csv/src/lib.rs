@@ -36,7 +36,7 @@ impl Plugin for CsvExporterPlugin {
 
     async fn apply(&self, ctx: &Context) -> CoreResult<()> {
         let exporter: Arc<dyn Exporter> = Arc::new(CsvExporter);
-        ctx.provide(exporter).await;
+        ctx.provide_named("csv", exporter).await?;
         tracing::info!("已挂载 CsvExporterPlugin，提供 Exporter(csv) 服务");
         Ok(())
     }

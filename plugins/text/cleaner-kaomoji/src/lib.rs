@@ -40,7 +40,7 @@ impl Plugin for KaomojiCleanerPlugin {
 
     async fn apply(&self, ctx: &Context) -> CoreResult<()> {
         let cleaner: Arc<dyn TextCleaner> = Arc::new(KaomojiCleanerProvider);
-        ctx.provide(cleaner).await;
+        ctx.provide_named("kaomoji", cleaner).await?;
         tracing::info!("已挂载 KaomojiCleanerPlugin，提供 TextCleaner 服务");
         Ok(())
     }

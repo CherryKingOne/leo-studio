@@ -42,7 +42,7 @@ impl Plugin for TxtImporterPlugin {
 
     async fn apply(&self, ctx: &Context) -> CoreResult<()> {
         let importer: Arc<dyn Importer> = Arc::new(TxtImporter::new());
-        ctx.provide(importer).await;
+        ctx.provide_named("txt", importer).await?;
         tracing::info!("已挂载 TxtImporterPlugin，提供 Importer 服务");
         Ok(())
     }

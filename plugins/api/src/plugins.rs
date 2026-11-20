@@ -19,14 +19,14 @@ pub async fn setup_default_plugins(
     manager: &PluginManager,
     csv_dir: &Path,
 ) -> CoreResult<()> {
-    manager.register(Arc::new(KaomojiCleanerPlugin::new())).await;
-    manager.register(Arc::new(NovelRegexParserPlugin::new())).await;
-    manager.register(Arc::new(DialogueQuotesPlugin::new())).await;
-    manager.register(Arc::new(CsvStoragePlugin::new(csv_dir))).await;
-    manager.register(Arc::new(EdgeTtsPlugin::new())).await;
-    manager.register(Arc::new(TxtImporterPlugin::new())).await;
-    manager.register(Arc::new(JsonExporterPlugin::new())).await;
-    manager.register(Arc::new(CsvExporterPlugin::new())).await;
+    manager.register(Arc::new(KaomojiCleanerPlugin::new())).await?;
+    manager.register(Arc::new(NovelRegexParserPlugin::new())).await?;
+    manager.register(Arc::new(DialogueQuotesPlugin::new())).await?;
+    manager.register(Arc::new(CsvStoragePlugin::new(csv_dir))).await?;
+    manager.register(Arc::new(EdgeTtsPlugin::new())).await?;
+    manager.register(Arc::new(TxtImporterPlugin::new())).await?;
+    manager.register(Arc::new(JsonExporterPlugin::new())).await?;
+    manager.register(Arc::new(CsvExporterPlugin::new())).await?;
 
     manager.apply_all(ctx).await?;
     tracing::info!("官方内置插件已全部装配完毕");

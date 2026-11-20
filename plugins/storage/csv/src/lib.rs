@@ -53,7 +53,7 @@ impl Plugin for CsvStoragePlugin {
     async fn apply(&self, ctx: &Context) -> CoreResult<()> {
         let service = CsvStorageService::new(self.data_dir.clone())?;
         let provider: Arc<dyn StorageProvider> = Arc::new(service);
-        ctx.provide(provider).await;
+        ctx.provide_named("csv", provider).await?;
         tracing::info!(
             "已挂载 CsvStoragePlugin，数据存储目录: {:?}",
             self.data_dir

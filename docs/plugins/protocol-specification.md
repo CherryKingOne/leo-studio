@@ -103,17 +103,28 @@ pub struct Context {
 插件在 `apply` 阶段将自己实现的核心 SPI 服务注册至 `Context`：
 
 ```rust
-// 注册 TTSProvider SPI 实现
+// 以名称注册 TTSProvider SPI 实现，同类型可有多个提供者并存
 let provider: Arc<dyn TTSProvider> = Arc::new(MyCustomTTSProvider::new());
-ctx.provide(provider).await;
+ctx.provide_named("my-tts", provider).await?;
 
-// 注册纯结构体或工具服务
-ctx.provide(Arc::new(MyDictionaryService::new())).await;
+// 注册纯结构体或工具服务（使用默认名称 "default"）
+ctx.provide(Arc::new(MyDictionaryService::new())).await?;
 ```
+
+注册规则：
+
+- 服务按「类型 + 名称」登记，同一类型下的多个提供者按注册顺序保存。
+- 同类型同名称重复注册返回 `CoreError::ServiceConflict`，原有提供者保持不变。
+- 默认提供者为 `ctx.set_default::<T>(name)` 显式指定的那个，否则为最先注册者；由于插件按注册顺序挂载，默认值是确定的。
+- 官方插件使用的名称：`kaomoji`（TextCleaner）、`novel-regex`（ChapterSplitter）、`quotes`（DialogueSplitter）、`csv`（StorageProvider）、`edge-tts`（TTSProvider）、`txt`（Importer）、`csv` / `json`（Exporter，与 `format_name()` 一致）。
 
 ### 4.2 服务发现与消费 (`ctx.inject`)
 
 任何需要使用某项能力的组件（如 API 路由、MCP 工具、CLI 命令或其他插件），均通过类型安全地提取服务：
+
+- `ctx.inject::<T>()`：默认提供者。
+- `ctx.inject_named::<T>(name)`：指定名称的提供者，例如 `ctx.inject_named::<Arc<dyn Exporter>>("csv")`。
+- `ctx.inject_all::<T>()`：按注册顺序返回 `(名称, 服务)` 列表，例如按扩展名挑选 Importer。
 
 ```rust
 // 从 Context 提取注册的 StorageProvider
