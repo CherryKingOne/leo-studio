@@ -492,3 +492,48 @@ async fn v2_polyphone_save_and_clear() {
     let (status, _) = app.delete(&url).await;
     assert_eq!(status, 200);
 }
+
+#[tokio::test]
+async fn v2_import_survives_project_create() {
+    let dir = tempfile::tempdir().unwrap();
+    let app = TestApp::with_dir(dir.path(), 1).await;
+
+    let (status, body) = app
+        .post_multipart(
+            "/api/v2/import",
+            &[],
+            Some(("imported.txt", "text/plain", SAMPLE_NOVEL.as_bytes())),
+        )
+        .await;
+    assert_eq!(status, 200);
+    let imported_id = body["data"]["id"].as_str().unwrap().to_string();
+
+    let (_, body) = app
+        .post_multipart(
+            "/api/v2/projects",
+            &[("name", "后建项目")],
+            Some(("novel.txt", "text/plain", SAMPLE_NOVEL.as_bytes())),
+        )
+        .await;
+    assert_eq!(body["message"], "项目创建成功");
+    let project_id = body["data"]["project_id"].as_str().unwrap().to_string();
+
+    // 再导入一次，确认插件落盘不会抹掉 REST 新建的项目
+    let (status, _) = app
+        .post_multipart(
+            "/api/v2/import",
+            &[],
+            Some(("second.txt", "text/plain", SAMPLE_NOVEL.as_bytes())),
+        )
+        .await;
+    assert_eq!(status, 200);
+    drop(app);
+
+    let app = TestApp::with_dir(dir.path(), 1).await;
+    let (status, body) = app.get(&format!("/api/v2/export/{imported_id}")).await;
+    assert_eq!(status, 200, "新建项目后导入的剧本不应丢失: {body}");
+
+    let (status, body) = app.get(&format!("/api/v2/projects/{project_id}/chapters")).await;
+    assert_eq!(status, 200);
+    assert_eq!(body["data"]["total"], 2);
+}

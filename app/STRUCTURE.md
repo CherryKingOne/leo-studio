@@ -106,6 +106,7 @@ ApiResponse<T>   统一 { code, message, data, request_id }
 | `projects` | `.leo-studio/projects.csv` | 项目元信息与回收站标记 |
 
 - 上传文件位于 `storage/uploads/text-files/`。
+- `/import`、`/export`、`/synthesize` 使用的 CsvStoragePlugin 表位于 `.leo-studio/scripts/`（`novels.csv`、`novel_contents.csv`、`novel_sentences.csv`、`novel_dialogues.csv`、`novel_polyphones.csv`、`novel_audio_clips.csv`），与上表物理隔离；音频切片位于 `.leo-studio/audio/clips/`。首次启动时会把旧版本写在 `.leo-studio/` 根目录的插件数据迁移到 `scripts/`，旧文件保持不动。
 - CSV 采用「进程内全量 + 变更后临时文件原子替换」，兼容旧版 Python 生成的 UTF-8 CSV。
 - 表头缺失新增列时自动补齐。
 

@@ -1,5 +1,6 @@
+use std::collections::HashSet;
 use std::fs;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use tokio::sync::RwLock;
 
@@ -30,6 +31,16 @@ struct CsvTables {
     audio_clips: CsvTable,
 }
 
+/// 插件表所在子目录，与 REST Store 的同名 CSV 表物理隔离，避免互相整表覆盖。
+pub const TABLE_DIR: &str = "scripts";
+
+const NOVELS_FILE: &str = "novels.csv";
+const CONTENTS_FILE: &str = "novel_contents.csv";
+const SENTENCES_FILE: &str = "novel_sentences.csv";
+const DIALOGUES_FILE: &str = "novel_dialogues.csv";
+const POLYPHONES_FILE: &str = "novel_polyphones.csv";
+const AUDIO_CLIPS_FILE: &str = "novel_audio_clips.csv";
+
 impl CsvStorageService {
     pub fn new(base_dir: PathBuf) -> CoreResult<Self> {
         let audio_dir = base_dir.join("audio").join("clips");
@@ -37,14 +48,22 @@ impl CsvStorageService {
             CoreError::Storage(format!("创建音频目录 {:?} 失败: {e}", audio_dir))
         })?;
 
-        let tables = CsvTables {
-            novels: CsvTable::open(base_dir.join("novels.csv"), NOVEL_HEADERS)?,
-            contents: CsvTable::open(base_dir.join("novel_contents.csv"), CONTENT_HEADERS)?,
-            sentences: CsvTable::open(base_dir.join("novel_sentences.csv"), SENTENCE_HEADERS)?,
-            dialogues: CsvTable::open(base_dir.join("novel_dialogues.csv"), DIALOGUE_HEADERS)?,
-            polyphones: CsvTable::open(base_dir.join("novel_polyphones.csv"), POLYPHONE_HEADERS)?,
-            audio_clips: CsvTable::open(base_dir.join("novel_audio_clips.csv"), AUDIO_CLIP_HEADERS)?,
+        let table_dir = base_dir.join(TABLE_DIR);
+        let first_open = !table_dir.join(NOVELS_FILE).exists();
+
+        let mut tables = CsvTables {
+            novels: CsvTable::open(table_dir.join(NOVELS_FILE), NOVEL_HEADERS)?,
+            contents: CsvTable::open(table_dir.join(CONTENTS_FILE), CONTENT_HEADERS)?,
+            sentences: CsvTable::open(table_dir.join(SENTENCES_FILE), SENTENCE_HEADERS)?,
+            dialogues: CsvTable::open(table_dir.join(DIALOGUES_FILE), DIALOGUE_HEADERS)?,
+            polyphones: CsvTable::open(table_dir.join(POLYPHONES_FILE), POLYPHONE_HEADERS)?,
+            audio_clips: CsvTable::open(table_dir.join(AUDIO_CLIPS_FILE), AUDIO_CLIP_HEADERS)?,
         };
+
+        if first_open {
+            migrate_legacy_tables(&base_dir, &mut tables)?;
+            tables.save_all()?;
+        }
 
         Ok(Self {
             base_dir,
@@ -52,6 +71,83 @@ impl CsvStorageService {
             tables: Arc::new(RwLock::new(tables)),
         })
     }
+}
+
+impl CsvTables {
+    fn save_all(&self) -> CoreResult<()> {
+        self.novels.save()?;
+        self.contents.save()?;
+        self.sentences.save()?;
+        self.dialogues.save()?;
+        self.polyphones.save()?;
+        self.audio_clips.save()
+    }
+}
+
+/// 旧版本把插件表直接写在 `base_dir` 下，与 REST Store 共用文件名。
+/// 首次启用独立子目录时，只把插件写入的行（novels 表带 `updated_at`）迁移过来，旧文件保持不动。
+fn migrate_legacy_tables(base_dir: &Path, tables: &mut CsvTables) -> CoreResult<()> {
+    let legacy_novels_path = base_dir.join(NOVELS_FILE);
+    if legacy_novels_path.exists() {
+        let legacy_novels = CsvTable::open(legacy_novels_path, NOVEL_HEADERS)?;
+        let novel_ids: HashSet<String> = legacy_novels
+            .records()
+            .iter()
+            .filter(|r| !str_field(r, "updated_at").is_empty())
+            .map(|r| str_field(r, "novel_id").to_string())
+            .collect();
+
+        if !novel_ids.is_empty() {
+            let owned = |r: &Record| novel_ids.contains(str_field(r, "novel_id"));
+            tables.novels.replace_records(
+                legacy_novels.records().iter().filter(|r| owned(r)).cloned().collect(),
+            );
+            tables
+                .contents
+                .replace_records(legacy_rows(base_dir, CONTENTS_FILE, CONTENT_HEADERS, owned)?);
+            tables
+                .sentences
+                .replace_records(legacy_rows(base_dir, SENTENCES_FILE, SENTENCE_HEADERS, owned)?);
+            tables
+                .dialogues
+                .replace_records(legacy_rows(base_dir, DIALOGUES_FILE, DIALOGUE_HEADERS, owned)?);
+
+            let sentence_ids: HashSet<String> = tables
+                .sentences
+                .records()
+                .iter()
+                .map(|r| str_field(r, "sentence_id").to_string())
+                .collect();
+            tables.polyphones.replace_records(legacy_rows(
+                base_dir,
+                POLYPHONES_FILE,
+                POLYPHONE_HEADERS,
+                |r| sentence_ids.contains(str_field(r, "sentence_id")),
+            )?);
+        }
+    }
+
+    tables.audio_clips.replace_records(legacy_rows(
+        base_dir,
+        AUDIO_CLIPS_FILE,
+        AUDIO_CLIP_HEADERS,
+        |_| true,
+    )?);
+    Ok(())
+}
+
+fn legacy_rows(
+    base_dir: &Path,
+    filename: &str,
+    headers: &[&str],
+    keep: impl Fn(&Record) -> bool,
+) -> CoreResult<Vec<Record>> {
+    let path = base_dir.join(filename);
+    if !path.exists() {
+        return Ok(Vec::new());
+    }
+    let table = CsvTable::open(path, headers)?;
+    Ok(table.records().iter().filter(|r| keep(r)).cloned().collect())
 }
 
 #[async_trait]
@@ -230,14 +326,7 @@ impl StorageProvider for CsvStorageService {
         tables.audio_clips.replace_records(audio_rows);
 
         // 统一原子落盘
-        tables.novels.save()?;
-        tables.contents.save()?;
-        tables.sentences.save()?;
-        tables.dialogues.save()?;
-        tables.polyphones.save()?;
-        tables.audio_clips.save()?;
-
-        Ok(())
+        tables.save_all()
     }
 
     async fn load_script(&self, project_id: &str) -> CoreResult<Option<ScriptDocument>> {

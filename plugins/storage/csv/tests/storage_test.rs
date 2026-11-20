@@ -67,11 +67,12 @@ async fn test_csv_storage_plugin_full_cycle() {
     storage.save_script(&script).await.unwrap();
 
     // 验证生成的 CSV 文件存在且不为空
-    let novels_csv = data_dir.join("novels.csv");
-    let contents_csv = data_dir.join("novel_contents.csv");
-    let sentences_csv = data_dir.join("novel_sentences.csv");
-    let dialogues_csv = data_dir.join("novel_dialogues.csv");
-    let audio_clips_csv = data_dir.join("novel_audio_clips.csv");
+    let table_dir = data_dir.join("scripts");
+    let novels_csv = table_dir.join("novels.csv");
+    let contents_csv = table_dir.join("novel_contents.csv");
+    let sentences_csv = table_dir.join("novel_sentences.csv");
+    let dialogues_csv = table_dir.join("novel_dialogues.csv");
+    let audio_clips_csv = table_dir.join("novel_audio_clips.csv");
 
     assert!(novels_csv.exists());
     assert!(contents_csv.exists());
@@ -104,4 +105,81 @@ async fn test_csv_storage_plugin_full_cycle() {
     // 3. 验证音频二进制回读
     let audio_bytes = storage.load_audio_clip(&loaded_audio.storage_key).await.unwrap().expect("音频字节必须存在");
     assert_eq!(audio_bytes, fake_mp3_data);
+}
+
+#[tokio::test]
+async fn test_csv_storage_does_not_touch_rest_store_tables() {
+    let tmp = tempdir().unwrap();
+    let data_dir = tmp.path().to_path_buf();
+
+    // 旧版本两套存储共用同名文件：REST 行没有 updated_at，插件行有
+    std::fs::write(
+        data_dir.join("novels.csv"),
+        "novel_id,title,format,chapter_count,total_words,line_count,created_at,author,genre,updated_at\n\
+         rest_1,REST 小说,txt,1,10,3,2026-01-01T00:00:00+00:00,,,\n\
+         old_plugin,旧导入,,1,5,,2026-01-01T00:00:00+00:00,佚名,,2026-01-02T00:00:00+00:00\n",
+    )
+    .unwrap();
+    std::fs::write(
+        data_dir.join("novel_contents.csv"),
+        "chapter_id,novel_id,chapter_index,chapter_title,content,word_count,fingerprint\n\
+         rest_ch,rest_1,0,第一章,正文,10,\n\
+         old_ch,old_plugin,1,旧章节,,5,v_1_ch_1\n",
+    )
+    .unwrap();
+    std::fs::write(
+        data_dir.join("novel_sentences.csv"),
+        "sentence_id,novel_id,chapter_id,sentence_index,content,word_count\n\
+         rest_s,rest_1,rest_ch,0,正文,2\n\
+         old_s,old_plugin,old_ch,0,旧句子。,4\n",
+    )
+    .unwrap();
+    std::fs::write(
+        data_dir.join("novel_dialogues.csv"),
+        "dialogue_id,novel_id,chapter_id,content,segment_id,sentence_id,segment_index,segment_kind\n\
+         rest_d,rest_1,rest_ch,正文,,,,\n\
+         ,old_plugin,old_ch,旧句子。,old_seg,old_s,0,narration\n",
+    )
+    .unwrap();
+    let rest_novels_before = std::fs::read(data_dir.join("novels.csv")).unwrap();
+
+    let ctx = Context::new("test_storage_isolation");
+    CsvStoragePlugin::new(&data_dir).apply(&ctx).await.unwrap();
+    let storage = ctx.inject::<Arc<dyn StorageProvider>>().await.unwrap();
+
+    // 旧数据中插件写入的剧本仍可读取，REST 行不会被迁入
+    let migrated = storage.load_script("old_plugin").await.unwrap().expect("旧剧本应可读取");
+    assert_eq!(migrated.title, "旧导入");
+    assert_eq!(migrated.chapters.len(), 1);
+    assert_eq!(migrated.chapters[0].paragraphs[0].sentences[0].segments.len(), 1);
+    assert!(storage.load_script("rest_1").await.unwrap().is_none());
+
+    let mut script = ScriptDocument::new("p_new".into(), "新导入".into(), "".into(), "".into());
+    let mut chapter = ChapterNode::new("ch_new".into(), 1, "v_1_ch_1".into(), "第一章".into());
+    let mut paragraph = ParagraphNode {
+        id: "p_ch_new".into(),
+        index: 0,
+        sentences: Vec::new(),
+    };
+    let mut sentence = SentenceNode::new("s_new".into(), 0, "你好。".into());
+    sentence.segments.push(SegmentNode::new(
+        "seg_new".into(),
+        0,
+        SegmentKind::Narration,
+        "你好。".into(),
+    ));
+    paragraph.sentences.push(sentence);
+    chapter.paragraphs.push(paragraph);
+    script.chapters.push(chapter);
+    storage.save_script(&script).await.unwrap();
+
+    // 插件保存不再改写 REST Store 的表
+    assert_eq!(std::fs::read(data_dir.join("novels.csv")).unwrap(), rest_novels_before);
+
+    // 重新打开后两个剧本都在
+    let ctx = Context::new("test_storage_reopen");
+    CsvStoragePlugin::new(&data_dir).apply(&ctx).await.unwrap();
+    let storage = ctx.inject::<Arc<dyn StorageProvider>>().await.unwrap();
+    assert!(storage.load_script("p_new").await.unwrap().is_some());
+    assert!(storage.load_script("old_plugin").await.unwrap().is_some());
 }

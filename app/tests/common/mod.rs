@@ -1,3 +1,4 @@
+use std::path::Path;
 use std::sync::Arc;
 
 use axum::Router;
@@ -17,10 +18,15 @@ pub struct TestApp {
 impl TestApp {
     pub async fn new(max_upload_size_mb: usize) -> Self {
         let base = tempfile::tempdir().unwrap();
-        let upload_dir = base.path().join("uploads");
-        let csv_dir = base.path().join("csv");
         // 故意泄漏临时目录，保持路径在测试期间有效。
         let base = Box::leak(Box::new(base));
+        Self::with_dir(base.path(), max_upload_size_mb).await
+    }
+
+    /// 在指定目录上启动应用，同一目录可多次启动以模拟进程重启。
+    pub async fn with_dir(base: &Path, max_upload_size_mb: usize) -> Self {
+        let upload_dir = base.join("uploads");
+        let csv_dir = base.join("csv");
 
         let settings = Settings {
             app_name: "Leo Studio API".to_string(),
@@ -30,7 +36,7 @@ impl TestApp {
             max_upload_size_mb,
             host: "127.0.0.1".to_string(),
             port: 58685,
-            data_dir: base.path().to_path_buf(),
+            data_dir: base.to_path_buf(),
             upload_dir: upload_dir.clone(),
             csv_dir: csv_dir.clone(),
             allowed_extensions: vec![".txt".to_string()],
