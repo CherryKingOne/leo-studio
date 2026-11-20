@@ -1,12 +1,12 @@
 [package]
-name = "leo-studio-backend"
+name = "leo-app"
 version = "0.2.0"
 edition = "2024"
-description = "Leo Studio 后端微内核引导启动程序"
+description = "Leo Studio 微内核主机启动程序 Host App"
 license = "MIT"
 
 [[bin]]
-name = "leo-studio-backend"
+name = "leo-app"
 path = "src/main.rs"
 
 [dependencies]

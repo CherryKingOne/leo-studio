@@ -279,7 +279,7 @@ leo-studio/
 │   └── mcp/                               # 【MCP 协议服务插件】
 │       └── (Model Context Protocol JSON-RPC / SSE 工具与工作流提示词)
 │
-├── backend/                               # 【微内核主机引导器 Host Launcher】
+├── app/                                   # 【微内核主机引导器 Host Launcher】
 │   ├── Cargo.toml                         # 组装依赖的插件清单
 │   └── src/
 │       ├── main.rs                        # 极简引导入口：读取配置、初始化内核 Context 并挂载各类插件

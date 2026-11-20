@@ -1,6 +1,6 @@
-use leo_studio_backend::text::kaomoji::{clean_line_text, strip_kaomoji};
-use leo_studio_backend::text::parsers::{clean_text, count_words, parse_chapters};
-use leo_studio_backend::text::processor::split_sentences_by_lines;
+use leo_app::text::kaomoji::{clean_line_text, strip_kaomoji};
+use leo_app::text::parsers::{clean_text, count_words, parse_chapters};
+use leo_app::text::processor::split_sentences_by_lines;
 
 const CLEANABLE_KAOMOJI: &[&str] = &[
     "╭(●｀∀´●)╯╰(●’◡’●)╮",

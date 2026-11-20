@@ -1,9 +1,9 @@
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-use leo_studio_backend::config::Settings;
-use leo_studio_backend::mcp::{McpHandler, McpSettings};
-use leo_studio_backend::storage::store::Store;
+use leo_app::config::Settings;
+use leo_app::mcp::{McpHandler, McpSettings};
+use leo_app::storage::store::Store;
 use serde_json::{Map, Value, json};
 use tokio::sync::Mutex;
 
@@ -45,7 +45,7 @@ fn make_handler(dir: &Path, mcp: McpSettings) -> McpHandler {
     let store = Arc::new(Mutex::new(
         Store::new(&settings).expect("初始化 Store 失败"),
     ));
-    let state = leo_studio_backend::state::AppState {
+    let state = leo_app::state::AppState {
         settings,
         store,
         context: leo_core::Context::new("mcp_test"),

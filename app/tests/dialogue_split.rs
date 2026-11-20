@@ -1,14 +1,14 @@
 use std::fs;
 use std::path::Path;
 
-use leo_studio_backend::config::Settings;
-use leo_studio_backend::modules::projects::storage_compat::{backfill_dialogues, save_file};
-use leo_studio_backend::storage::csv_table::Record;
-use leo_studio_backend::storage::store::Store;
-use leo_studio_backend::text::dialogue::{
+use leo_app::config::Settings;
+use leo_app::modules::projects::storage_compat::{backfill_dialogues, save_file};
+use leo_app::storage::csv_table::Record;
+use leo_app::storage::store::Store;
+use leo_app::text::dialogue::{
     DialogueSegment, ParseStatus, SegmentType, split_dialogue_line,
 };
-use leo_studio_backend::text::processor::{
+use leo_app::text::processor::{
     clean_dialogue_records, create_dialogue_records_from_sentence,
 };
 

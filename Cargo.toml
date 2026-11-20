@@ -12,7 +12,7 @@ members = [
     "plugins/tts/edge",
     "plugins/api",
     "plugins/mcp",
-    "backend",
+    "app",
 ]
 
 [profile.release]

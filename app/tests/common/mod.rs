@@ -4,9 +4,9 @@ use axum::Router;
 use axum::body::Body;
 use axum::http::{Request, StatusCode};
 use http_body_util::BodyExt;
-use leo_studio_backend::app::build_router;
-use leo_studio_backend::config::Settings;
-use leo_studio_backend::storage::store::Store;
+use leo_app::app::build_router;
+use leo_app::config::Settings;
+use leo_app::storage::store::Store;
 use serde_json::Value;
 use tower::ServiceExt;
 
