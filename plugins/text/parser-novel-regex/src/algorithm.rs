@@ -1,4 +1,3 @@
-use std::collections::HashMap;
 use std::path::Path;
 use std::sync::LazyLock;
 
@@ -114,56 +113,63 @@ pub fn parse_chapters(text: &str) -> Vec<(String, String)> {
 }
 
 /// 将中文数字或阿拉伯数字转换为整型。
+///
+/// 全程使用 checked 算术：超出 `i64` 范围（如“一万万万万万”或 20 位阿拉伯数字）、
+/// 或混入无法识别的字符时返回 `None`，不会在 debug 下 panic，也不会在 release 下回绕成错误序号。
 pub fn cn_to_int(num_str: &str) -> Option<i64> {
     let cleaned = num_str.trim();
     if cleaned.is_empty() {
         return None;
     }
-    if let Ok(value) = cleaned.parse::<i64>() {
-        return Some(value);
+    if cleaned.chars().all(|ch| ch.is_ascii_digit()) {
+        // 纯阿拉伯数字：溢出直接拒绝，而不是落入中文分支得到 0
+        return cleaned.parse::<i64>().ok();
     }
 
-    let digits: HashMap<char, i64> = [
-        ('零', 0),
-        ('一', 1),
-        ('二', 2),
-        ('两', 2),
-        ('三', 3),
-        ('四', 4),
-        ('五', 5),
-        ('六', 6),
-        ('七', 7),
-        ('八', 8),
-        ('九', 9),
-    ]
-    .into_iter()
-    .collect();
-    let units: HashMap<char, i64> = [('十', 10), ('百', 100), ('千', 1000), ('万', 10000)]
-        .into_iter()
-        .collect();
-
-    let mut cleaned = cleaned.to_string();
-    if cleaned.starts_with('十') {
-        cleaned = format!("一{cleaned}");
-    }
+    let digit_of = |ch: char| -> Option<i64> {
+        Some(match ch {
+            '零' => 0,
+            '一' => 1,
+            '二' | '两' => 2,
+            '三' => 3,
+            '四' => 4,
+            '五' => 5,
+            '六' => 6,
+            '七' => 7,
+            '八' => 8,
+            '九' => 9,
+            _ => return None,
+        })
+    };
+    let unit_of = |ch: char| -> Option<i64> {
+        Some(match ch {
+            '十' => 10,
+            '百' => 100,
+            '千' => 1000,
+            '万' => 10_000,
+            _ => return None,
+        })
+    };
 
     let mut value = 0i64;
     let mut current = 0i64;
     for ch in cleaned.chars() {
-        if let Some(digit) = digits.get(&ch) {
-            current = *digit;
-        } else if let Some(unit) = units.get(&ch) {
-            if *unit == 10000 {
-                value = (value + current) * 10000;
-                current = 0;
+        if let Some(digit) = digit_of(ch) {
+            current = digit;
+        } else if let Some(unit) = unit_of(ch) {
+            if unit == 10_000 {
+                value = value.checked_add(current)?.checked_mul(10_000)?;
             } else {
-                value += if current != 0 { current } else { 1 } * unit;
-                current = 0;
+                // 单位前没有数字时按 1 计（如开头的“十”表示“一十”）
+                let multiplier = if current != 0 { current } else { 1 };
+                value = value.checked_add(multiplier.checked_mul(unit)?)?;
             }
+            current = 0;
+        } else {
+            return None;
         }
     }
-    value += current;
-    Some(value)
+    value.checked_add(current)
 }
 
 /// 提取章节标题中的章节序号，支持阿拉伯数字与中文数字。
