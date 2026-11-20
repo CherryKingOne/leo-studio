@@ -39,14 +39,16 @@ v2 面向新客户端，已在 `backend/src/modules/v2` 实现。
 cd backend
 cargo run --release --bin leo-studio-backend
 # 开发模式：cargo run --bin leo-studio-backend
-# 监听 http://0.0.0.0:58685
+# 监听 http://127.0.0.1:58685
 ```
 
 常用环境变量：
 
 | 环境变量 | 默认值 | 说明 |
 | --- | --- | --- |
-| `LEO_HOST` | `0.0.0.0` | 监听地址 |
+| `LEO_HOST` | `127.0.0.1` | 监听地址（对局域网开放需显式设为 `0.0.0.0`） |
+| `LEO_CORS_ORIGINS` | `http://localhost:*,http://127.0.0.1:*,http://[::1]:*` | 跨域来源白名单 |
+| `LEO_API_TOKEN` | 空 | 配置后需携带 `Authorization: Bearer <token>` |
 | `LEO_PORT` | `58685` | 监听端口 |
 | `LEO_DATA_DIR` | `.` | 数据根目录 |
 | `LEO_CSV_DIR` | `<data>/.leo-studio` | CSV 目录 |

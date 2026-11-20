@@ -20,10 +20,11 @@ Leo Studio 后端服务的全部配置项均可通过**环境变量**或 `backen
 | `app_name` | `LEO_APP_NAME` | `string` | `Leo Studio API` | 服务名称 |
 | `app_version` | `LEO_APP_VERSION` | `string` | `0.1.0` | 服务版本号 |
 | `debug` | `LEO_DEBUG` | `boolean` | `true` | 调试模式 |
-| `cors_origins` | `LEO_CORS_ORIGINS` | `list` | `*` | 允许跨域的来源，逗号分隔 |
+| `cors_origins` | `LEO_CORS_ORIGINS` | `list` | `http://localhost:*,http://127.0.0.1:*,http://[::1]:*` | 允许跨域的来源白名单，逗号分隔；`:*` 表示该主机任意端口；`*` 表示任意来源但不再允许携带凭据（不推荐） |
 | `max_upload_size_mb` | `LEO_MAX_UPLOAD_SIZE_MB` | `integer` | `50` | 全局上传大小上限（MB） |
-| `host` | `LEO_HOST` | `string` | `0.0.0.0` | 监听地址 |
+| `host` | `LEO_HOST` | `string` | `127.0.0.1` | 监听地址；默认仅本机可访问，对局域网开放需显式设为 `0.0.0.0` 并建议同时配置 `LEO_API_TOKEN` |
 | `port` | `LEO_PORT` | `integer` | `58685` | 监听端口 |
+| `api_token` | `LEO_API_TOKEN` | `string` | 空（不鉴权） | 配置后所有 REST 与 MCP 请求需携带 `Authorization: Bearer <token>`，`/health` 与 `/api/v2/health` 除外 |
 | `data_dir` | `LEO_DATA_DIR` | `path` | `.` | 数据根目录，相对路径基于进程工作目录解析 |
 
 ## 文本文件模块配置

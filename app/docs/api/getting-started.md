@@ -15,7 +15,7 @@
 cd backend
 cargo build --release
 
-# 默认监听 0.0.0.0:58685，数据目录为项目根目录
+# 默认监听 127.0.0.1:58685（仅本机），数据目录为项目根目录
 cargo run --release --bin leo-studio-backend
 # 开发模式
 cargo run --bin leo-studio-backend
@@ -86,7 +86,7 @@ npm install
 npm run dev
 ```
 
-后端已默认开启 CORS，允许前端跨域访问。
+后端默认只允许本机来源（`http://localhost:*`、`http://127.0.0.1:*`、`http://[::1]:*`）跨域访问；其它前端域名请通过 `LEO_CORS_ORIGINS` 显式加入白名单。若配置了 `LEO_API_TOKEN`，前端请求需携带 `Authorization: Bearer <token>`。
 
 ## 数据与测试
 

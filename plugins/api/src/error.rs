@@ -11,6 +11,7 @@ pub struct ErrorCode;
 impl ErrorCode {
     pub const SUCCESS: i64 = 0;
     pub const INVALID_PARAMETER: i64 = 40000;
+    pub const UNAUTHORIZED: i64 = 40100;
     pub const FILE_TOO_LARGE: i64 = 41300;
     pub const UNSUPPORTED_FILE_TYPE: i64 = 41500;
     pub const FILE_NOT_FOUND: i64 = 40400;
@@ -48,6 +49,15 @@ impl AppError {
             ErrorCode::INVALID_PARAMETER,
             message,
             StatusCode::UNPROCESSABLE_ENTITY,
+            None,
+        )
+    }
+
+    pub fn unauthorized(message: impl Into<String>) -> Self {
+        Self::new(
+            ErrorCode::UNAUTHORIZED,
+            message,
+            StatusCode::UNAUTHORIZED,
             None,
         )
     }

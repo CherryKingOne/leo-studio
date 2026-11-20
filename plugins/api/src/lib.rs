@@ -17,7 +17,9 @@ use leo_core::context::Context;
 use leo_core::error::CoreResult;
 use leo_core::plugin::{Plugin, PluginCategory, PluginManifest};
 
-pub use app::{build_app_state, build_router, build_router_from_state, create_cors_layer};
+pub use app::{
+    build_app_state, build_router, build_router_from_state, create_cors_layer, require_api_token,
+};
 pub use config::Settings;
 pub use error::{AppError, AppResult, ErrorCode};
 pub use response::ApiResponse;

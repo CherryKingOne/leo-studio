@@ -14,7 +14,7 @@ cargo run --bin leo-studio-backend
 启动后日志输出监听地址，默认：
 
 ```text
-Leo Studio API 已启动：http://0.0.0.0:58685
+Leo Studio API 已启动：http://127.0.0.1:58685
 ```
 
 可通过环境变量覆盖监听地址与端口：

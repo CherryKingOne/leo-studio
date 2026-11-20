@@ -1,6 +1,8 @@
 use std::sync::Arc;
 
-use leo_plugin_api::{ApiPlugin, Settings, Store, build_app_state, build_router_from_state};
+use leo_plugin_api::{
+    ApiPlugin, Settings, Store, build_app_state, build_router_from_state, require_api_token,
+};
 use leo_plugin_mcp::{McpPlugin, McpSettings, http_router};
 
 #[tokio::main]
@@ -45,7 +47,15 @@ async fn main() {
     if mcp_settings.enabled {
         let path = mcp_settings.http_path.clone();
         tracing::info!("挂载 MCP HTTP 服务端点: {path}");
-        router = router.nest(&path, http_router(mcp_settings, state));
+        let mcp = http_router(mcp_settings, state).layer(axum::middleware::from_fn_with_state(
+            settings.clone(),
+            require_api_token,
+        ));
+        router = router.nest(&path, mcp);
+    }
+
+    if settings.api_token.is_none() && !is_loopback_host(&settings.host) {
+        tracing::warn!("服务监听在非本机地址 {address} 且未配置 LEO_API_TOKEN，局域网内任何人都可调用");
     }
 
     tracing::info!("Leo Studio 后端微内核已启动：http://{address}");
@@ -54,4 +64,12 @@ async fn main() {
         tracing::error!("服务异常退出：{err}");
         std::process::exit(1);
     }
+}
+
+fn is_loopback_host(host: &str) -> bool {
+    host == "localhost"
+        || host
+            .trim_matches(|c| c == '[' || c == ']')
+            .parse::<std::net::IpAddr>()
+            .is_ok_and(|ip| ip.is_loopback())
 }

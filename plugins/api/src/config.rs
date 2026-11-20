@@ -13,6 +13,7 @@ pub struct Settings {
     pub max_upload_size_mb: usize,
     pub host: String,
     pub port: u16,
+    pub api_token: Option<String>,
 
     pub data_dir: PathBuf,
     pub upload_dir: PathBuf,
@@ -48,10 +49,14 @@ impl Settings {
             app_name: env_string("LEO_APP_NAME", "Leo Studio API"),
             app_version: env_string("LEO_APP_VERSION", "0.1.0"),
             debug: env_bool("LEO_DEBUG", true),
-            cors_origins: env_list("LEO_CORS_ORIGINS", vec!["*".to_string()]),
+            cors_origins: env_list("LEO_CORS_ORIGINS", default_cors_origins()),
             max_upload_size_mb: env_u64("LEO_MAX_UPLOAD_SIZE_MB", 50) as usize,
-            host: env_string("LEO_HOST", "0.0.0.0"),
+            host: env_string("LEO_HOST", "127.0.0.1"),
             port: env_u64("LEO_PORT", 58685) as u16,
+            api_token: std::env::var("LEO_API_TOKEN")
+                .ok()
+                .map(|v| v.trim().to_string())
+                .filter(|v| !v.is_empty()),
 
             data_dir,
             upload_dir,
@@ -90,6 +95,15 @@ impl Settings {
             .unwrap_or(self.max_upload_size_mb);
         mb.saturating_mul(1024 * 1024)
     }
+}
+
+/// 默认只允许本机来源（任意端口），`:*` 表示端口通配。
+pub fn default_cors_origins() -> Vec<String> {
+    vec![
+        "http://localhost:*".to_string(),
+        "http://127.0.0.1:*".to_string(),
+        "http://[::1]:*".to_string(),
+    ]
 }
 
 fn env_string(key: &str, default: &str) -> String {

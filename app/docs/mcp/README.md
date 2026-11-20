@@ -120,7 +120,7 @@ Claude Desktop 原生只支持 stdio，需要额外桥接。完整配置、JSON-
 
 ## 安全边界
 
-- 与 REST 共用 `LEO_HOST` / `LEO_PORT`（默认 `0.0.0.0:58685`），不做额外鉴权。
+- 与 REST 共用 `LEO_HOST` / `LEO_PORT`（默认 `127.0.0.1:58685`，仅本机）与 `LEO_API_TOKEN`；配置 token 后 MCP 客户端需携带 `Authorization: Bearer <token>`。
 - 写入与破坏性工具默认全部启用；破坏性操作必须显式 `confirm=true`，`leo_append_chapters` 默认 `dry_run=true`。
 - `leo_append_chapters` 默认 `dry_run=true`，先预检再写。
 - 导入只接受 `text` 参数，不读取服务器本地文件，避免路径穿越。

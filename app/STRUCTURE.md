@@ -181,7 +181,7 @@ ApiResponse<T>   统一 { code, message, data, request_id }
 ```bash
 cd backend
 cargo run --release --bin leo-studio-backend
-# 监听 http://0.0.0.0:58685
+# 监听 http://127.0.0.1:58685
 # 开发模式：cargo run --bin leo-studio-backend
 
 ```

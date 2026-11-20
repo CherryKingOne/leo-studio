@@ -16,6 +16,7 @@ pub struct TestApp {
 }
 
 impl TestApp {
+    #[allow(dead_code)]
     pub async fn new(max_upload_size_mb: usize) -> Self {
         let base = tempfile::tempdir().unwrap();
         // 故意泄漏临时目录，保持路径在测试期间有效。
@@ -23,12 +24,23 @@ impl TestApp {
         Self::with_dir(base.path(), max_upload_size_mb).await
     }
 
+    #[allow(dead_code)]
     /// 在指定目录上启动应用，同一目录可多次启动以模拟进程重启。
     pub async fn with_dir(base: &Path, max_upload_size_mb: usize) -> Self {
+        Self::with_config(base, max_upload_size_mb, |_| {}).await
+    }
+
+    #[allow(dead_code)]
+    /// 允许测试在启动前调整配置。
+    pub async fn with_config(
+        base: &Path,
+        max_upload_size_mb: usize,
+        configure: impl FnOnce(&mut Settings),
+    ) -> Self {
         let upload_dir = base.join("uploads");
         let csv_dir = base.join("csv");
 
-        let settings = Settings {
+        let mut settings = Settings {
             app_name: "Leo Studio API".to_string(),
             app_version: "0.1.0".to_string(),
             debug: true,
@@ -36,6 +48,7 @@ impl TestApp {
             max_upload_size_mb,
             host: "127.0.0.1".to_string(),
             port: 58685,
+            api_token: None,
             data_dir: base.to_path_buf(),
             upload_dir: upload_dir.clone(),
             csv_dir: csv_dir.clone(),
@@ -48,6 +61,7 @@ impl TestApp {
             novel_polyphones_csv_filename: "novel_polyphones.csv".to_string(),
             max_filename_length: 255,
         };
+        configure(&mut settings);
 
         let store = Store::with_filenames(
             upload_dir.clone(),
@@ -104,6 +118,7 @@ impl TestApp {
         .await
     }
 
+    #[allow(dead_code)]
     pub async fn post_multipart(
         &self,
         path: &str,
@@ -162,6 +177,7 @@ impl TestApp {
     }
 }
 
+#[allow(dead_code)]
 pub fn multipart_body(
     fields: &[(&str, &str)],
     file: Option<(&str, &str, &[u8])>,

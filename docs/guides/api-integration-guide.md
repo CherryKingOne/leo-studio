@@ -9,7 +9,8 @@ Leo Studio 提供现代化、全异步的高性能 HTTP API，基于 Rust Axum �
 - **默认服务基础 URL**：`http://127.0.0.1:58685`
 - **协议格式**：标准 HTTP / 1.1 与 HTTP / 2，请求头通常包含 `Content-Type: application/json`
 - **字符编码**：强制 UTF-8 编码
-- **跨域支持**：默认开启宽松 CORS 配置，允许前端本地开发调试（如 `localhost:5173` / `localhost:3000`）
+- **跨域支持**：默认只允许本机来源（`http://localhost:*`、`http://127.0.0.1:*`、`http://[::1]:*`，如 `localhost:5173` / `localhost:3000`）；其它来源需通过 `LEO_CORS_ORIGINS` 加入白名单
+- **鉴权**：默认不鉴权且仅监听本机；配置 `LEO_API_TOKEN` 后需携带 `Authorization: Bearer <token>`
 
 ---
 

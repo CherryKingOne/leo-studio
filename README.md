@@ -147,9 +147,13 @@ Leo Studio 为开发者提供了高度扩展能力的插件生态体系。所有
 如需自定义端口或数据目录，可在根目录下创建 `.env` 文件：
 
 ```bash
-# 服务监听地址与端口
+# 服务监听地址与端口（默认仅本机；对局域网开放请改为 0.0.0.0 并配置 LEO_API_TOKEN）
 LEO_HOST=127.0.0.1
 LEO_PORT=58685
+
+# 跨域来源白名单（默认仅本机来源）与可选 API Token
+LEO_CORS_ORIGINS=http://localhost:*,http://127.0.0.1:*,http://[::1]:*
+LEO_API_TOKEN=
 
 # 存储目录配置
 LEO_DATA_DIR=.
