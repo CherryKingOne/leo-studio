@@ -2,7 +2,7 @@ use std::fs;
 use std::path::Path;
 
 use leo_studio_backend::config::Settings;
-use leo_studio_backend::modules::text_files::service::{backfill_dialogues, save_file};
+use leo_studio_backend::modules::projects::storage_compat::{backfill_dialogues, save_file};
 use leo_studio_backend::storage::csv_table::Record;
 use leo_studio_backend::storage::store::Store;
 use leo_studio_backend::text::dialogue::{

@@ -1,13 +1,11 @@
 use std::sync::Arc;
 
-use leo_studio_backend::app::build_router;
-use leo_studio_backend::config::{Settings, load_dotenv};
-use leo_studio_backend::modules::text_files::service::backfill_dialogues;
-use leo_studio_backend::storage::store::Store;
+use leo_plugin_api::{ApiPlugin, Settings, Store, build_app_state, build_router_from_state};
+use leo_plugin_mcp::{McpPlugin, McpSettings, http_router};
 
 #[tokio::main]
 async fn main() {
-    load_dotenv();
+    dotenvy::dotenv().ok();
     tracing_subscriber::fmt()
         .with_env_filter(
             tracing_subscriber::EnvFilter::try_from_default_env()
@@ -15,20 +13,14 @@ async fn main() {
         )
         .init();
 
-    let settings = Settings::from_env();
-    let mut store = match Store::new(&settings) {
+    let settings = Arc::new(Settings::from_env());
+    let store = match Store::new(&settings) {
         Ok(store) => store,
         Err(err) => {
             tracing::error!("初始化数据存储失败：{err}");
             std::process::exit(1);
         }
     };
-
-    match backfill_dialogues(&mut store) {
-        Ok(0) => {}
-        Ok(count) => tracing::info!("补齐台词片段 {count} 行"),
-        Err(err) => tracing::warn!("补齐台词片段失败：{err}"),
-    }
 
     let address = format!("{}:{}", settings.host, settings.port);
     let listener = match tokio::net::TcpListener::bind(&address).await {
@@ -39,10 +31,26 @@ async fn main() {
         }
     };
 
-    let app = build_router(Arc::new(settings.clone()), store).await;
-    tracing::info!("Leo Studio API 已启动：http://{address}");
+    let state = build_app_state(settings.clone(), store).await;
 
-    if let Err(err) = axum::serve(listener, app).await {
+    // 挂载 API 与 MCP 插件清单
+    let api_plugin = Arc::new(ApiPlugin::new(settings.clone()));
+    state.plugin_manager.register(api_plugin).await;
+
+    let mcp_settings = Arc::new(McpSettings::from_env());
+    let mcp_plugin = Arc::new(McpPlugin::new(mcp_settings.clone()));
+    state.plugin_manager.register(mcp_plugin).await;
+
+    let mut router = build_router_from_state(state.clone());
+    if mcp_settings.enabled {
+        let path = mcp_settings.http_path.clone();
+        tracing::info!("挂载 MCP HTTP 服务端点: {path}");
+        router = router.nest(&path, http_router(mcp_settings, state));
+    }
+
+    tracing::info!("Leo Studio 后端微内核已启动：http://{address}");
+
+    if let Err(err) = axum::serve(listener, router).await {
         tracing::error!("服务异常退出：{err}");
         std::process::exit(1);
     }

@@ -3,13 +3,16 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum PluginCategory {
+    Importer,
+    Exporter,
     Cleaner,
     Parser,
     Dialogue,
     Tts,
     Storage,
-    Export,
+    Api,
     Transport,
+    Mcp,
     Other,
 }
 

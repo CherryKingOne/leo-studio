@@ -96,3 +96,18 @@ pub trait StorageProvider: Send + Sync {
     async fn save_audio_clip(&self, clip_id: &str, data: &[u8], format: AudioFormat) -> CoreResult<AudioClipRef>;
     async fn load_audio_clip(&self, storage_key: &str) -> CoreResult<Option<Vec<u8>>>;
 }
+
+/// 导入器扩展点
+#[async_trait]
+pub trait Importer: Send + Sync {
+    fn supported_extensions(&self) -> &[&str];
+    async fn import(&self, filename: &str, content: &[u8]) -> CoreResult<ScriptDocument>;
+}
+
+/// 导出器扩展点
+#[async_trait]
+pub trait Exporter: Send + Sync {
+    fn format_name(&self) -> &str;
+    fn mime_type(&self) -> &str;
+    async fn export(&self, script: &ScriptDocument) -> CoreResult<Vec<u8>>;
+}

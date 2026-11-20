@@ -2,11 +2,16 @@
 resolver = "2"
 members = [
     "core",
-    "plugins/cleaner-kaomoji",
-    "plugins/parser-novel-regex",
-    "plugins/dialogue-quotes",
-    "plugins/storage-csv",
-    "plugins/tts-edge",
+    "plugins/importers/txt",
+    "plugins/exporters/json",
+    "plugins/exporters/csv",
+    "plugins/text/cleaner-kaomoji",
+    "plugins/text/parser-novel-regex",
+    "plugins/text/dialogue-quotes",
+    "plugins/storage/csv",
+    "plugins/tts/edge",
+    "plugins/api",
+    "plugins/mcp",
     "backend",
 ]
 

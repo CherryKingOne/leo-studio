@@ -1,0 +1,16 @@
+[package]
+name = "leo-plugin-storage-csv"
+version = "0.1.0"
+edition = "2024"
+description = "Leo Studio 官方插件：基于纯文本 CSV 的轻量透明持久化存储引擎"
+license = "MIT"
+
+[dependencies]
+leo-core = { path = "../../../core" }
+csv = "1.4"
+async-trait = "0.1"
+tokio = { version = "1", features = ["sync", "rt", "macros", "fs"] }
+tracing = "0.1"
+uuid = { version = "1", features = ["v4"] }
+chrono = { version = "0.4", features = ["serde"] }
+tempfile = "3"

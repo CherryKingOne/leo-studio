@@ -1,0 +1,12 @@
+[package]
+name = "leo-plugin-dialogue-quotes"
+version = "0.1.0"
+edition = "2024"
+description = "Leo Studio 官方插件：成对中文双引号台词与旁白智能切分引擎"
+license = "MIT"
+
+[dependencies]
+leo-core = { path = "../../../core" }
+async-trait = "0.1"
+tokio = { version = "1", features = ["sync", "rt", "macros"] }
+tracing = "0.1"

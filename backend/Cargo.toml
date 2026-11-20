@@ -1,8 +1,8 @@
 [package]
 name = "leo-studio-backend"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2024"
-description = "Leo Studio 后端服务（Rust / Axum）"
+description = "Leo Studio 后端微内核引导启动程序"
 license = "MIT"
 
 [[bin]]
@@ -10,31 +10,27 @@ name = "leo-studio-backend"
 path = "src/main.rs"
 
 [dependencies]
-axum = { version = "0.8", features = ["multipart", "json"] }
+leo-core = { path = "../core" }
+leo-plugin-importer-txt = { path = "../plugins/importers/txt" }
+leo-plugin-exporter-csv = { path = "../plugins/exporters/csv" }
+leo-plugin-exporter-json = { path = "../plugins/exporters/json" }
+leo-plugin-cleaner-kaomoji = { path = "../plugins/text/cleaner-kaomoji" }
+leo-plugin-parser-novel-regex = { path = "../plugins/text/parser-novel-regex" }
+leo-plugin-dialogue-quotes = { path = "../plugins/text/dialogue-quotes" }
+leo-plugin-storage-csv = { path = "../plugins/storage/csv" }
+leo-plugin-tts-edge = { path = "../plugins/tts/edge" }
+leo-plugin-api = { path = "../plugins/api" }
+leo-plugin-mcp = { path = "../plugins/mcp" }
+
 tokio = { version = "1", features = ["full"] }
-tower-http = { version = "0.6", features = ["cors", "trace"] }
-serde = { version = "1", features = ["derive"] }
-serde_json = { version = "1", features = ["preserve_order"] }
-csv = "1"
-uuid = { version = "1", features = ["v4"] }
-chrono = { version = "0.4", features = ["serde"] }
-fancy-regex = "0.14"
-encoding_rs = "0.8"
-unicode_categories = "0.1"
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 dotenvy = "0.15"
-bytes = "1"
-percent-encoding = "2"
-rmcp = { version = "3.8", features = ["transport-streamable-http-server", "tower"] }
-leo-core = { path = "../core" }
-leo-plugin-cleaner-kaomoji = { path = "../plugins/cleaner-kaomoji" }
-leo-plugin-parser-novel-regex = { path = "../plugins/parser-novel-regex" }
-leo-plugin-dialogue-quotes = { path = "../plugins/dialogue-quotes" }
-leo-plugin-storage-csv = { path = "../plugins/storage-csv" }
-leo-plugin-tts-edge = { path = "../plugins/tts-edge" }
+axum = { version = "0.8" }
 
 [dev-dependencies]
 tempfile = "3"
 http-body-util = "0.1"
 tower = { version = "0.5", features = ["util"] }
+serde_json = "1"
+csv = "1"

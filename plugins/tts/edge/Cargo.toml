@@ -1,0 +1,15 @@
+[package]
+name = "leo-plugin-tts-edge"
+version = "0.1.0"
+edition = "2024"
+description = "Leo Studio 官方插件：基于微软 Edge-TTS 的高品质免费神经语音合成"
+license = "MIT"
+
+[dependencies]
+leo-core = { path = "../../../core" }
+async-trait = "0.1"
+tokio = { version = "1", features = ["sync", "rt"] }
+msedge-tts = "0.4"
+tracing = "0.1"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"

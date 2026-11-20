@@ -19,9 +19,12 @@ async fn test_voices_and_plugins_api() {
     let (status, body) = app.get("/api/v2/plugins").await;
     assert_eq!(status, StatusCode::OK);
     let plugins = body["data"].as_array().expect("plugins 必须是数组");
-    assert_eq!(plugins.len(), 5);
+    assert!(plugins.len() >= 5);
     assert!(plugins.iter().any(|p| p["id"] == "leo-plugin-tts-edge"));
     assert!(plugins.iter().any(|p| p["id"] == "leo-plugin-cleaner-kaomoji"));
+    assert!(plugins.iter().any(|p| p["id"] == "leo-plugin-importer-txt"));
+    assert!(plugins.iter().any(|p| p["id"] == "leo-plugin-exporter-csv"));
+    assert!(plugins.iter().any(|p| p["id"] == "leo-plugin-exporter-json"));
 }
 
 #[tokio::test]
@@ -32,7 +35,7 @@ async fn test_chapter_synthesize_and_audio_stream() {
     let sample_novel = "第一章 试炼开始\n林冲冷笑一声：“就凭你，也想夺我造化？”\n言罢，他一拳轰出。\n";
     let (status, body) = app
         .post_multipart(
-            "/api/v1/projects",
+            "/api/v2/projects",
             &[("name", "音频合成测试项目")],
             Some(("test.txt", "text/plain", sample_novel.as_bytes())),
         )
@@ -41,7 +44,7 @@ async fn test_chapter_synthesize_and_audio_stream() {
     let project_id = body["data"]["project_id"].as_str().unwrap();
 
     // 2. 获取章节 ID
-    let (status, body) = app.get(&format!("/api/v1/projects/{project_id}/chapters")).await;
+    let (status, body) = app.get(&format!("/api/v2/projects/{project_id}/chapters")).await;
     assert_eq!(status, StatusCode::OK);
     let chapters = body["data"]["items"].as_array().unwrap();
     assert_eq!(chapters.len(), 1);

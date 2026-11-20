@@ -260,25 +260,30 @@ leo-studio/
 │       │   └── manager.rs                 # 插件注册、拓扑排序与热重载
 │       └── error.rs
 │
-├── plugins/                               # 【官方内置插件集】
-│   ├── cleaner-kaomoji/                   # 颜文字与机械清洗插件
-│   ├── parser-novel-regex/                # 中文网络小说正则分章/分句插件
-│   ├── dialogue-quotes/                   # 中文双引号台词/旁白切分插件
-│   ├── storage-csv/                       # 原现存 6 张 CSV 表存储插件（保证向下兼容）
-│   ├── storage-sqlite/                    # 现代化 SQLite 本地轻量数据库插件
-│   ├── tts-edge/                          # 微软 Edge-TTS 免费语音合成插件
-│   ├── tts-cosyvoice-rpc/                 # CosyVoice Python RPC 语音插件
-│   └── export-ffmpeg/                     # FFmpeg 音频合并与字幕导出插件
+├── plugins/                               # 【分类归集插件集】
+│   ├── importers/                         # 【导入器插件分类】
+│   │   └── txt/                           # TXT 纯文本小说导入与 AST 解析插件
+│   ├── exporters/                         # 【导出器插件分类】
+│   │   ├── csv/                           # 制作台账 CSV 导出插件
+│   │   └── json/                          # 结构化剧本 AST JSON 导出插件
+│   ├── text/                              # 【文本处理插件分类】
+│   │   ├── cleaner-kaomoji/               # 颜文字与机械清洗插件
+│   │   ├── parser-novel-regex/            # 中文网络小说正则分章/分句插件
+│   │   └── dialogue-quotes/               # 中文双引号台词/旁白切分插件
+│   ├── tts/                               # 【语音合成插件分类】
+│   │   └── edge/                          # 微软 Edge-TTS 免费语音合成插件
+│   ├── storage/                           # 【持久化插件分类】
+│   │   └── csv/                           # 纯文本 CSV 文件存储插件（透明易调试）
+│   ├── api/                               # 【API 传输层服务插件】
+│   │   └── (Axum REST API /api/v2 路由、控制器与音频流式网关)
+│   └── mcp/                               # 【MCP 协议服务插件】
+│       └── (Model Context Protocol JSON-RPC / SSE 工具与工作流提示词)
 │
-├── backend/                               # 【主机应用程序 Host App】
-│   ├── Cargo.toml                         # 引用 core 与选用的 plugins
+├── backend/                               # 【微内核主机引导器 Host Launcher】
+│   ├── Cargo.toml                         # 组装依赖的插件清单
 │   └── src/
-│       ├── main.rs                        # 组装内核，加载启用的插件
-│       ├── app.rs                         # 装配 HTTP 与 MCP
-│       ├── transports/                    # 通讯通道
-│       │   ├── rest/                      # /api/v1, /api/v2
-│       │   └── mcp/                       # Model Context Protocol
-│       └── config.rs                      # 服务配置与插件启用开关
+│       ├── main.rs                        # 极简引导入口：读取配置、初始化内核 Context 并挂载各类插件
+│       └── lib.rs                         # 导出 API 与 MCP 接口供测试与宿主驱动
 └── (前端部分后续独立重新设计，此处暂不规划)
 ```
 
