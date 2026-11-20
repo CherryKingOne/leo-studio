@@ -41,15 +41,58 @@ pub struct RawDialogueSegment {
     pub kind: SegmentKind,
 }
 
+/// 台词切分的解析状态
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum DialogueParseStatus {
+    Ok,
+    UnpairedQuote,
+    Empty,
+}
+
+impl DialogueParseStatus {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Ok => "ok",
+            Self::UnpairedQuote => "unpaired_quote",
+            Self::Empty => "empty",
+        }
+    }
+}
+
+/// 单句台词切分结果（含解析状态）
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct RawDialogueLine {
+    pub segments: Vec<RawDialogueSegment>,
+    pub status: DialogueParseStatus,
+}
+
 /// 章节分章扩展点
 pub trait ChapterSplitter: Send + Sync {
     fn split_chapters(&self, full_text: &str) -> Vec<RawChapter>;
     fn resolve_fingerprint(&self, title: &str) -> String;
+
+    /// 从章节标题解析章节序号，用于追加章节时排序；无法识别时返回 None
+    fn chapter_number(&self, _title: &str) -> Option<i64> {
+        None
+    }
 }
 
 /// 单句内台词/旁白切分扩展点
 pub trait DialogueSplitter: Send + Sync {
     fn split_sentence(&self, sentence: &str) -> Vec<RawDialogueSegment>;
+
+    /// 切分并给出解析状态；默认实现只区分空句与正常句
+    fn analyze_sentence(&self, sentence: &str) -> RawDialogueLine {
+        let status = if sentence.trim().is_empty() {
+            DialogueParseStatus::Empty
+        } else {
+            DialogueParseStatus::Ok
+        };
+        RawDialogueLine {
+            segments: self.split_sentence(sentence),
+            status,
+        }
+    }
 }
 
 /// 语音合成输入载荷

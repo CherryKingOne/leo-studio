@@ -5,9 +5,9 @@ use crate::config::Settings;
 use crate::error::{AppError, AppResult, storage_io};
 use crate::storage::csv_table::{Record, str_field};
 use crate::storage::store::Store;
-use crate::text::parsers::{clean_text, count_words, parse_chapters, parse_novel_filename};
-use crate::text::processor::{
-    clean_dialogue_records, create_dialogue_records_from_sentence, create_sentence_records,
+use crate::text::{
+    TextPipeline, clean_dialogue_records, count_words, create_dialogue_records_from_sentence,
+    create_sentence_records, parse_novel_filename,
 };
 
 pub fn parse_datetime(value: &str) -> DateTime<Utc> {
@@ -113,6 +113,7 @@ pub struct SavedFileInfo {
 pub fn save_file(
     store: &mut Store,
     settings: &Settings,
+    text: &TextPipeline,
     filename: &str,
     content: &[u8],
     _content_type: Option<&str>,
@@ -149,8 +150,8 @@ pub fn save_file(
     })?;
 
     let content_text = decode_text(content);
-    let cleaned = clean_text(&content_text);
-    let mut chapters = parse_chapters(&cleaned);
+    let cleaned = text.clean_text(&content_text);
+    let mut chapters = text.parse_chapters(&cleaned);
     if chapters.is_empty() {
         chapters = vec![("全文".to_string(), cleaned.clone())];
     }
@@ -191,6 +192,7 @@ pub fn save_file(
 
         if !chapter_content.is_empty() {
             sentence_records.extend(create_sentence_records(
+                text,
                 &file_id,
                 &chapter_id,
                 chapter_content,
@@ -206,9 +208,9 @@ pub fn save_file(
         .find_all()
         .iter()
         .filter(|row| str_field(row, "novel_id") == file_id)
-        .flat_map(create_dialogue_records_from_sentence)
+        .flat_map(|row| create_dialogue_records_from_sentence(text, row))
         .collect();
-    let dialogue_records = clean_dialogue_records(dialogue_records);
+    let dialogue_records = clean_dialogue_records(text, dialogue_records);
     store.dialogues.insert_batch(dialogue_records);
 
     store.save_novels()?;
@@ -238,7 +240,7 @@ pub fn delete_file(store: &mut Store, file_id: &str) -> AppResult<()> {
     Ok(())
 }
 
-pub fn backfill_dialogues(store: &mut Store) -> AppResult<usize> {
+pub fn backfill_dialogues(store: &mut Store, text: &TextPipeline) -> AppResult<usize> {
     if !store.dialogues.find_all().is_empty() {
         return Ok(0);
     }
@@ -248,9 +250,9 @@ pub fn backfill_dialogues(store: &mut Store) -> AppResult<usize> {
     }
     let dialogue_records: Vec<Record> = sentences
         .iter()
-        .flat_map(create_dialogue_records_from_sentence)
+        .flat_map(|row| create_dialogue_records_from_sentence(text, row))
         .collect();
-    let dialogue_records = clean_dialogue_records(dialogue_records);
+    let dialogue_records = clean_dialogue_records(text, dialogue_records);
     let count = dialogue_records.len();
     store.dialogues.insert_batch(dialogue_records);
     store.save_dialogues()?;

@@ -181,6 +181,8 @@ pub struct RawChapter {
 pub trait ChapterSplitter: Send + Sync {
     fn split_chapters(&self, full_text: &str) -> Vec<RawChapter>;
     fn resolve_fingerprint(&self, title: &str) -> String;
+    /// 从标题解析章节序号，用于追加章节时排序（默认 None）
+    fn chapter_number(&self, _title: &str) -> Option<i64> { None }
 }
 ```
 
@@ -192,7 +194,18 @@ pub struct RawDialogueSegment {
     pub kind: SegmentKind, // Dialogue (台词) 或 Narration (旁白)
 }
 
+pub enum DialogueParseStatus { Ok, UnpairedQuote, Empty }
+
+pub struct RawDialogueLine {
+    pub segments: Vec<RawDialogueSegment>,
+    pub status: DialogueParseStatus,
+}
+
 pub trait DialogueSplitter: Send + Sync {
     fn split_sentence(&self, sentence: &str) -> Vec<RawDialogueSegment>;
+    /// 切分并给出解析状态（如悬空引号）；默认只区分空句与正常句
+    fn analyze_sentence(&self, sentence: &str) -> RawDialogueLine { /* 默认实现 */ }
 }
 ```
+
+> REST / MCP 的项目接口（新建项目、追加章节、修改章节正文）与 `/api/v2/import` 一样，全部通过 Context 中的 `TextCleaner` / `ChapterSplitter` / `DialogueSplitter` 默认提供者处理文本（每次请求时解析，`ctx.set_default` 即可切换）；`TxtImporter` 则在挂载时注入这三项服务，因此声明了对三个官方文本插件的依赖。

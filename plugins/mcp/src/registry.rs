@@ -619,9 +619,11 @@ impl McpHandler {
             "leo_create_project" => {
                 let name = req_string(args, "name")?;
                 let (text, filename) = self.read_text_input(args)?;
+                let text_pipeline = self.to_app_state().text_pipeline().await?;
                 let info = project_service::create_project(
                     &mut *self.store.lock().await,
                     &self.settings,
+                    &text_pipeline,
                     &name,
                     &filename,
                     text.as_bytes(),
@@ -637,9 +639,11 @@ impl McpHandler {
                 if !dry_run {
                     require_confirm(args, "追更写入")?;
                 }
+                let text_pipeline = self.to_app_state().text_pipeline().await?;
                 let info = project_service::append_chapters(
                     &mut *self.store.lock().await,
                     &self.settings,
+                    &text_pipeline,
                     &project_id,
                     &filename,
                     text.as_bytes(),
@@ -680,8 +684,10 @@ impl McpHandler {
                 if content.is_some() {
                     require_confirm(args, "覆盖章节正文")?;
                 }
+                let text_pipeline = self.to_app_state().text_pipeline().await?;
                 let info = project_service::update_chapter(
                     &mut *self.store.lock().await,
+                    &text_pipeline,
                     &project_id,
                     &chapter_id,
                     title.as_deref(),

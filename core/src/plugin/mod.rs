@@ -5,6 +5,7 @@ pub mod traits;
 pub use manifest::{PluginCategory, PluginManifest};
 pub use manager::{FailurePolicy, PluginFailure, PluginManager};
 pub use traits::{
-    ChapterSplitter, DialogueSplitter, Exporter, Importer, Plugin, RawChapter, RawDialogueSegment,
-    StorageProvider, SynthesisOutput, SynthesisPayload, TTSProvider, TextCleaner, VoiceInfo,
+    ChapterSplitter, DialogueParseStatus, DialogueSplitter, Exporter, Importer, Plugin,
+    RawChapter, RawDialogueLine, RawDialogueSegment, StorageProvider, SynthesisOutput,
+    SynthesisPayload, TTSProvider, TextCleaner, VoiceInfo,
 };

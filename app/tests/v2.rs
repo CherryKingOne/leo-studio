@@ -571,3 +571,121 @@ async fn v2_audio_clip_rejects_path_traversal() {
     assert_eq!(status, 200);
     assert_eq!(body, "ID3OK");
 }
+
+struct MarkerCleaner;
+
+impl leo_core::plugin::TextCleaner for MarkerCleaner {
+    fn clean_line(&self, text: &str) -> String {
+        text.trim().replace("头好痛", "【已替换】")
+    }
+}
+
+struct UpperExporter;
+
+#[async_trait::async_trait]
+impl leo_core::plugin::Exporter for UpperExporter {
+    fn format_name(&self) -> &str {
+        "md"
+    }
+
+    fn mime_type(&self) -> &str {
+        "text/markdown; charset=utf-8"
+    }
+
+    async fn export(&self, script: &leo_core::ast::ScriptDocument) -> leo_core::CoreResult<Vec<u8>> {
+        Ok(format!("# {}", script.title).into_bytes())
+    }
+}
+
+#[tokio::test]
+async fn v2_endpoints_use_plugin_services() {
+    use std::sync::Arc;
+
+    use leo_app::config::Settings;
+    use leo_app::storage::store::Store;
+    use leo_app::{build_app_state, build_router_from_state};
+    use leo_core::plugin::{Exporter, TextCleaner};
+
+    let dir = tempfile::tempdir().unwrap();
+    let settings = Arc::new(Settings {
+        data_dir: dir.path().to_path_buf(),
+        upload_dir: dir.path().join("uploads"),
+        csv_dir: dir.path().join("csv"),
+        api_token: None,
+        ..Settings::default()
+    });
+    let store = Store::new(&settings).unwrap();
+    let state = build_app_state(settings, store).await.unwrap();
+
+    let cleaner: Arc<dyn TextCleaner> = Arc::new(MarkerCleaner);
+    state.context.provide_named("marker", cleaner).await.unwrap();
+    state
+        .context
+        .set_default::<Arc<dyn TextCleaner>>("marker")
+        .await
+        .unwrap();
+    let exporter: Arc<dyn Exporter> = Arc::new(UpperExporter);
+    state.context.provide_named("md", exporter).await.unwrap();
+
+    let app = TestApp {
+        router: build_router_from_state(state),
+    };
+
+    // REST 项目接口经由 Context 中的 TextCleaner 插件清洗正文
+    let (status, body) = app
+        .post_multipart(
+            "/api/v2/projects",
+            &[("name", "插件替换")],
+            Some(("novel.txt", "text/plain", SAMPLE_NOVEL.as_bytes())),
+        )
+        .await;
+    assert_eq!(status, 200, "{body}");
+    let project_id = body["data"]["project_id"].as_str().unwrap().to_string();
+    let (_, body) = app
+        .get(&format!("/api/v2/projects/{project_id}/chapters"))
+        .await;
+    let chapter_id = body["data"]["items"][0]["chapter_id"].as_str().unwrap().to_string();
+    let (_, body) = app
+        .get(&format!("/api/v2/projects/{project_id}/chapters/{chapter_id}"))
+        .await;
+    assert_eq!(body["data"]["sentences"][0]["content"], "痛！好痛！【已替换】！");
+
+    // /import 按扩展名挑选 Importer 插件；/export 按名称查找 Exporter 插件
+    let (status, body) = app
+        .post_multipart(
+            "/api/v2/import",
+            &[],
+            Some(("导入.txt", "text/plain", SAMPLE_NOVEL.as_bytes())),
+        )
+        .await;
+    assert_eq!(status, 200, "{body}");
+    let imported_id = body["data"]["id"].as_str().unwrap().to_string();
+
+    for (format, needle) in [("md", "# 导入"), ("csv", "章节序号"), ("json", "\"chapters\"")] {
+        let (status, text) = app
+            .send_raw(
+                Request::builder()
+                    .uri(format!("/api/v2/export/{imported_id}?format={format}"))
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await;
+        assert_eq!(status, 200, "{format}");
+        assert!(text.contains(needle), "{format}: {text}");
+    }
+
+    let (status, body) = app
+        .get(&format!("/api/v2/export/{imported_id}?format=xml"))
+        .await;
+    assert_eq!(status, 422);
+    assert!(body["message"].as_str().unwrap_or_default().contains("md"), "{body}");
+
+    let (status, _) = app
+        .post_multipart(
+            "/api/v2/import",
+            &[],
+            Some(("book.epub", "application/epub+zip", SAMPLE_NOVEL.as_bytes())),
+        )
+        .await;
+    assert_eq!(status, 415);
+}

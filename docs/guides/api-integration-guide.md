@@ -96,7 +96,7 @@ GET /api/v2/voices
 ### 2.3 剧本导入与导出
 
 #### ① 导入文件并自动生成剧本 (`POST /api/v2/import`)
-通过 `multipart/form-data` 上传原始小说文件（支持 `.txt`）。
+通过 `multipart/form-data` 上传原始小说文件（支持 `.txt`）。服务端按文件扩展名挑选已挂载的 `Importer` 插件（按注册顺序取第一个声明支持该扩展名的插件），没有插件支持该扩展名时返回 `415`。
 
 ```bash
 curl -X POST http://127.0.0.1:58685/api/v2/import \
@@ -119,7 +119,8 @@ curl -X POST http://127.0.0.1:58685/api/v2/import \
 
 #### ② 导出剧本为台账或 AST (`GET /api/v2/export/{project_id}`)
 - `format=csv`：导出为 Excel / 制作软件通用的配音台账 CSV
-- `format=json`：导出为微内核完整的结构化 AST JSON
+- `format=json`（默认）：导出为微内核完整的结构化 AST JSON
+- 其它值：按名称查找已挂载的 `Exporter` 插件（名称即插件的 `format_name()`）；未注册的格式返回 `422` 并列出可用格式（此前会静默回退为 JSON）
 
 ```bash
 # 导出 CSV 配音制作台账

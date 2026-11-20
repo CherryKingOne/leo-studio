@@ -1,6 +1,29 @@
-use leo_app::text::kaomoji::{clean_line_text, strip_kaomoji};
-use leo_app::text::parsers::{clean_text, count_words, parse_chapters};
-use leo_app::text::processor::split_sentences_by_lines;
+use std::sync::Arc;
+
+use leo_app::text::{TextPipeline, count_words};
+use leo_plugin_cleaner_kaomoji::{KaomojiCleanerProvider, clean_line_text, strip_kaomoji};
+use leo_plugin_dialogue_quotes::QuotesDialogueSplitter;
+use leo_plugin_parser_novel_regex::NovelRegexSplitter;
+
+fn pipeline() -> TextPipeline {
+    TextPipeline::new(
+        Arc::new(KaomojiCleanerProvider),
+        Arc::new(NovelRegexSplitter),
+        Arc::new(QuotesDialogueSplitter),
+    )
+}
+
+fn clean_text(text: &str) -> String {
+    pipeline().clean_text(text)
+}
+
+fn split_sentences_by_lines(content: &str) -> Vec<String> {
+    pipeline().split_sentences(content)
+}
+
+fn parse_chapters(text: &str) -> Vec<(String, String)> {
+    pipeline().parse_chapters(text)
+}
 
 const CLEANABLE_KAOMOJI: &[&str] = &[
     "╭(●｀∀´●)╯╰(●’◡’●)╮",

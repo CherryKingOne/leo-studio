@@ -55,7 +55,7 @@ leo-cli --help
 
 ### 3.1 导入小说并生成 AST (`import`)
 
-将一本小说纯文本（UTF-8 或 GB18030/GBK 编码）导入系统，系统会自动调用 `TxtImporter`、`KaomojiCleaner`、`NovelRegexSplitter` 与 `QuotesDialogueSplitter` 完成全自动流水线处理。
+将一本小说纯文本（UTF-8 或 GB18030/GBK 编码）导入系统，系统按文件扩展名挑选已挂载的 `Importer` 插件（官方 `TxtImporter`），导入器再通过 Context 使用当前挂载的 `TextCleaner`、`ChapterSplitter` 与 `DialogueSplitter` 服务（官方为 `KaomojiCleaner`、`NovelRegexSplitter`、`QuotesDialogueSplitter`）完成全自动流水线处理。
 
 ```bash
 # 基本用法：自动从文件名提取标题
@@ -103,7 +103,7 @@ a1b2c3d4-e5f6-7890-abcd-ef1234567890 | 斗罗测试篇           | 3      | 8940
 
 ### 3.3 导出配音制作台账或 AST (`export`)
 
-将已处理完成的剧本文档导出为外部文件：
+将已处理完成的剧本文档导出为外部文件。`--format` 按名称查找已挂载的 `Exporter` 插件（官方提供 `csv`、`json`），未注册的格式会报错并列出可用格式：
 
 ```bash
 # 导出为配音导演台账 CSV（默认输出为 <剧本名>_配音台账.csv）

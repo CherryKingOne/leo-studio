@@ -7,7 +7,8 @@ use leo_core::ast::SegmentKind;
 use leo_core::context::Context;
 use leo_core::error::CoreResult;
 use leo_core::plugin::{
-    DialogueSplitter, Plugin, PluginCategory, PluginManifest, RawDialogueSegment,
+    DialogueParseStatus, DialogueSplitter, Plugin, PluginCategory, PluginManifest, RawDialogueLine,
+    RawDialogueSegment,
 };
 
 pub use algorithm::{DialogueLine, DialogueSegment, ParseStatus, SegmentType, split_dialogue_line};
@@ -53,16 +54,28 @@ pub struct QuotesDialogueSplitter;
 
 impl DialogueSplitter for QuotesDialogueSplitter {
     fn split_sentence(&self, sentence: &str) -> Vec<RawDialogueSegment> {
+        self.analyze_sentence(sentence).segments
+    }
+
+    fn analyze_sentence(&self, sentence: &str) -> RawDialogueLine {
         let line = split_dialogue_line(sentence);
-        line.segments
-            .into_iter()
-            .map(|seg| RawDialogueSegment {
-                text: seg.content,
-                kind: match seg.segment_type {
-                    SegmentType::Narration => SegmentKind::Narration,
-                    SegmentType::Dialogue => SegmentKind::Dialogue,
-                },
-            })
-            .collect()
+        RawDialogueLine {
+            segments: line
+                .segments
+                .into_iter()
+                .map(|seg| RawDialogueSegment {
+                    text: seg.content,
+                    kind: match seg.segment_type {
+                        SegmentType::Narration => SegmentKind::Narration,
+                        SegmentType::Dialogue => SegmentKind::Dialogue,
+                    },
+                })
+                .collect(),
+            status: match line.status {
+                ParseStatus::Ok => DialogueParseStatus::Ok,
+                ParseStatus::UnpairedQuote => DialogueParseStatus::UnpairedQuote,
+                ParseStatus::Empty => DialogueParseStatus::Empty,
+            },
+        }
     }
 }

@@ -29,6 +29,7 @@ dotenvy = "0.15"
 axum = { version = "0.8" }
 
 [dev-dependencies]
+async-trait = "0.1"
 tempfile = "3"
 http-body-util = "0.1"
 tower = { version = "0.5", features = ["util"] }

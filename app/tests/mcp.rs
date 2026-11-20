@@ -5,7 +5,6 @@ use leo_app::config::Settings;
 use leo_app::mcp::{McpHandler, McpSettings};
 use leo_app::storage::store::Store;
 use serde_json::{Map, Value, json};
-use tokio::sync::Mutex;
 
 const SAMPLE: &str = "第一章 开端\n小明重行长，银行行长不重。\n第二章 重逢\n行路人说：重行可以。\n";
 
@@ -40,17 +39,12 @@ fn mcp_settings(write: bool, destructive: bool) -> McpSettings {
     }
 }
 
-fn make_handler(dir: &Path, mcp: McpSettings) -> McpHandler {
+async fn make_handler(dir: &Path, mcp: McpSettings) -> McpHandler {
     let settings = Arc::new(settings(dir));
-    let store = Arc::new(Mutex::new(
-        Store::new(&settings).expect("初始化 Store 失败"),
-    ));
-    let state = leo_app::state::AppState {
-        settings,
-        store,
-        context: leo_core::Context::new("mcp_test"),
-        plugin_manager: Arc::new(leo_core::PluginManager::new()),
-    };
+    let store = Store::new(&settings).expect("初始化 Store 失败");
+    let state = leo_app::build_app_state(settings, store)
+        .await
+        .expect("插件装配失败");
     McpHandler::new(state, Arc::new(mcp))
 }
 
@@ -73,10 +67,10 @@ async fn call_err(handler: &McpHandler, name: &str, value: Value) -> String {
         .message
 }
 
-#[test]
-fn read_only_tools_are_default() {
+#[tokio::test]
+async fn read_only_tools_are_default() {
     let dir = temp_dir("tools-default");
-    let handler = make_handler(&dir, mcp_settings(false, false));
+    let handler = make_handler(&dir, mcp_settings(false, false)).await;
     let names: Vec<String> = handler
         .definitions()
         .into_iter()
@@ -89,10 +83,10 @@ fn read_only_tools_are_default() {
     assert!(!names.contains(&"leo_purge_project".to_string()));
 }
 
-#[test]
-fn write_and_destructive_tools_are_gated() {
+#[tokio::test]
+async fn write_and_destructive_tools_are_gated() {
     let dir = temp_dir("tools-gated");
-    let handler = make_handler(&dir, mcp_settings(true, false));
+    let handler = make_handler(&dir, mcp_settings(true, false)).await;
     let names: Vec<String> = handler
         .definitions()
         .into_iter()
@@ -101,7 +95,7 @@ fn write_and_destructive_tools_are_gated() {
     assert!(names.contains(&"leo_create_project".to_string()));
     assert!(!names.contains(&"leo_purge_project".to_string()));
 
-    let handler_all = make_handler(&dir, mcp_settings(true, true));
+    let handler_all = make_handler(&dir, mcp_settings(true, true)).await;
     let names: Vec<String> = handler_all
         .definitions()
         .into_iter()
@@ -114,7 +108,7 @@ fn write_and_destructive_tools_are_gated() {
 #[tokio::test]
 async fn create_query_search_and_stats() {
     let dir = temp_dir("create-query");
-    let handler = make_handler(&dir, mcp_settings(true, true));
+    let handler = make_handler(&dir, mcp_settings(true, true)).await;
 
     let project = call(
         &handler,
@@ -167,7 +161,7 @@ async fn create_query_search_and_stats() {
 #[tokio::test]
 async fn append_is_dry_run_by_default_and_needs_confirm() {
     let dir = temp_dir("append");
-    let handler = make_handler(&dir, mcp_settings(true, true));
+    let handler = make_handler(&dir, mcp_settings(true, true)).await;
 
     let project = call(
         &handler,
@@ -213,7 +207,7 @@ async fn append_is_dry_run_by_default_and_needs_confirm() {
 #[tokio::test]
 async fn polyphone_round_trip_and_destructive_confirm() {
     let dir = temp_dir("polyphone");
-    let handler = make_handler(&dir, mcp_settings(true, true));
+    let handler = make_handler(&dir, mcp_settings(true, true)).await;
 
     let project = call(
         &handler,
@@ -313,7 +307,7 @@ async fn polyphone_round_trip_and_destructive_confirm() {
 #[tokio::test]
 async fn unknown_tool_is_rejected() {
     let dir = temp_dir("unknown");
-    let handler = make_handler(&dir, mcp_settings(true, true));
+    let handler = make_handler(&dir, mcp_settings(true, true)).await;
     let message = call_err(&handler, "leo_not_exists", json!({})).await;
     assert!(message.contains("未知工具"));
 }
@@ -321,7 +315,7 @@ async fn unknown_tool_is_rejected() {
 #[tokio::test]
 async fn chapter_update_and_delete() {
     let dir = temp_dir("chapter-crud");
-    let handler = make_handler(&dir, mcp_settings(true, true));
+    let handler = make_handler(&dir, mcp_settings(true, true)).await;
 
     let project = call(
         &handler,

@@ -4,10 +4,8 @@ use std::sync::Arc;
 
 use clap::{Parser, Subcommand};
 use leo_core::ast::SegmentKind;
+use leo_core::context::Context;
 use leo_core::plugin::{Exporter, Importer, StorageProvider, SynthesisPayload, TTSProvider};
-use leo_plugin_exporter_csv::CsvExporter;
-use leo_plugin_exporter_json::JsonExporter;
-use leo_plugin_importer_txt::TxtImporter;
 
 use crate::setup_cli_runtime;
 
@@ -89,7 +87,7 @@ pub async fn execute_cli(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
                 .unwrap_or("novel.txt");
 
             println!("⚙️ 正在执行文本清洗、章节拆分与台词提取 (AST 生成) ...");
-            let importer = TxtImporter::new();
+            let importer = find_importer(&ctx, filename).await?;
             let mut doc = importer.import(filename, &bytes).await?;
 
             if let Some(custom_title) = title {
@@ -171,13 +169,20 @@ pub async fn execute_cli(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
                 .await?
                 .ok_or_else(|| format!("未在存储库中找到项目 ID: {project_id}"))?;
 
-            let (bytes, ext) = if format.to_lowercase() == "json" {
-                let exporter = JsonExporter;
-                (exporter.export(&doc).await?, "json")
-            } else {
-                let exporter = CsvExporter;
-                (exporter.export(&doc).await?, "csv")
+            let format = format.to_lowercase();
+            let Ok(exporter) = ctx.inject_named::<Arc<dyn Exporter>>(&format).await else {
+                let available: Vec<String> = ctx
+                    .inject_all::<Arc<dyn Exporter>>()
+                    .await
+                    .into_iter()
+                    .map(|(name, _)| name)
+                    .collect();
+                return Err(
+                    format!("不支持的导出格式 {format}，可用格式：{}", available.join(", ")).into(),
+                );
             };
+            let bytes = exporter.export(&doc).await?;
+            let ext = exporter.format_name().to_string();
 
             let target_path = output.unwrap_or_else(|| format!("{}_{}.{}", doc.title, doc.id, ext));
             fs::write(&target_path, &bytes)?;
@@ -295,4 +300,30 @@ pub async fn execute_cli(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
     }
 
     Ok(())
+}
+
+/// 按文件扩展名挑选第一个声明支持该扩展名的 Importer 插件；无扩展名时使用默认 Importer
+async fn find_importer(
+    ctx: &Context,
+    filename: &str,
+) -> Result<Arc<dyn Importer>, Box<dyn std::error::Error>> {
+    let extension = Path::new(filename)
+        .extension()
+        .and_then(|ext| ext.to_str())
+        .map(str::to_lowercase)
+        .unwrap_or_default();
+    if extension.is_empty() {
+        return Ok(ctx.inject::<Arc<dyn Importer>>().await?.as_ref().clone());
+    }
+    ctx.inject_all::<Arc<dyn Importer>>()
+        .await
+        .into_iter()
+        .map(|(_, importer)| importer.as_ref().clone())
+        .find(|importer| {
+            importer
+                .supported_extensions()
+                .iter()
+                .any(|ext| ext.eq_ignore_ascii_case(&extension))
+        })
+        .ok_or_else(|| format!("没有可处理 .{extension} 文件的导入插件").into())
 }

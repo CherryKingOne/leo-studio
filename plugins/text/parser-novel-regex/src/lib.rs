@@ -62,4 +62,8 @@ impl ChapterSplitter for NovelRegexSplitter {
     fn resolve_fingerprint(&self, title: &str) -> String {
         resolve_chapter_key(title)
     }
+
+    fn chapter_number(&self, title: &str) -> Option<i64> {
+        chapter_number(title)
+    }
 }

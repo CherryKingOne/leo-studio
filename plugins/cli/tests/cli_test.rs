@@ -95,3 +95,52 @@ async fn test_cli_runtime_keeps_both_exporters() {
         assert_eq!(exporter.format_name(), format);
     }
 }
+
+#[tokio::test]
+async fn test_cli_export_routes_through_exporter_plugins() {
+    use std::sync::Arc;
+
+    use leo_core::plugin::{Importer, StorageProvider};
+    use leo_plugin_cli::execute_cli;
+
+    let temp_dir = tempfile::tempdir().unwrap();
+    let data_dir = temp_dir.path().join("data").to_str().unwrap().to_string();
+
+    let doc = {
+        let (ctx, _manager) = setup_cli_runtime(&data_dir).await.expect("装配 CLI 环境失败");
+        let importer = ctx.inject::<Arc<dyn Importer>>().await.unwrap();
+        let doc = importer
+            .import("t.txt", "第一章 开端\n他说：“你好。”".as_bytes())
+            .await
+            .unwrap();
+        let storage = ctx.inject::<Arc<dyn StorageProvider>>().await.unwrap();
+        storage.save_script(&doc).await.unwrap();
+        doc
+    };
+
+    for (format, needle) in [("csv", "章节序号"), ("JSON", "\"chapters\"")] {
+        let output = temp_dir.path().join(format!("out.{format}"));
+        let cli = Cli {
+            command: Commands::Export {
+                project_id: doc.id.clone(),
+                format: format.to_string(),
+                output: Some(output.to_str().unwrap().to_string()),
+            },
+            data_dir: data_dir.clone(),
+        };
+        execute_cli(cli).await.expect("导出失败");
+        let text = std::fs::read_to_string(&output).unwrap();
+        assert!(text.contains(needle), "{format}: {text}");
+    }
+
+    let cli = Cli {
+        command: Commands::Export {
+            project_id: doc.id.clone(),
+            format: "xml".to_string(),
+            output: Some(temp_dir.path().join("out.xml").to_str().unwrap().to_string()),
+        },
+        data_dir,
+    };
+    let err = execute_cli(cli).await.expect_err("未注册的导出格式应报错");
+    assert!(err.to_string().contains("csv, json"), "{err}");
+}

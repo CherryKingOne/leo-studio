@@ -205,10 +205,12 @@ async fn create_project(
         return Err(AppError::invalid_parameter("上传文件不能为空"));
     }
 
+    let text = state.text_pipeline().await?;
     let mut store = state.store.lock().await;
     let info = project_service::create_project(
         &mut store,
         &state.settings,
+        &text,
         name,
         &filename,
         &body.file_content,
@@ -514,10 +516,12 @@ async fn append_chapters(
     let overwrite_existing = body.bool_field("overwrite_existing", false);
     let dry_run = body.bool_field("dry_run", false);
 
+    let text = state.text_pipeline().await?;
     let mut store = state.store.lock().await;
     let info = project_service::append_chapters(
         &mut store,
         &state.settings,
+        &text,
         &project_id,
         &filename,
         &body.file_content,

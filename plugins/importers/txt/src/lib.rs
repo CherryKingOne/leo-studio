@@ -37,11 +37,20 @@ impl Plugin for TxtImporterPlugin {
         manifest.description =
             "支持 .txt 格式纯文本小说解析，自动执行编码解码、标题识别、清洗分章并生成 Script AST。".into();
         manifest.capabilities = vec!["importer:txt".into()];
+        manifest.dependencies = vec![
+            "leo-plugin-cleaner-kaomoji".into(),
+            "leo-plugin-parser-novel-regex".into(),
+            "leo-plugin-dialogue-quotes".into(),
+        ];
         manifest
     }
 
     async fn apply(&self, ctx: &Context) -> CoreResult<()> {
-        let importer: Arc<dyn Importer> = Arc::new(TxtImporter::new());
+        let importer: Arc<dyn Importer> = Arc::new(TxtImporter::with_services(
+            ctx.inject::<Arc<dyn TextCleaner>>().await?.as_ref().clone(),
+            ctx.inject::<Arc<dyn ChapterSplitter>>().await?.as_ref().clone(),
+            ctx.inject::<Arc<dyn DialogueSplitter>>().await?.as_ref().clone(),
+        ));
         ctx.provide_named("txt", importer).await?;
         tracing::info!("已挂载 TxtImporterPlugin，提供 Importer 服务");
         Ok(())
@@ -49,9 +58,9 @@ impl Plugin for TxtImporterPlugin {
 }
 
 pub struct TxtImporter {
-    cleaner: KaomojiCleanerProvider,
-    chapter_splitter: NovelRegexSplitter,
-    dialogue_splitter: QuotesDialogueSplitter,
+    cleaner: Arc<dyn TextCleaner>,
+    chapter_splitter: Arc<dyn ChapterSplitter>,
+    dialogue_splitter: Arc<dyn DialogueSplitter>,
 }
 
 impl Default for TxtImporter {
@@ -61,11 +70,25 @@ impl Default for TxtImporter {
 }
 
 impl TxtImporter {
+    /// 使用官方默认的清洗、分章、台词切分实现（脱离插件框架单独使用时）
     pub fn new() -> Self {
+        Self::with_services(
+            Arc::new(KaomojiCleanerProvider),
+            Arc::new(NovelRegexSplitter),
+            Arc::new(QuotesDialogueSplitter),
+        )
+    }
+
+    /// 使用 Context 中挂载的文本处理服务
+    pub fn with_services(
+        cleaner: Arc<dyn TextCleaner>,
+        chapter_splitter: Arc<dyn ChapterSplitter>,
+        dialogue_splitter: Arc<dyn DialogueSplitter>,
+    ) -> Self {
         Self {
-            cleaner: KaomojiCleanerProvider,
-            chapter_splitter: NovelRegexSplitter,
-            dialogue_splitter: QuotesDialogueSplitter,
+            cleaner,
+            chapter_splitter,
+            dialogue_splitter,
         }
     }
 

@@ -5,12 +5,24 @@ use leo_app::config::Settings;
 use leo_app::modules::projects::storage_compat::{backfill_dialogues, save_file};
 use leo_app::storage::csv_table::Record;
 use leo_app::storage::store::Store;
-use leo_app::text::dialogue::{
-    DialogueSegment, ParseStatus, SegmentType, split_dialogue_line,
+use std::sync::Arc;
+
+use leo_app::text::{
+    TextPipeline, clean_dialogue_records, create_dialogue_records_from_sentence,
 };
-use leo_app::text::processor::{
-    clean_dialogue_records, create_dialogue_records_from_sentence,
+use leo_plugin_cleaner_kaomoji::KaomojiCleanerProvider;
+use leo_plugin_dialogue_quotes::{
+    DialogueSegment, ParseStatus, QuotesDialogueSplitter, SegmentType, split_dialogue_line,
 };
+use leo_plugin_parser_novel_regex::NovelRegexSplitter;
+
+fn pipeline() -> TextPipeline {
+    TextPipeline::new(
+        Arc::new(KaomojiCleanerProvider),
+        Arc::new(NovelRegexSplitter),
+        Arc::new(QuotesDialogueSplitter),
+    )
+}
 
 fn segment(content: &str, segment_type: SegmentType) -> DialogueSegment {
     DialogueSegment {
@@ -175,7 +187,7 @@ fn builds_dialogue_records_from_sentence() {
     sentence.insert("sentence_index".into(), "7".to_string());
     sentence.insert("content".into(), "他说：“你好。”然后走了。".to_string());
 
-    let records = create_dialogue_records_from_sentence(&sentence);
+    let records = create_dialogue_records_from_sentence(&pipeline(), &sentence);
     assert_eq!(records.len(), 3);
     assert_eq!(records[0]["dialogue_id"], "s1_0");
     assert_eq!(records[0]["parent_sentence_id"], "s1");
@@ -201,7 +213,7 @@ fn cleans_dialogue_records_before_writing() {
     record.insert("content".into(), "他说：“你好” (￣▽￣)".to_string());
     record.insert("word_count".into(), "99".to_string());
 
-    let cleaned = clean_dialogue_records(vec![record]);
+    let cleaned = clean_dialogue_records(&pipeline(), vec![record]);
     assert_eq!(cleaned.len(), 1);
     assert_eq!(cleaned[0]["content"], "他说：“你好”");
     assert_eq!(cleaned[0]["word_count"], "7");
@@ -209,7 +221,7 @@ fn cleans_dialogue_records_before_writing() {
     let mut symbol = Record::new();
     symbol.insert("dialogue_id".into(), "s2_0".to_string());
     symbol.insert("content".into(), "“”".to_string());
-    assert!(clean_dialogue_records(vec![symbol]).is_empty());
+    assert!(clean_dialogue_records(&pipeline(), vec![symbol]).is_empty());
 }
 
 fn test_store(dir: &Path) -> (Settings, Store) {
@@ -241,6 +253,7 @@ fn upload_writes_dialogue_csv_for_every_sentence() {
     save_file(
         &mut store,
         &settings,
+        &pipeline(),
         "test.txt",
         content.as_bytes(),
         Some("text/plain"),
@@ -291,6 +304,7 @@ fn backfill_restores_missing_dialogue_csv() {
     save_file(
         &mut store,
         &settings,
+        &pipeline(),
         "test.txt",
         content.as_bytes(),
         Some("text/plain"),
@@ -303,8 +317,21 @@ fn backfill_restores_missing_dialogue_csv() {
     fs::remove_file(&path).unwrap();
     store.dialogues.clear();
 
-    let count = backfill_dialogues(&mut store).expect("补齐台词失败");
+    let count = backfill_dialogues(&mut store, &pipeline()).expect("补齐台词失败");
     assert_eq!(count, 3);
     assert_eq!(store.dialogues.find_all().len(), 3);
     assert!(path.exists());
+}
+
+#[test]
+fn unpaired_quote_status_survives_plugin_splitter() {
+    let mut sentence = Record::new();
+    sentence.insert("sentence_id".into(), "s9".to_string());
+    sentence.insert("sentence_index".into(), "0".to_string());
+    sentence.insert("content".into(), "他说：“没闭合".to_string());
+
+    let records = create_dialogue_records_from_sentence(&pipeline(), &sentence);
+    assert_eq!(records.len(), 1);
+    assert_eq!(records[0]["segment_type"], "narration");
+    assert_eq!(records[0]["parse_status"], "unpaired_quote");
 }

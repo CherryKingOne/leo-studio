@@ -7,11 +7,9 @@ use crate::error::{AppError, AppResult};
 use super::storage_compat as text_service;
 use crate::storage::csv_table::{Record, bool_field, int_field, str_field};
 use crate::storage::store::Store;
-use crate::text::parsers::{
-    chapter_number, clean_text, count_words, parse_chapters, resolve_chapter_key,
-};
-use crate::text::processor::{
-    clean_dialogue_records, create_dialogue_records_from_sentence, create_sentence_records,
+use crate::text::{
+    TextPipeline, clean_dialogue_records, count_words, create_dialogue_records_from_sentence,
+    create_sentence_records, parse_pinyin_elements,
 };
 
 use super::model::{
@@ -73,7 +71,7 @@ pub fn record_to_polyphone_info(record: &Record) -> SentencePolyphoneInfo {
 
     let raw_pinyin = str_field(record, "pinyin");
     let (derived_base, derived_tone, derived_tts) =
-        crate::text::parsers::parse_pinyin_elements(raw_pinyin);
+        parse_pinyin_elements(raw_pinyin);
 
     let pinyin_base = {
         let value = str_field(record, "pinyin_base");
@@ -115,6 +113,7 @@ pub fn record_to_polyphone_info(record: &Record) -> SentencePolyphoneInfo {
 pub fn create_project(
     store: &mut Store,
     settings: &Settings,
+    text: &TextPipeline,
     name: &str,
     filename: &str,
     content: &[u8],
@@ -129,7 +128,7 @@ pub fn create_project(
     }
 
     let file_info =
-        text_service::save_file(store, settings, filename, content, content_type, None)?;
+        text_service::save_file(store, settings, text, filename, content, content_type, None)?;
 
     let (mut chapter_count, mut total_words) = (1i64, file_info.size as i64);
     if let Some(row) = store.novels.find_by("novel_id", &file_info.file_id) {
@@ -445,6 +444,7 @@ pub fn get_project_chapter_content(
 /// 修改章节标题与/或正文。正文变更时会重建切句，并清理该章原有的多音字标注。
 pub fn update_chapter(
     store: &mut Store,
+    text: &TextPipeline,
     project_id: &str,
     chapter_id: &str,
     chapter_title: Option<&str>,
@@ -517,12 +517,12 @@ pub fn update_chapter(
         store.sentences.delete_by("chapter_id", chapter_id);
         store.dialogues.delete_by("chapter_id", chapter_id);
         if !new_content.is_empty() {
-            let records = create_sentence_records(&project.file_id, chapter_id, new_content);
+            let records = create_sentence_records(text, &project.file_id, chapter_id, new_content);
             let dialogue_records: Vec<Record> = records
                 .iter()
-                .flat_map(create_dialogue_records_from_sentence)
+                .flat_map(|row| create_dialogue_records_from_sentence(text, row))
                 .collect();
-            let dialogue_records = clean_dialogue_records(dialogue_records);
+            let dialogue_records = clean_dialogue_records(text, dialogue_records);
             store.sentences.insert_batch(records);
             store.dialogues.insert_batch(dialogue_records);
         }
@@ -642,6 +642,7 @@ pub fn delete_chapter(
 pub fn append_chapters(
     store: &mut Store,
     settings: &Settings,
+    text: &TextPipeline,
     project_id: &str,
     filename: &str,
     content: &[u8],
@@ -674,8 +675,8 @@ pub fn append_chapters(
     })?;
 
     let content_text = text_service::decode_text(content);
-    let cleaned = clean_text(&content_text);
-    let mut new_parsed_chapters = parse_chapters(&cleaned);
+    let cleaned = text.clean_text(&content_text);
+    let mut new_parsed_chapters = text.parse_chapters(&cleaned);
     if new_parsed_chapters.is_empty() {
         new_parsed_chapters = vec![("全文".to_string(), cleaned.clone())];
     }
@@ -685,13 +686,13 @@ pub fn append_chapters(
 
     let mut existing_key_map: HashMap<String, Record> = HashMap::new();
     for row in &existing_chapter_rows {
-        let key = resolve_chapter_key(str_field(row, "chapter_title"));
+        let key = text.chapter_key(str_field(row, "chapter_title"));
         existing_key_map.insert(key, row.clone());
     }
 
     let mut conflicts = Vec::new();
     for (chapter_title, chapter_content) in &new_parsed_chapters {
-        let key = resolve_chapter_key(chapter_title);
+        let key = text.chapter_key(chapter_title);
         if let Some(old_row) = existing_key_map.get(&key) {
             let old_content = str_field(old_row, "content");
             let old_words = int_field(old_row, "word_count");
@@ -718,7 +719,7 @@ pub fn append_chapters(
     let mut simulated_chapters = Vec::new();
     let mut projected_total_words = existing_total_words;
     for (chapter_title, chapter_content) in &new_parsed_chapters {
-        let key = resolve_chapter_key(chapter_title);
+        let key = text.chapter_key(chapter_title);
         let new_words = count_words(chapter_content) as i64;
         if let Some(old_row) = existing_key_map.get(&key) {
             simulated_skipped += 1;
@@ -781,7 +782,7 @@ pub fn append_chapters(
     let numbered_positions: Vec<usize> = existing_chapter_rows
         .iter()
         .enumerate()
-        .filter_map(|(index, row)| chapter_number(str_field(row, "chapter_title")).map(|_| index))
+        .filter_map(|(index, row)| text.chapter_number(str_field(row, "chapter_title")).map(|_| index))
         .collect();
     if !numbered_positions.is_empty() {
         let mut numbered_rows: Vec<Record> = numbered_positions
@@ -789,14 +790,14 @@ pub fn append_chapters(
             .map(|&index| existing_chapter_rows[index].clone())
             .collect();
         numbered_rows
-            .sort_by_key(|row| chapter_number(str_field(row, "chapter_title")).unwrap_or(0));
+            .sort_by_key(|row| text.chapter_number(str_field(row, "chapter_title")).unwrap_or(0));
         for (slot, row) in numbered_positions.into_iter().zip(numbered_rows) {
             existing_chapter_rows[slot] = row;
         }
     }
 
     for (chapter_title, chapter_content) in &new_parsed_chapters {
-        let key = resolve_chapter_key(chapter_title);
+        let key = text.chapter_key(chapter_title);
         if existing_key_map.contains_key(&key) {
             if !overwrite_existing {
                 let old_row = existing_key_map.get(&key).unwrap();
@@ -849,12 +850,12 @@ pub fn append_chapters(
             store.dialogues.delete_by("chapter_id", &old_chapter_id);
             if !chapter_content.is_empty() {
                 let overwritten =
-                    create_sentence_records(&project.file_id, &old_chapter_id, chapter_content);
+                    create_sentence_records(text, &project.file_id, &old_chapter_id, chapter_content);
                 let dialogue_records: Vec<Record> = overwritten
                     .iter()
-                    .flat_map(create_dialogue_records_from_sentence)
+                    .flat_map(|row| create_dialogue_records_from_sentence(text, row))
                     .collect();
-                let dialogue_records = clean_dialogue_records(dialogue_records);
+                let dialogue_records = clean_dialogue_records(text, dialogue_records);
                 store.sentences.insert_batch(overwritten);
                 store.dialogues.insert_batch(dialogue_records);
             }
@@ -888,10 +889,10 @@ pub fn append_chapters(
         chapter_record.insert("content".into(), chapter_content.clone());
         chapter_record.insert("word_count".into(), word_count.to_string());
 
-        let insert_at = chapter_number(chapter_title)
+        let insert_at = text.chapter_number(chapter_title)
             .and_then(|number| {
                 existing_chapter_rows.iter().position(|row| {
-                    chapter_number(str_field(row, "chapter_title"))
+                    text.chapter_number(str_field(row, "chapter_title"))
                         .map(|existing| existing > number)
                         .unwrap_or(false)
                 })
@@ -902,6 +903,7 @@ pub fn append_chapters(
 
         if !chapter_content.is_empty() {
             new_sentence_records.extend(create_sentence_records(
+                text,
                 &project.file_id,
                 &chapter_id,
                 chapter_content,
@@ -937,9 +939,9 @@ pub fn append_chapters(
 
     let new_dialogue_records: Vec<Record> = new_sentence_records
         .iter()
-        .flat_map(create_dialogue_records_from_sentence)
+        .flat_map(|row| create_dialogue_records_from_sentence(text, row))
         .collect();
-    let new_dialogue_records = clean_dialogue_records(new_dialogue_records);
+    let new_dialogue_records = clean_dialogue_records(text, new_dialogue_records);
     store.sentences.insert_batch(new_sentence_records);
     store.dialogues.insert_batch(new_dialogue_records);
     store.save_contents()?;
@@ -1207,7 +1209,7 @@ pub fn save_sentence_polyphones(
         }
 
         let (derived_base, derived_tone, derived_tts) =
-            crate::text::parsers::parse_pinyin_elements(raw_pinyin);
+            parse_pinyin_elements(raw_pinyin);
         let pinyin_base = annotation
             .pinyin_base
             .as_deref()
