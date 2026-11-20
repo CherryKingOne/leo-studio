@@ -5,6 +5,7 @@ members = [
     "plugins/cleaner-kaomoji",
     "plugins/parser-novel-regex",
     "plugins/dialogue-quotes",
+    "plugins/storage-csv",
     "plugins/tts-edge",
     "backend",
 ]
