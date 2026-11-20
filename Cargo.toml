@@ -2,6 +2,9 @@
 resolver = "2"
 members = [
     "core",
+    "plugins/cleaner-kaomoji",
+    "plugins/parser-novel-regex",
+    "plugins/dialogue-quotes",
     "plugins/tts-edge",
     "backend",
 ]

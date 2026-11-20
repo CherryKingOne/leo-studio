@@ -1,0 +1,13 @@
+[package]
+name = "leo-plugin-parser-novel-regex"
+version = "0.1.0"
+edition = "2024"
+description = "Leo Studio 官方插件：中文网络小说正则分章与中文数字解析引擎"
+license = "MIT"
+
+[dependencies]
+leo-core = { path = "../../core" }
+fancy-regex = "0.14"
+async-trait = "0.1"
+tokio = { version = "1", features = ["sync", "rt", "macros"] }
+tracing = "0.1"
