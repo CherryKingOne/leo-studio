@@ -57,12 +57,16 @@ async fn import_script(
         .await
         .map_err(|e| AppError::internal(format!("导入解析失败: {e}")))?;
 
-    // 若存在 StorageProvider，则自动持久化
-    if let Ok(storage) = state.context.inject::<Arc<dyn StorageProvider>>().await {
-        if let Err(err) = storage.save_script(&doc).await {
-            tracing::warn!("自动保存导入剧本失败: {err}");
-        }
-    }
+    // 导入结果必须落盘才算成功：没有存储插件或保存失败都返回错误，而不是假装成功
+    let storage = state
+        .context
+        .inject::<Arc<dyn StorageProvider>>()
+        .await
+        .map_err(|e| AppError::storage(format!("未挂载存储插件，无法保存导入的剧本: {e}")))?;
+    storage.save_script(&doc).await.map_err(|err| {
+        tracing::error!("保存导入剧本失败: {err}");
+        AppError::storage(format!("保存导入剧本失败: {err}"))
+    })?;
 
     Ok(Json(ApiResponse::success(json!({
         "id": doc.id,

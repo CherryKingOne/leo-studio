@@ -689,3 +689,77 @@ async fn v2_endpoints_use_plugin_services() {
         .await;
     assert_eq!(status, 415);
 }
+
+struct BrokenStorage;
+
+#[async_trait::async_trait]
+impl leo_core::plugin::StorageProvider for BrokenStorage {
+    async fn save_script(&self, _script: &leo_core::ast::ScriptDocument) -> leo_core::CoreResult<()> {
+        Err(leo_core::error::CoreError::Storage("磁盘已满".to_string()))
+    }
+
+    async fn load_script(
+        &self,
+        _project_id: &str,
+    ) -> leo_core::CoreResult<Option<leo_core::ast::ScriptDocument>> {
+        Ok(None)
+    }
+
+    async fn save_audio_clip(
+        &self,
+        _clip_id: &str,
+        _data: &[u8],
+        _format: leo_core::ast::AudioFormat,
+    ) -> leo_core::CoreResult<leo_core::ast::AudioClipRef> {
+        Err(leo_core::error::CoreError::Storage("磁盘已满".to_string()))
+    }
+
+    async fn load_audio_clip(&self, _storage_key: &str) -> leo_core::CoreResult<Option<Vec<u8>>> {
+        Ok(None)
+    }
+}
+
+#[tokio::test]
+async fn v2_import_reports_storage_failure() {
+    use std::sync::Arc;
+
+    use leo_app::config::Settings;
+    use leo_app::storage::store::Store;
+    use leo_app::{build_app_state, build_router_from_state};
+    use leo_core::plugin::StorageProvider;
+
+    let dir = tempfile::tempdir().unwrap();
+    let settings = Arc::new(Settings {
+        data_dir: dir.path().to_path_buf(),
+        upload_dir: dir.path().join("uploads"),
+        csv_dir: dir.path().join("csv"),
+        api_token: None,
+        ..Settings::default()
+    });
+    let store = Store::new(&settings).unwrap();
+    let state = build_app_state(settings, store).await.unwrap();
+    let broken: Arc<dyn StorageProvider> = Arc::new(BrokenStorage);
+    state.context.provide_named("broken", broken).await.unwrap();
+    state
+        .context
+        .set_default::<Arc<dyn StorageProvider>>("broken")
+        .await
+        .unwrap();
+    let app = TestApp {
+        router: build_router_from_state(state),
+    };
+
+    let (status, body) = app
+        .post_multipart(
+            "/api/v2/import",
+            &[],
+            Some(("导入.txt", "text/plain", SAMPLE_NOVEL.as_bytes())),
+        )
+        .await;
+    assert_eq!(status, 500, "保存失败不能返回成功: {body}");
+    assert!(
+        body["message"].as_str().unwrap_or_default().contains("磁盘已满"),
+        "{body}"
+    );
+    assert!(body["data"].is_null() || body["data"]["id"].is_null(), "{body}");
+}

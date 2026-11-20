@@ -103,16 +103,16 @@ curl -X POST http://127.0.0.1:58685/api/v2/import \
   -F "file=@测试.txt"
 ```
 
+导入结果必须经已挂载的 `StorageProvider` 插件成功落盘才返回 `200`；未挂载存储插件或保存失败时返回 `500`（业务码 `50000`），不会再出现“接口成功但数据没保存”的情况。
+
 **响应示例 (`200 OK`)**：
 ```json
 {
   "code": "OK",
   "data": {
-    "project_id": "8fa2514d-176f-47dc-9f06-e0f3175317ad",
+    "id": "8fa2514d-176f-47dc-9f06-e0f3175317ad",
     "title": "测试",
-    "author": "佚名",
-    "chapters_count": 5,
-    "total_words": 15200
+    "chapter_count": 5
   }
 }
 ```
