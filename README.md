@@ -19,7 +19,8 @@ leo-studio/
 │   ├── tts/                               # 🎙️ 语音合成插件（微软 Edge TTS 等）
 │   ├── storage/                           # 💾 数据存储插件（纯文本 CSV 文件存储）
 │   ├── api/                               # 🌐 RESTful API 传输服务插件（Axum HTTP /api/v2）
-│   └── mcp/                               # 🤖 MCP 智能体协议服务插件（Model Context Protocol）
+│   ├── mcp/                               # 🤖 MCP 智能体协议服务插件（Model Context Protocol）
+│   └── cli/                               # 💻 CLI 命令行生产工具插件（leo-cli）
 │
 ├── app/                                   # 【启动器 Host App】极简总装入口（main.rs + lib.rs）
 │
@@ -135,6 +136,32 @@ curl -O "http://127.0.0.1:58685/api/v2/audio/{clip_id}"
 - `leo_get_chapter_content`：读取章节及台词/旁白切片
 - `leo_synthesize_chapter`：智能体直接指挥生成章节语音
 - `leo_list_voices` / `leo_list_plugins`：查询可用声线与插件
+
+---
+
+### 3. CLI 命令行插件工具 (`leo-cli`)
+
+无需启动任何网络端口或 HTTP 服务，通过命令行直接操作微内核制作有声书：
+
+```bash
+# 查看帮助
+cargo run -p leo-plugin-cli -- --help
+
+# 1. 导入小说文本并自动分章生成剧本 AST
+cargo run -p leo-plugin-cli -- import 开局合欢宗，被师姐拿捏命脉.txt
+
+# 2. 查看当前已存储的剧目列表
+cargo run -p leo-plugin-cli -- list
+
+# 3. 导出指定剧本为配音制作台账 CSV
+cargo run -p leo-plugin-cli -- export <PROJECT_ID> --format csv
+
+# 4. 查询当前系统支持的 TTS 合成声线
+cargo run -p leo-plugin-cli -- voices
+
+# 5. 直接对第 0 章所有台词和旁白切片执行语音合成
+cargo run -p leo-plugin-cli -- synthesize <PROJECT_ID> --chapter 0 --voice zh-CN-YunxiNeural
+```
 
 ---
 

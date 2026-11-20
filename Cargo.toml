@@ -12,6 +12,7 @@ members = [
     "plugins/tts/edge",
     "plugins/api",
     "plugins/mcp",
+    "plugins/cli",
     "app",
 ]
 

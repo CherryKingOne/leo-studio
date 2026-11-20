@@ -13,6 +13,7 @@ pub enum PluginCategory {
     Api,
     Transport,
     Mcp,
+    Cli,
     Other,
 }
 

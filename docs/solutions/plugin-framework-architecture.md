@@ -276,8 +276,10 @@ leo-studio/
 │   │   └── csv/                           # 纯文本 CSV 文件存储插件（透明易调试）
 │   ├── api/                               # 【API 传输层服务插件】
 │   │   └── (Axum REST API /api/v2 路由、控制器与音频流式网关)
-│   └── mcp/                               # 【MCP 协议服务插件】
-│       └── (Model Context Protocol JSON-RPC / SSE 工具与工作流提示词)
+│   ├── mcp/                               # 【MCP 协议服务插件】
+│   │   └── (Model Context Protocol JSON-RPC / SSE 工具与工作流提示词)
+│   └── cli/                               # 【CLI 命令行服务插件】
+│       └── (全功能命令行操作：import、export、synthesize、voices、plugins)
 │
 ├── app/                                   # 【微内核主机引导器 Host Launcher】
 │   ├── Cargo.toml                         # 组装依赖的插件清单
