@@ -69,7 +69,8 @@ impl ServerHandler for McpHandler {
         .with_server_info(Implementation::new("leo-studio", env!("CARGO_PKG_VERSION")))
         .with_instructions(
             "Leo Studio 的 MCP 服务：查询与制作有声书剧目、章节、切句与多音字标注。\n\
-             只读工具默认可用；写入与破坏性工具需服务端开启对应开关。\n\
+             只读工具始终可用；写入工具（含章节合成）与破坏性工具由服务端\n\
+             LEO_MCP_WRITE_TOOLS / LEO_MCP_DESTRUCTIVE_TOOLS 开关控制，关闭后不会出现在工具列表中。\n\
              大数据优先使用 leo_get_chapter 的 max_chars 截断或 leo_search_chapters 定位。",
         )
     }

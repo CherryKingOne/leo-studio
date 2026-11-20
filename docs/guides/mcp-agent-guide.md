@@ -104,7 +104,9 @@ INFO leo_app: Leo Studio 后端微内核已启动：http://127.0.0.1:58685
 | :--- | :---: | :--- | :--- |
 | `leo_list_plugins` | 只读 | 查询当前微内核装载的所有插件及能力声明 | 无 |
 | `leo_list_voices` | 只读 | 查询系统可用 TTS 声线角色列表（Edge/CosyVoice）| 无 |
-| `leo_synthesize_chapter` | 执行 | 指挥微内核对指定章节逐句执行批量语音合成 | `project_id`, `chapter_id`, `voice`, `speed`, `pitch` |
+| `leo_synthesize_chapter` | 写入 | 指挥微内核对指定章节逐句执行批量语音合成（属于写入工具组，`LEO_MCP_WRITE_TOOLS=false` 时不可用） | `project_id`, `chapter_id`, `voice`, `speed`, `pitch`, `force` |
+
+> `leo_list_voices` 属于只读工具组，即使关闭写入/破坏性工具也始终可用。
 
 ---
 

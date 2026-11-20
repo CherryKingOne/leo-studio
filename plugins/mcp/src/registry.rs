@@ -187,6 +187,14 @@ pub fn definitions(settings: &McpSettings) -> Vec<Tool> {
             annotations("章节多音字标注", true, false, true),
         ),
         tool(
+            "leo_list_voices",
+            "声线列表",
+            "查询系统当前支持的所有配音角色声线（如云希、晓晓、云健、晓伊等）。",
+            json!({}),
+            &[],
+            annotations("声线列表", true, false, true),
+        ),
+        tool(
             "leo_get_stats",
             "全库统计",
             "返回剧目数、章节数、总字数与回收站数量。",
@@ -317,6 +325,21 @@ fn write_tools() -> Vec<Tool> {
             &["project_id"],
             annotations("恢复剧目", false, false, true),
         ),
+        tool(
+            "leo_synthesize_chapter",
+            "章节人声合成",
+            "为指定章节批量合成真人配音音频切片，生成真实 MP3 音频文件。",
+            json!({
+                "project_id": str_prop("剧目 ID"),
+                "chapter_id": str_prop("章节 ID"),
+                "voice": str_prop("声线 ID，如 zh-CN-YunxiNeural"),
+                "speed": num_prop("语速倍率 0.5 ~ 2.0，默认 1.0"),
+                "pitch": num_prop("音调偏移，单位 Hz，-100 ~ +100，默认 0"),
+                "force": bool_prop("是否强制重新合成已有音频的切片，默认 false")
+            }),
+            &["project_id", "chapter_id"],
+            annotations("章节人声合成", false, false, false),
+        ),
     ]
 }
 
@@ -364,29 +387,6 @@ fn destructive_tools() -> Vec<Tool> {
             &["confirm"],
             annotations("清空回收站", false, true, true),
         ),
-        tool(
-            "leo_list_voices",
-            "声线列表",
-            "查询系统当前支持的所有配音角色声线（如云希、晓晓、云健、晓伊等）。",
-            json!({}),
-            &[],
-            annotations("声线列表", true, false, true),
-        ),
-        tool(
-            "leo_synthesize_chapter",
-            "章节人声合成",
-            "为指定章节批量合成真人配音音频切片，生成真实 MP3 音频文件。",
-            json!({
-                "project_id": str_prop("剧目 ID"),
-                "chapter_id": str_prop("章节 ID"),
-                "voice": str_prop("声线 ID，如 zh-CN-YunxiNeural"),
-                "speed": num_prop("语速倍率 0.5 ~ 2.0，默认 1.0"),
-                "pitch": num_prop("音调偏移，单位 Hz，-100 ~ +100，默认 0"),
-                "force": bool_prop("是否强制重新合成已有音频的切片，默认 false")
-            }),
-            &["project_id", "chapter_id"],
-            annotations("章节人声合成", false, false, false),
-        ),
     ]
 }
 
@@ -417,6 +417,22 @@ fn opt_string(args: &JsonObject, key: &str) -> Option<String> {
 
 fn opt_i64(args: &JsonObject, key: &str, default: i64) -> i64 {
     arg(args, key).and_then(Value::as_i64).unwrap_or(default)
+}
+
+/// 解析可选的非负整数条数限制：接受 JSON 整数（schema 声明的类型），
+/// 也兼容以字符串传入的数字；负数或无法解析时返回参数错误，而不是静默忽略。
+fn opt_limit(args: &JsonObject, key: &str) -> Result<Option<usize>, AppError> {
+    let Some(value) = arg(args, key).filter(|value| !value.is_null()) else {
+        return Ok(None);
+    };
+    let parsed = match value {
+        Value::Number(number) => number.as_u64(),
+        Value::String(text) => text.trim().parse::<u64>().ok(),
+        _ => None,
+    };
+    parsed
+        .map(|limit| Some(usize::try_from(limit).unwrap_or(usize::MAX)))
+        .ok_or_else(|| AppError::invalid_parameter(format!("{key} 必须是非负整数")))
 }
 
 fn opt_f64(args: &JsonObject, key: &str, default: f64) -> f64 {
@@ -533,8 +549,7 @@ impl McpHandler {
                     items.retain(|item| item.chapter_title.contains(&keyword));
                 }
                 let total = items.len();
-                if let Some(limit) = opt_string(args, "limit").and_then(|v| v.parse::<usize>().ok())
-                {
+                if let Some(limit) = opt_limit(args, "limit")? {
                     items.truncate(limit);
                 }
                 Ok(json!({

@@ -430,3 +430,62 @@ async fn mcp_plugin_without_api_plugin_fails_loudly() {
         .expect_err("缺少 leo-plugin-api 时应报错");
     assert!(err.to_string().contains("leo-plugin-api"), "{err}");
 }
+
+#[tokio::test]
+async fn tool_groups_match_semantics_and_limit_is_applied() {
+    let dir = temp_dir("tool-groups-limit");
+
+    // 只读模式：查询声线可用，合成（写操作）不可用
+    let read_only = make_handler(&dir, mcp_settings(false, false)).await;
+    assert!(read_only.has_tool("leo_list_voices"));
+    assert!(!read_only.has_tool("leo_synthesize_chapter"));
+
+    // 开写入、关破坏性：合成属于写入组，应可用
+    let write_only = make_handler(&dir, mcp_settings(true, false)).await;
+    assert!(write_only.has_tool("leo_list_voices"));
+    assert!(write_only.has_tool("leo_synthesize_chapter"));
+    assert!(!write_only.has_tool("leo_purge_project"));
+
+    // 只开破坏性：合成不应混在破坏性组里
+    let destructive_only = make_handler(&dir, mcp_settings(false, true)).await;
+    assert!(!destructive_only.has_tool("leo_synthesize_chapter"));
+    assert!(destructive_only.has_tool("leo_list_voices"));
+
+    let project = call(
+        &write_only,
+        "leo_create_project",
+        json!({ "name": "limit 测试", "text": SAMPLE }),
+    )
+    .await;
+    let project_id = project["project_id"].as_str().unwrap().to_string();
+
+    // limit 按 schema 以整数传入时必须生效
+    let limited = call(
+        &write_only,
+        "leo_list_chapters",
+        json!({ "project_id": project_id, "limit": 1 }),
+    )
+    .await;
+    assert_eq!(limited["total"], 2);
+    assert_eq!(limited["items"].as_array().unwrap().len(), 1);
+
+    // 兼容字符串数字；不传则返回全部
+    let limited = call(
+        &write_only,
+        "leo_list_chapters",
+        json!({ "project_id": project_id, "limit": "1" }),
+    )
+    .await;
+    assert_eq!(limited["items"].as_array().unwrap().len(), 1);
+    let all = call(&write_only, "leo_list_chapters", json!({ "project_id": project_id })).await;
+    assert_eq!(all["items"].as_array().unwrap().len(), 2);
+
+    // 非法值报错，而不是静默返回全部
+    let err = call_err(
+        &write_only,
+        "leo_list_chapters",
+        json!({ "project_id": project_id, "limit": -1 }),
+    )
+    .await;
+    assert!(err.contains("limit"), "{err}");
+}

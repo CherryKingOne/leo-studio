@@ -95,11 +95,11 @@ Claude Desktop 原生只支持 stdio，需要额外桥接。完整配置、JSON-
 
 完整参数与返回见 [tools.md](tools.md)。只读工具默认全部可用：
 
-`leo_health`、`leo_list_projects`、`leo_get_project`、`leo_list_chapters`、`leo_get_chapter`、`leo_search_chapters`、`leo_list_recycle_bin`、`leo_get_sentence_polyphones`、`leo_list_chapter_polyphones`、`leo_get_stats`
+`leo_health`、`leo_list_projects`、`leo_get_project`、`leo_list_chapters`、`leo_get_chapter`、`leo_search_chapters`、`leo_list_recycle_bin`、`leo_get_sentence_polyphones`、`leo_list_chapter_polyphones`、`leo_list_voices`、`leo_get_stats`
 
 写入工具（默认启用，`LEO_MCP_WRITE_TOOLS=false` 可关闭）：
 
-`leo_create_project`、`leo_append_chapters`、`leo_rename_project`、`leo_update_project`、`leo_update_chapter`、`leo_save_sentence_polyphones`、`leo_clear_sentence_polyphones`、`leo_restore_project`
+`leo_create_project`、`leo_append_chapters`、`leo_rename_project`、`leo_update_project`、`leo_update_chapter`、`leo_save_sentence_polyphones`、`leo_clear_sentence_polyphones`、`leo_restore_project`、`leo_synthesize_chapter`
 
 破坏性工具（默认启用，且必须传 `confirm=true`；`LEO_MCP_DESTRUCTIVE_TOOLS=false` 可关闭）：
 
