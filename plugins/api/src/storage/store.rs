@@ -3,7 +3,7 @@ use std::path::PathBuf;
 use crate::config::Settings;
 use crate::error::{AppResult, storage_io};
 
-use super::csv_table::CsvTable;
+use super::csv_table::{CsvTable, save_tables};
 
 const PROJECTS_FILENAME: &str = "projects.csv";
 
@@ -156,13 +156,16 @@ impl Store {
         self.projects.save()
     }
 
+    /// 全部表两阶段落盘：全部写好临时文件并 fsync 后才统一替换，任一表写失败则一张都不改。
     pub fn save_all(&self) -> AppResult<()> {
-        self.save_novels()?;
-        self.save_contents()?;
-        self.save_sentences()?;
-        self.save_dialogues()?;
-        self.save_polyphones()?;
-        self.save_projects()
+        save_tables(&[
+            &self.novels,
+            &self.contents,
+            &self.sentences,
+            &self.dialogues,
+            &self.polyphones,
+            &self.projects,
+        ])
     }
 }
 

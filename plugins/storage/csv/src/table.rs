@@ -1,6 +1,9 @@
 use std::collections::HashMap;
 use std::fs;
+use std::io;
 use std::path::{Path, PathBuf};
+
+use crate::atomic::{PendingWrite, commit_all, stage_file};
 
 use leo_core::error::{CoreError, CoreResult};
 
@@ -91,48 +94,50 @@ impl CsvTable {
         self.records = new_records;
     }
 
-    /// 原子落盘：先写入同目录下的临时文件，然后通过操作系统级 rename 原子替换。
-    pub fn save(&self) -> CoreResult<()> {
-        let parent = self.path.parent().unwrap_or_else(|| Path::new("."));
-        let temp_path = parent.join(format!(".tmp_{}", uuid::Uuid::new_v4().simple()));
-
-        let file = fs::File::create(&temp_path).map_err(|err| {
-            CoreError::Storage(format!("创建临时 CSV 文件失败: {err}"))
-        })?;
-
-        let mut writer = csv::WriterBuilder::new()
-            .has_headers(true)
-            .from_writer(file);
-
-        writer.write_record(&self.headers).map_err(|err| {
-            let _ = fs::remove_file(&temp_path);
-            CoreError::Storage(format!("写入表头失败: {err}"))
-        })?;
-
-        for record in &self.records {
-            let row: Vec<&str> = self
-                .headers
-                .iter()
-                .map(|header| record.get(header).map(|v| v.as_str()).unwrap_or(""))
-                .collect();
-            writer.write_record(&row).map_err(|err| {
-                let _ = fs::remove_file(&temp_path);
-                CoreError::Storage(format!("写入记录失败: {err}"))
-            })?;
+    /// 用新的记录集构造一张同路径、同表头的表（不修改当前表），
+    /// 便于先落盘、成功后再替换内存中的表。
+    pub fn with_records(&self, records: Vec<Record>) -> Self {
+        Self {
+            path: self.path.clone(),
+            headers: self.headers.clone(),
+            records,
         }
-
-        writer.flush().map_err(|err| {
-            let _ = fs::remove_file(&temp_path);
-            CoreError::Storage(format!("刷新缓冲区失败: {err}"))
-        })?;
-
-        drop(writer);
-
-        fs::rename(&temp_path, &self.path).map_err(|err| {
-            let _ = fs::remove_file(&temp_path);
-            CoreError::Storage(format!("原子重命名 CSV 失败: {err}"))
-        })?;
-
-        Ok(())
     }
+
+    pub fn path(&self) -> &Path {
+        &self.path
+    }
+
+    /// 把整张表写成同目录下的临时文件并 fsync，返回待提交的写入（尚未替换目标文件）。
+    pub fn stage(&self) -> CoreResult<PendingWrite> {
+        stage_file(&self.path, |out| {
+            let mut writer = csv::WriterBuilder::new().has_headers(true).from_writer(out);
+            writer.write_record(&self.headers).map_err(io::Error::other)?;
+            for record in &self.records {
+                let row: Vec<&str> = self
+                    .headers
+                    .iter()
+                    .map(|header| record.get(header).map(|v| v.as_str()).unwrap_or(""))
+                    .collect();
+                writer.write_record(&row).map_err(io::Error::other)?;
+            }
+            writer.flush()
+        })
+        .map_err(|err| CoreError::Storage(format!("写入 CSV {:?} 失败: {err}", self.path)))
+    }
+
+    /// 原子落盘：临时文件 + fsync + rename + 目录 fsync。
+    pub fn save(&self) -> CoreResult<()> {
+        save_tables(&[self])
+    }
+}
+
+/// 多表两阶段落盘：先把每张表都写成临时文件并 fsync，全部成功后才逐个 rename 替换。
+/// 任一表写入失败时所有临时文件都会被清理，磁盘上的旧表保持不变。
+pub fn save_tables(tables: &[&CsvTable]) -> CoreResult<()> {
+    let mut pending = Vec::with_capacity(tables.len());
+    for table in tables {
+        pending.push(table.stage()?);
+    }
+    commit_all(pending).map_err(|err| CoreError::Storage(format!("提交 CSV 文件失败: {err}")))
 }

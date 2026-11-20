@@ -14,7 +14,7 @@ use leo_core::error::{CoreError, CoreResult};
 use leo_core::plugin::{ScriptSummary, StorageProvider};
 
 use crate::schema::*;
-use crate::table::{CsvTable, Record, int_field, str_field};
+use crate::table::{CsvTable, Record, int_field, save_tables, str_field};
 
 pub struct CsvStorageService {
     base_dir: PathBuf,
@@ -74,13 +74,16 @@ impl CsvStorageService {
 }
 
 impl CsvTables {
+    /// 六张表两阶段落盘：全部写好临时文件并 fsync 后才统一替换，任一表写失败则一张都不改。
     fn save_all(&self) -> CoreResult<()> {
-        self.novels.save()?;
-        self.contents.save()?;
-        self.sentences.save()?;
-        self.dialogues.save()?;
-        self.polyphones.save()?;
-        self.audio_clips.save()
+        save_tables(&[
+            &self.novels,
+            &self.contents,
+            &self.sentences,
+            &self.dialogues,
+            &self.polyphones,
+            &self.audio_clips,
+        ])
     }
 }
 
@@ -174,7 +177,6 @@ impl StorageProvider for CsvStorageService {
             .cloned()
             .collect();
         novel_rows.push(novel_record);
-        tables.novels.replace_records(novel_rows);
 
         // 2. 更新 contents, sentences, dialogues, polyphones, audio_clips
         let mut content_rows: Vec<Record> = tables
@@ -319,14 +321,19 @@ impl StorageProvider for CsvStorageService {
             }
         }
 
-        tables.contents.replace_records(content_rows);
-        tables.sentences.replace_records(sentence_rows);
-        tables.dialogues.replace_records(dialogue_rows);
-        tables.polyphones.replace_records(polyphone_rows);
-        tables.audio_clips.replace_records(audio_rows);
-
-        // 统一原子落盘
-        tables.save_all()
+        // 先把新内容写到磁盘（两阶段、全部成功才替换），成功后再更新内存中的表；
+        // 落盘失败时内存保持旧状态，与磁盘一致，后续读取不会看到“未保存”的数据。
+        let staged = CsvTables {
+            novels: tables.novels.with_records(novel_rows),
+            contents: tables.contents.with_records(content_rows),
+            sentences: tables.sentences.with_records(sentence_rows),
+            dialogues: tables.dialogues.with_records(dialogue_rows),
+            polyphones: tables.polyphones.with_records(polyphone_rows),
+            audio_clips: tables.audio_clips.with_records(audio_rows),
+        };
+        staged.save_all()?;
+        *tables = staged;
+        Ok(())
     }
 
     async fn load_script(&self, project_id: &str) -> CoreResult<Option<ScriptDocument>> {

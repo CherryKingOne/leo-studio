@@ -3,7 +3,7 @@ use chrono::{DateTime, TimeZone, Utc};
 
 use crate::config::Settings;
 use crate::error::{AppError, AppResult, storage_io};
-use crate::storage::csv_table::{Record, str_field};
+use crate::storage::csv_table::{Record, save_tables, str_field};
 use crate::storage::store::Store;
 use crate::text::{
     TextPipeline, clean_dialogue_records, count_words, create_dialogue_records_from_sentence,
@@ -213,10 +213,7 @@ pub fn save_file(
     let dialogue_records = clean_dialogue_records(text, dialogue_records);
     store.dialogues.insert_batch(dialogue_records);
 
-    store.save_novels()?;
-    store.save_contents()?;
-    store.save_sentences()?;
-    store.save_dialogues()?;
+    save_tables(&[&store.novels, &store.contents, &store.sentences, &store.dialogues])?;
 
     Ok(SavedFileInfo {
         file_id,
@@ -233,10 +230,7 @@ pub fn delete_file(store: &mut Store, file_id: &str) -> AppResult<()> {
     store.contents.delete_by("novel_id", file_id);
     store.sentences.delete_by("novel_id", file_id);
     store.dialogues.delete_by("novel_id", file_id);
-    store.save_novels()?;
-    store.save_contents()?;
-    store.save_sentences()?;
-    store.save_dialogues()?;
+    save_tables(&[&store.novels, &store.contents, &store.sentences, &store.dialogues])?;
     Ok(())
 }
 

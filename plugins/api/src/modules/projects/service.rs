@@ -5,7 +5,7 @@ use chrono::{DateTime, Utc};
 use crate::config::Settings;
 use crate::error::{AppError, AppResult};
 use super::storage_compat as text_service;
-use crate::storage::csv_table::{Record, bool_field, int_field, str_field};
+use crate::storage::csv_table::{Record, bool_field, int_field, save_tables, str_field};
 use crate::storage::store::Store;
 use crate::text::{
     TextPipeline, clean_dialogue_records, count_words, create_dialogue_records_from_sentence,
@@ -351,12 +351,17 @@ pub fn clear_recycle_bin(store: &mut Store) -> AppResult<usize> {
 
     let mut cleared_count = 0;
     for item in items {
-        store.projects.delete_by("project_id", &item.project_id);
+        // 先删除剧目数据，成功后才移除项目行；中途失败时也把已清理的项目落盘，
+        // 避免“文件已删、projects.csv 仍指向它们”的不一致
         if let Err(err) = text_service::delete_file(store, &item.file_id)
             && err.code != crate::error::ErrorCode::FILE_NOT_FOUND
         {
+            if cleared_count > 0 {
+                store.save_projects()?;
+            }
             return Err(err);
         }
+        store.projects.delete_by("project_id", &item.project_id);
         cleared_count += 1;
     }
     store.save_projects()?;
@@ -554,12 +559,14 @@ pub fn update_chapter(
         ],
     );
 
-    store.save_polyphones()?;
-    store.save_sentences()?;
-    store.save_dialogues()?;
-    store.save_contents()?;
-    store.save_novels()?;
-    store.save_projects()?;
+    save_tables(&[
+        &store.polyphones,
+        &store.sentences,
+        &store.dialogues,
+        &store.contents,
+        &store.novels,
+        &store.projects,
+    ])?;
 
     get_project_chapter_content(store, project_id, chapter_id)
 }
@@ -619,12 +626,14 @@ pub fn delete_chapter(
         ],
     );
 
-    store.save_polyphones()?;
-    store.save_sentences()?;
-    store.save_dialogues()?;
-    store.save_contents()?;
-    store.save_novels()?;
-    store.save_projects()?;
+    save_tables(&[
+        &store.polyphones,
+        &store.sentences,
+        &store.dialogues,
+        &store.contents,
+        &store.novels,
+        &store.projects,
+    ])?;
 
     Ok(ChapterDeleteInfo {
         project_id: project.project_id,
@@ -944,9 +953,6 @@ pub fn append_chapters(
     let new_dialogue_records = clean_dialogue_records(text, new_dialogue_records);
     store.sentences.insert_batch(new_sentence_records);
     store.dialogues.insert_batch(new_dialogue_records);
-    store.save_contents()?;
-    store.save_sentences()?;
-    store.save_dialogues()?;
 
     let all_chapters = text_service::get_novel_chapters(store, &project.file_id);
     let total_chapters = all_chapters.len() as i64;
@@ -974,8 +980,14 @@ pub fn append_chapters(
             ("updated_at", now.to_rfc3339()),
         ],
     );
-    store.save_novels()?;
-    store.save_projects()?;
+    // 章节、句子、对话与统计一起两阶段落盘，避免“章节有、句子没有”的半写状态
+    save_tables(&[
+        &store.contents,
+        &store.sentences,
+        &store.dialogues,
+        &store.novels,
+        &store.projects,
+    ])?;
 
     let _ = std::fs::remove_file(&target);
 

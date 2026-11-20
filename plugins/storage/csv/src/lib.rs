@@ -1,3 +1,4 @@
+pub mod atomic;
 pub mod schema;
 pub mod store;
 pub mod table;
@@ -11,7 +12,7 @@ use leo_core::error::CoreResult;
 use leo_core::plugin::{Plugin, PluginCategory, PluginManifest, StorageProvider};
 
 pub use store::{CsvStorageService, is_safe_clip_id};
-pub use table::{CsvTable, Record, bool_field, int_field, str_field};
+pub use table::{CsvTable, Record, bool_field, int_field, save_tables, str_field};
 
 pub struct CsvStoragePlugin {
     data_dir: PathBuf,

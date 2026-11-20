@@ -1,6 +1,8 @@
 use std::collections::HashMap;
 use std::path::PathBuf;
 
+use leo_plugin_storage_csv::atomic::{PendingWrite, commit_all, stage_file};
+
 use crate::error::{AppError, AppResult, storage_io};
 
 /// 一条 CSV 记录：列名到字符串值的映射。
@@ -130,36 +132,36 @@ impl CsvTable {
         self.records.clear();
     }
 
-    /// 原子落盘：先写临时文件，再替换目标文件。
-    pub fn save(&self) -> AppResult<()> {
-        if let Some(parent) = self.path.parent() {
-            std::fs::create_dir_all(parent).map_err(|err| storage_io("创建 CSV 目录失败", err))?;
-        }
-
-        let tmp_path = self.path.with_extension("tmp");
-        {
-            let mut writer = csv::Writer::from_path(&tmp_path)
-                .map_err(|err| csv_error("创建 CSV 临时文件失败", err))?;
-            writer
-                .write_record(&self.headers)
-                .map_err(|err| csv_error("写入 CSV 表头失败", err))?;
+    /// 把整张表写成同目录下唯一命名的临时文件并 fsync，返回尚未替换目标文件的待提交写入。
+    pub fn stage(&self) -> AppResult<PendingWrite> {
+        stage_file(&self.path, |out| {
+            let mut writer = csv::Writer::from_writer(out);
+            writer.write_record(&self.headers).map_err(std::io::Error::other)?;
             for record in &self.records {
-                let row: Vec<String> = self
+                let row: Vec<&str> = self
                     .headers
                     .iter()
-                    .map(|header| record.get(header).cloned().unwrap_or_default())
+                    .map(|header| record.get(header).map(String::as_str).unwrap_or(""))
                     .collect();
-                writer
-                    .write_record(&row)
-                    .map_err(|err| csv_error("写入 CSV 记录失败", err))?;
+                writer.write_record(&row).map_err(std::io::Error::other)?;
             }
-            writer
-                .flush()
-                .map_err(|err| storage_io("刷新 CSV 缓冲失败", err))?;
-        }
-
-        std::fs::rename(&tmp_path, &self.path)
-            .map_err(|err| storage_io("替换 CSV 文件失败", err))?;
-        Ok(())
+            writer.flush()
+        })
+        .map_err(|err| storage_io("写入 CSV 临时文件失败", err))
     }
+
+    /// 原子落盘：唯一临时文件 + fsync + rename + 目录 fsync。
+    pub fn save(&self) -> AppResult<()> {
+        save_tables(&[self])
+    }
+}
+
+/// 多表两阶段落盘：先把每张表都写成临时文件并 fsync，全部成功后才逐个替换目标文件。
+/// 任一表写入失败时所有临时文件都会被清理，磁盘上的旧表一张都不会被改动。
+pub fn save_tables(tables: &[&CsvTable]) -> AppResult<()> {
+    let mut pending = Vec::with_capacity(tables.len());
+    for table in tables {
+        pending.push(table.stage()?);
+    }
+    commit_all(pending).map_err(|err| storage_io("替换 CSV 文件失败", err))
 }
