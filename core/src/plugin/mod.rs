@@ -6,6 +6,6 @@ pub use manifest::{PluginCategory, PluginManifest};
 pub use manager::{FailurePolicy, PluginFailure, PluginManager};
 pub use traits::{
     ChapterSplitter, DialogueParseStatus, DialogueSplitter, Exporter, Importer, Plugin,
-    RawChapter, RawDialogueLine, RawDialogueSegment, StorageProvider, SynthesisOutput,
+    RawChapter, RawDialogueLine, RawDialogueSegment, ScriptSummary, StorageProvider, SynthesisOutput,
     SynthesisPayload, TTSProvider, TextCleaner, VoiceInfo,
 };

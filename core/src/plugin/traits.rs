@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 use crate::ast::audio::{AudioClipRef, AudioFormat};
 use crate::ast::node::{ScriptDocument, SegmentKind};
 use crate::context::Context;
-use crate::error::CoreResult;
+use crate::error::{CoreError, CoreResult};
 use crate::plugin::manifest::PluginManifest;
 
 /// 插件根接口：参考 Cordis 的 apply(ctx) 哲学。
@@ -136,6 +136,18 @@ pub trait TTSProvider: Send + Sync {
     async fn synthesize(&self, payload: &SynthesisPayload) -> CoreResult<SynthesisOutput>;
 }
 
+/// 已存储剧本的摘要信息（用于列表展示，不加载整本 AST）
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct ScriptSummary {
+    pub id: String,
+    pub title: String,
+    pub author: String,
+    pub chapter_count: usize,
+    pub total_words: usize,
+    /// RFC 3339 格式的最后更新时间
+    pub updated_at: String,
+}
+
 /// 持久化存储扩展点
 #[async_trait]
 pub trait StorageProvider: Send + Sync {
@@ -143,6 +155,12 @@ pub trait StorageProvider: Send + Sync {
     async fn load_script(&self, project_id: &str) -> CoreResult<Option<ScriptDocument>>;
     async fn save_audio_clip(&self, clip_id: &str, data: &[u8], format: AudioFormat) -> CoreResult<AudioClipRef>;
     async fn load_audio_clip(&self, storage_key: &str) -> CoreResult<Option<Vec<u8>>>;
+
+    /// 列出已存储的全部剧本摘要。默认实现返回“不支持”错误，
+    /// 已有的第三方存储插件无需修改即可继续编译。
+    async fn list_scripts(&self) -> CoreResult<Vec<ScriptSummary>> {
+        Err(CoreError::Storage("当前存储插件不支持列出剧本".to_string()))
+    }
 }
 
 /// 导入器扩展点

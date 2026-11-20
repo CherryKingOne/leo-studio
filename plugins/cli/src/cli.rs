@@ -3,9 +3,13 @@ use std::path::Path;
 use std::sync::Arc;
 
 use clap::{Parser, Subcommand};
-use leo_core::ast::SegmentKind;
+use chrono::Utc;
+use leo_core::ast::{AudioClipRef, AudioFormat, SegmentKind, mp3_duration_ms, synthesis_clip_id};
 use leo_core::context::Context;
-use leo_core::plugin::{Exporter, Importer, StorageProvider, SynthesisPayload, TTSProvider};
+use leo_core::plugin::{
+    Exporter, Importer, PluginManager, ScriptSummary, StorageProvider, SynthesisPayload,
+    TTSProvider,
+};
 
 use crate::setup_cli_runtime;
 
@@ -71,12 +75,24 @@ pub enum Commands {
 
         #[arg(short, long, default_value_t = 0.0, allow_hyphen_values = true, help = "音调偏移，单位 Hz (-100 ~ +100，0 为原调)")]
         pitch: f32,
+
+        #[arg(long, help = "忽略已有切片，全部重新合成")]
+        force: bool,
     },
 }
 
 pub async fn execute_cli(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
     let (ctx, manager) = setup_cli_runtime(&cli.data_dir).await?;
+    execute_cli_with(cli, &ctx, &manager).await
+}
 
+/// 在已装配好的运行时上执行命令（便于测试或宿主替换插件后复用）
+pub async fn execute_cli_with(
+    cli: Cli,
+    ctx: &Context,
+    manager: &PluginManager,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let ctx = ctx.clone();
     match cli.command {
         Commands::Import { file, title } => {
             println!("📥 正在读取文件: {file} ...");
@@ -94,10 +110,12 @@ pub async fn execute_cli(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
                 doc.title = custom_title;
             }
 
-            // 持久化保存
-            if let Ok(storage) = ctx.inject::<Arc<dyn StorageProvider>>().await {
-                storage.save_script(&doc).await?;
-            }
+            // 持久化保存：没有存储插件时直接报错，避免“导入成功”却什么都没保存
+            let storage = ctx
+                .inject::<Arc<dyn StorageProvider>>()
+                .await
+                .map_err(|_| "未挂载 StorageProvider 存储插件，无法保存导入结果")?;
+            storage.save_script(&doc).await?;
 
             let mut total_sentences = 0;
             let mut total_segments = 0;
@@ -125,30 +143,21 @@ pub async fn execute_cli(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
         }
 
         Commands::List => {
-            let projects_file = Path::new(&cli.data_dir).join("projects.csv");
-            if !projects_file.exists() {
+            let projects = list_projects(&ctx).await?;
+            if projects.is_empty() {
                 println!("📂 当前存储库尚未创建任何项目。");
                 return Ok(());
             }
 
-            let content = fs::read_to_string(&projects_file)?;
-            println!("\n📚 Leo Studio 剧目列表 ({})：", projects_file.display());
+            println!("\n📚 Leo Studio 剧目列表 ({})：", cli.data_dir);
             println!("────────────────────────────────────────────────────────────────────────────────────────");
-            println!("{:<34} {:<20} {:<10} {:<10}", "项目 ID", "名称", "章节数", "状态");
+            println!("{:<34} {:<20} {:<10} {:<10}", "项目 ID", "名称", "章节数", "总字数");
             println!("────────────────────────────────────────────────────────────────────────────────────────");
-
-            for (idx, line) in content.lines().enumerate() {
-                if idx == 0 || line.trim().is_empty() {
-                    continue;
-                }
-                let parts: Vec<&str> = line.split(',').collect();
-                if parts.len() >= 5 {
-                    let project_id = parts.first().unwrap_or(&"");
-                    let name = parts.get(1).unwrap_or(&"");
-                    let chapters = parts.get(5).unwrap_or(&"0");
-                    let status = parts.get(4).unwrap_or(&"active");
-                    println!("{:<34} {:<20} {:<10} {:<10}", project_id, name, chapters, status);
-                }
+            for project in projects {
+                println!(
+                    "{:<34} {:<20} {:<10} {:<10}",
+                    project.id, project.title, project.chapter_count, project.total_words
+                );
             }
             println!("────────────────────────────────────────────────────────────────────────────────────────");
         }
@@ -230,72 +239,28 @@ pub async fn execute_cli(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
             voice,
             speed,
             pitch,
+            force,
         } => {
             println!("🎙️ 准备合成项目 [{project_id}] 的第 {chapter} 章音频 ...");
-            let storage = ctx
-                .inject::<Arc<dyn StorageProvider>>()
-                .await
-                .map_err(|_| "未挂载 StorageProvider 插件")?;
-            let tts = ctx
-                .inject::<Arc<dyn TTSProvider>>()
-                .await
-                .map_err(|_| "未挂载 TTSProvider 插件")?;
-
-            let doc = storage
-                .load_script(&project_id)
-                .await?
-                .ok_or_else(|| format!("未找到项目 ID: {project_id}"))?;
-
-            let target_chapter = doc
-                .chapters
-                .get(chapter)
-                .ok_or_else(|| format!("项目仅有 {} 章，索引 {} 越界", doc.chapters.len(), chapter))?;
-
-            println!("📖 正在处理章节: 《{}》", target_chapter.title);
-
-            let mut clips_count = 0;
-            let mut total_duration_ms = 0u64;
-
-            for (p_idx, para) in target_chapter.paragraphs.iter().enumerate() {
-                for (s_idx, sentence) in para.sentences.iter().enumerate() {
-                    for (seg_idx, seg) in sentence.segments.iter().enumerate() {
-                        let text = seg.text.trim();
-                        if text.is_empty() {
-                            continue;
-                        }
-
-                        let role_tag = match seg.kind {
-                            SegmentKind::Dialogue => "【台词对白】",
-                            SegmentKind::Narration => "【旁白叙述】",
-                            SegmentKind::Sfx => "【音效标记】",
-                        };
-
-                        let payload = SynthesisPayload {
-                            text: text.to_string(),
-                            voice: voice.clone(),
-                            speed,
-                            pitch,
-                            emotion: None,
-                        };
-
-                        print!("  -> 段落[{p_idx}]-句[{s_idx}]-切片[{seg_idx}] {role_tag} \"{text}\" 合成中... ");
-                        let out = tts.synthesize(&payload).await?;
-                        let clip_id = uuid::Uuid::new_v4().simple().to_string();
-                        let clip_ref = storage
-                            .save_audio_clip(&clip_id, &out.audio_bytes, out.format)
-                            .await?;
-
-                        clips_count += 1;
-                        total_duration_ms += out.duration_ms;
-                        println!("完成! [{:.2}s, 存储键: {}]", out.duration_ms as f64 / 1000.0, clip_ref.storage_key);
-                    }
-                }
-            }
+            let report = synthesize_chapter(
+                &ctx,
+                &project_id,
+                chapter,
+                &SynthesisOptions {
+                    voice: voice.clone(),
+                    speed,
+                    pitch,
+                    force,
+                },
+            )
+            .await?;
 
             println!("\n🎉 章节语音合成全量完成！");
-            println!("  生成切片数   : {} 个", clips_count);
-            println!("  累计音频时长 : {:.2} 秒", total_duration_ms as f64 / 1000.0);
+            println!("  新合成切片数 : {} 个", report.synthesized);
+            println!("  复用已有切片 : {} 个", report.reused);
+            println!("  累计音频时长 : {:.2} 秒", report.total_duration_ms as f64 / 1000.0);
             println!("  采用声线     : {}", voice);
+            println!("  切片引用已写回剧本，可通过 export --format json 查看。");
         }
     }
 
@@ -326,4 +291,166 @@ async fn find_importer(
                 .any(|ext| ext.eq_ignore_ascii_case(&extension))
         })
         .ok_or_else(|| format!("没有可处理 .{extension} 文件的导入插件").into())
+}
+
+/// 通过 StorageProvider 列出已存储的剧目（与 `import` 写入的是同一份数据）
+pub async fn list_projects(ctx: &Context) -> Result<Vec<ScriptSummary>, Box<dyn std::error::Error>> {
+    let storage = ctx
+        .inject::<Arc<dyn StorageProvider>>()
+        .await
+        .map_err(|_| "未挂载 StorageProvider 存储插件")?;
+    Ok(storage.list_scripts().await?)
+}
+
+/// 章节合成参数
+#[derive(Debug, Clone)]
+pub struct SynthesisOptions {
+    pub voice: String,
+    pub speed: f32,
+    pub pitch: f32,
+    /// 为 true 时忽略已有切片，全部重新合成
+    pub force: bool,
+}
+
+/// 章节合成结果统计
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct SynthesisReport {
+    pub synthesized: usize,
+    pub reused: usize,
+    pub total_duration_ms: u64,
+}
+
+/// 合成指定章节的全部片段，并把生成的 AudioClipRef 写回剧本后保存。
+///
+/// 切片 ID 与 REST/MCP 相同，由片段 ID + TTS 引擎 + 声线 + 语速 + 音调 + 文本计算；
+/// 片段已挂载同一切片且音频文件仍在时直接复用（`force` 为 true 时除外）。
+/// 中途合成失败时，已完成的切片引用仍会先保存再返回错误。
+pub async fn synthesize_chapter(
+    ctx: &Context,
+    project_id: &str,
+    chapter: usize,
+    options: &SynthesisOptions,
+) -> Result<SynthesisReport, Box<dyn std::error::Error>> {
+    let storage = ctx
+        .inject::<Arc<dyn StorageProvider>>()
+        .await
+        .map_err(|_| "未挂载 StorageProvider 插件")?;
+    let tts = ctx
+        .inject::<Arc<dyn TTSProvider>>()
+        .await
+        .map_err(|_| "未挂载 TTSProvider 插件")?;
+
+    let mut doc = storage
+        .load_script(project_id)
+        .await?
+        .ok_or_else(|| format!("未找到项目 ID: {project_id}"))?;
+    let chapter_count = doc.chapters.len();
+    let target_chapter = doc
+        .chapters
+        .get_mut(chapter)
+        .ok_or_else(|| format!("项目仅有 {chapter_count} 章，索引 {chapter} 越界"))?;
+
+    println!("📖 正在处理章节: 《{}》", target_chapter.title);
+
+    let engine = tts.provider_id().to_string();
+    let mut report = SynthesisReport::default();
+    let mut failure: Option<Box<dyn std::error::Error>> = None;
+
+    'outer: for (p_idx, para) in target_chapter.paragraphs.iter_mut().enumerate() {
+        for (s_idx, sentence) in para.sentences.iter_mut().enumerate() {
+            for (seg_idx, seg) in sentence.segments.iter_mut().enumerate() {
+                let text = seg.text.trim().to_string();
+                if text.is_empty() {
+                    continue;
+                }
+
+                let clip_id = synthesis_clip_id(
+                    &seg.id,
+                    &engine,
+                    &options.voice,
+                    options.speed,
+                    options.pitch,
+                    &text,
+                );
+
+                if !options.force
+                    && let Some(existing) = seg.audio.as_ref()
+                    && existing.clip_id == clip_id
+                    && storage
+                        .load_audio_clip(&existing.storage_key)
+                        .await
+                        .ok()
+                        .flatten()
+                        .is_some()
+                {
+                    report.reused += 1;
+                    report.total_duration_ms += existing.duration_ms;
+                    continue;
+                }
+
+                let role_tag = match seg.kind {
+                    SegmentKind::Dialogue => "【台词对白】",
+                    SegmentKind::Narration => "【旁白叙述】",
+                    SegmentKind::Sfx => "【音效标记】",
+                };
+                print!("  -> 段落[{p_idx}]-句[{s_idx}]-切片[{seg_idx}] {role_tag} \"{text}\" 合成中... ");
+
+                let payload = SynthesisPayload {
+                    text: text.clone(),
+                    voice: options.voice.clone(),
+                    speed: options.speed,
+                    pitch: options.pitch,
+                    emotion: None,
+                };
+                let out = match tts.synthesize(&payload).await {
+                    Ok(out) => out,
+                    Err(err) => {
+                        failure = Some(Box::new(err));
+                        break 'outer;
+                    }
+                };
+                let clip_ref = match storage
+                    .save_audio_clip(&clip_id, &out.audio_bytes, out.format)
+                    .await
+                {
+                    Ok(clip_ref) => clip_ref,
+                    Err(err) => {
+                        failure = Some(Box::new(err));
+                        break 'outer;
+                    }
+                };
+                let duration_ms = match out.format {
+                    AudioFormat::Mp3 => mp3_duration_ms(&out.audio_bytes).unwrap_or(out.duration_ms),
+                    _ => out.duration_ms,
+                };
+
+                seg.audio = Some(AudioClipRef {
+                    clip_id: clip_ref.clip_id,
+                    format: out.format,
+                    sample_rate: out.sample_rate,
+                    duration_ms,
+                    storage_key: clip_ref.storage_key.clone(),
+                    tts_engine: engine.clone(),
+                    voice_id: options.voice.clone(),
+                    created_at: Utc::now(),
+                });
+                seg.is_dirty = false;
+
+                report.synthesized += 1;
+                report.total_duration_ms += duration_ms;
+                println!("完成! [{:.2}s, 存储键: {}]", duration_ms as f64 / 1000.0, clip_ref.storage_key);
+            }
+        }
+    }
+
+    // 把切片引用写回剧本：即使中途失败，也保存已完成的部分，避免音频文件成为孤儿
+    if report.synthesized > 0 {
+        doc.updated_at = Utc::now();
+        storage.save_script(&doc).await?;
+    }
+
+    match failure {
+        Some(err) => Err(err),
+        None => Ok(report),
+    }
 }

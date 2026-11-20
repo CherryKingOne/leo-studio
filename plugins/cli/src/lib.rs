@@ -15,7 +15,10 @@ use leo_plugin_parser_novel_regex::NovelRegexParserPlugin;
 use leo_plugin_storage_csv::CsvStoragePlugin;
 use leo_plugin_tts_edge::EdgeTtsPlugin;
 
-pub use cli::{Cli, Commands, execute_cli};
+pub use cli::{
+    Cli, Commands, SynthesisOptions, SynthesisReport, execute_cli, execute_cli_with, list_projects,
+    synthesize_chapter,
+};
 
 /// Leo Studio 命令行交互插件
 pub struct CliPlugin;

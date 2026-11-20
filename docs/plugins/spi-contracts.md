@@ -153,6 +153,10 @@ pub trait StorageProvider: Send + Sync {
 
     /// 按存储 key 读取音频切片原始字节流
     async fn load_audio_clip(&self, storage_key: &str) -> CoreResult<Option<Vec<u8>>>;
+
+    /// 列出已存储剧本的摘要（ID、标题、作者、章节数、总字数、更新时间）。
+    /// 有默认实现（返回“不支持”错误），旧插件无需修改；`leo-cli list` 依赖它。
+    async fn list_scripts(&self) -> CoreResult<Vec<ScriptSummary>> { /* 默认：Err(CoreError::Storage) */ }
 }
 ```
 

@@ -106,6 +106,41 @@ pub fn mp3_duration_ms(bytes: &[u8]) -> Option<u64> {
     (frames > 0).then(|| (total_samples_ms_num + 500_000) / 1_000_000)
 }
 
+/// 生成音频切片 ID：`clip_{片段ID}_{参数指纹}`。
+///
+/// 指纹是 TTS 引擎、声线、语速、音调与文本的稳定 64 位 FNV-1a 哈希（16 位十六进制），
+/// 同一片段换声线/语速/音调或文本被修改后都会得到不同的切片 ID，从而不会命中旧缓存。
+/// REST/MCP 章节合成与 CLI 合成共用此规则，同一参数生成的切片可以互相复用。
+pub fn synthesis_clip_id(
+    segment_id: &str,
+    engine: &str,
+    voice: &str,
+    speed: f32,
+    pitch: f32,
+    text: &str,
+) -> String {
+    const FNV_OFFSET: u64 = 0xcbf2_9ce4_8422_2325;
+    const FNV_PRIME: u64 = 0x0000_0100_0000_01b3;
+    let mut hash = FNV_OFFSET;
+    let speed_bits = speed.to_bits().to_le_bytes();
+    let pitch_bits = pitch.to_bits().to_le_bytes();
+    let parts: [&[u8]; 5] = [
+        engine.as_bytes(),
+        voice.as_bytes(),
+        &speed_bits,
+        &pitch_bits,
+        text.as_bytes(),
+    ];
+    for part in parts {
+        // 先写入长度，避免不同字段拼接产生相同字节序列
+        for byte in (part.len() as u64).to_le_bytes().iter().chain(part.iter()) {
+            hash ^= *byte as u64;
+            hash = hash.wrapping_mul(FNV_PRIME);
+        }
+    }
+    format!("clip_{segment_id}_{hash:016x}")
+}
+
 #[cfg(test)]
 mod tests {
     use super::mp3_duration_ms;

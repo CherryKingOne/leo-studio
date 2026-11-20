@@ -8,10 +8,10 @@ use async_trait::async_trait;
 use chrono::{DateTime, Utc};
 use leo_core::ast::{
     Annotation, AudioClipRef, AudioFormat, ChapterNode, ParagraphNode, ScriptDocument, SegmentKind,
-    SegmentNode, SentenceNode,
+    SegmentNode, SentenceNode, mp3_duration_ms,
 };
 use leo_core::error::{CoreError, CoreResult};
-use leo_core::plugin::StorageProvider;
+use leo_core::plugin::{ScriptSummary, StorageProvider};
 
 use crate::schema::*;
 use crate::table::{CsvTable, Record, int_field, str_field};
@@ -488,6 +488,26 @@ impl StorageProvider for CsvStorageService {
         Ok(Some(script))
     }
 
+    async fn list_scripts(&self) -> CoreResult<Vec<ScriptSummary>> {
+        let tables = self.tables.read().await;
+        let mut summaries: Vec<ScriptSummary> = tables
+            .novels
+            .records()
+            .iter()
+            .map(|r| ScriptSummary {
+                id: str_field(r, "novel_id").to_string(),
+                title: str_field(r, "title").to_string(),
+                author: str_field(r, "author").to_string(),
+                chapter_count: int_field(r, "chapter_count").max(0) as usize,
+                total_words: int_field(r, "total_words").max(0) as usize,
+                updated_at: str_field(r, "updated_at").to_string(),
+            })
+            .collect();
+        // 最近更新的排在前面
+        summaries.sort_by(|a, b| b.updated_at.cmp(&a.updated_at));
+        Ok(summaries)
+    }
+
     async fn save_audio_clip(
         &self,
         clip_id: &str,
@@ -513,8 +533,12 @@ impl StorageProvider for CsvStorageService {
             CoreError::Storage(format!("写入音频文件 {:?} 失败: {err}", full_path))
         })?;
 
-        // 估算时长：默认 MP3 按照 48kbps（6000 字节/秒）估算
-        let duration_ms = (data.len() as u64 * 1000) / 6000;
+        // MP3 按帧头计算真实时长；其它格式或无法解析时按 48kbps（6000 字节/秒）估算
+        let estimated = (data.len() as u64 * 1000) / 6000;
+        let duration_ms = match format {
+            AudioFormat::Mp3 => mp3_duration_ms(data).unwrap_or(estimated),
+            _ => estimated,
+        };
 
         Ok(AudioClipRef {
             clip_id: clip_id.to_string(),

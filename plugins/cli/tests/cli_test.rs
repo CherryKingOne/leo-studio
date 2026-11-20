@@ -144,3 +144,154 @@ async fn test_cli_export_routes_through_exporter_plugins() {
     let err = execute_cli(cli).await.expect_err("未注册的导出格式应报错");
     assert!(err.to_string().contains("csv, json"), "{err}");
 }
+
+mod fake_tts {
+    use std::sync::atomic::{AtomicUsize, Ordering};
+
+    use leo_core::ast::AudioFormat;
+    use leo_core::plugin::{SynthesisOutput, SynthesisPayload, TTSProvider, VoiceInfo};
+
+    /// 离线假 TTS：输出 10 帧合法 MP3（MPEG-2 Layer III 24kHz，每帧 24ms，共 240ms）
+    pub struct FakeTts {
+        pub calls: AtomicUsize,
+    }
+
+    #[async_trait::async_trait]
+    impl TTSProvider for FakeTts {
+        fn provider_id(&self) -> &str {
+            "fake-tts"
+        }
+
+        async fn list_voices(&self) -> leo_core::CoreResult<Vec<VoiceInfo>> {
+            Ok(Vec::new())
+        }
+
+        async fn synthesize(&self, _payload: &SynthesisPayload) -> leo_core::CoreResult<SynthesisOutput> {
+            self.calls.fetch_add(1, Ordering::SeqCst);
+            let mut frame = vec![0u8; 144];
+            frame[..4].copy_from_slice(&[0xFF, 0xF3, 0x64, 0xC4]);
+            Ok(SynthesisOutput {
+                audio_bytes: frame.repeat(10),
+                format: AudioFormat::Mp3,
+                sample_rate: 24_000,
+                duration_ms: 1,
+            })
+        }
+    }
+}
+
+async fn runtime_with_fake_tts(
+    data_dir: &str,
+    fake: std::sync::Arc<fake_tts::FakeTts>,
+) -> (leo_core::Context, std::sync::Arc<leo_core::plugin::PluginManager>) {
+    use std::sync::Arc;
+
+    use leo_core::plugin::TTSProvider;
+
+    let (ctx, manager) = setup_cli_runtime(data_dir).await.expect("装配 CLI 环境失败");
+    let provider: Arc<dyn TTSProvider> = fake;
+    ctx.provide_named("fake-tts", provider).await.unwrap();
+    ctx.set_default::<Arc<dyn TTSProvider>>("fake-tts").await.unwrap();
+    (ctx, manager)
+}
+
+#[tokio::test]
+async fn test_cli_list_shows_imported_and_synthesis_is_written_back() {
+    use std::sync::Arc;
+    use std::sync::atomic::{AtomicUsize, Ordering};
+
+    use leo_core::plugin::StorageProvider;
+    use leo_plugin_cli::{SynthesisOptions, execute_cli_with, list_projects, synthesize_chapter};
+
+    let temp_dir = tempfile::tempdir().unwrap();
+    let data_dir = temp_dir.path().join("data").to_str().unwrap().to_string();
+    let novel = temp_dir.path().join("仙途.txt");
+    std::fs::write(&novel, "第一章 开端\n他说：“你好。”\n风起了。\n").unwrap();
+    let fake = Arc::new(fake_tts::FakeTts {
+        calls: AtomicUsize::new(0),
+    });
+
+    // import 之后，list 必须能看到导入的项目（此前 list 读的是从未写入的 projects.csv）
+    let (ctx, manager) = runtime_with_fake_tts(&data_dir, fake.clone()).await;
+    assert!(list_projects(&ctx).await.unwrap().is_empty());
+    execute_cli_with(
+        Cli {
+            command: Commands::Import {
+                file: novel.to_str().unwrap().to_string(),
+                title: Some("仙途, 第一部".to_string()),
+            },
+            data_dir: data_dir.clone(),
+        },
+        &ctx,
+        &manager,
+    )
+    .await
+    .expect("导入失败");
+    let projects = list_projects(&ctx).await.unwrap();
+    assert_eq!(projects.len(), 1);
+    assert_eq!(projects[0].title, "仙途, 第一部", "书名含逗号也不能错列");
+    assert_eq!(projects[0].chapter_count, 1);
+    let project_id = projects[0].id.clone();
+    execute_cli_with(
+        Cli {
+            command: Commands::List,
+            data_dir: data_dir.clone(),
+        },
+        &ctx,
+        &manager,
+    )
+    .await
+    .expect("list 失败");
+
+    // 合成后，切片引用写回剧本
+    let options = SynthesisOptions {
+        voice: "voice-a".to_string(),
+        speed: 1.0,
+        pitch: 0.0,
+        force: false,
+    };
+    let report = synthesize_chapter(&ctx, &project_id, 0, &options).await.unwrap();
+    assert!(report.synthesized >= 2, "{report:?}");
+    assert_eq!(report.reused, 0);
+    assert_eq!(report.total_duration_ms, 240 * report.synthesized as u64);
+    let first_calls = fake.calls.load(Ordering::SeqCst);
+    assert_eq!(first_calls, report.synthesized);
+    drop(ctx);
+
+    // 新进程（重新装配）重新加载剧本：每个片段都挂着音频引用，重跑同参数不会再次合成
+    let (ctx, _manager) = runtime_with_fake_tts(&data_dir, fake.clone()).await;
+    let storage = ctx.inject::<Arc<dyn StorageProvider>>().await.unwrap();
+    let doc = storage.load_script(&project_id).await.unwrap().unwrap();
+    let segments: Vec<_> = doc.chapters[0]
+        .paragraphs
+        .iter()
+        .flat_map(|p| &p.sentences)
+        .flat_map(|s| &s.segments)
+        .filter(|seg| !seg.text.trim().is_empty())
+        .collect();
+    assert_eq!(segments.len(), report.synthesized);
+    for seg in &segments {
+        let audio = seg.audio.as_ref().expect("合成结果应写回片段");
+        assert_eq!(audio.voice_id, "voice-a");
+        assert_eq!(audio.tts_engine, "fake-tts");
+        assert_eq!(audio.duration_ms, 240);
+        assert!(storage.load_audio_clip(&audio.storage_key).await.unwrap().is_some());
+    }
+
+    let again = synthesize_chapter(&ctx, &project_id, 0, &options).await.unwrap();
+    assert_eq!(again.synthesized, 0);
+    assert_eq!(again.reused, report.synthesized);
+    assert_eq!(fake.calls.load(Ordering::SeqCst), first_calls);
+
+    // 换声线或 --force 会重新合成
+    let other = SynthesisOptions {
+        voice: "voice-b".to_string(),
+        ..options.clone()
+    };
+    let switched = synthesize_chapter(&ctx, &project_id, 0, &other).await.unwrap();
+    assert_eq!(switched.synthesized, report.synthesized);
+    let forced = synthesize_chapter(&ctx, &project_id, 0, &SynthesisOptions { force: true, ..other })
+        .await
+        .unwrap();
+    assert_eq!(forced.synthesized, report.synthesized);
+}
