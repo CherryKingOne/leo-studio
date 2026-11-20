@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use async_trait::async_trait;
-use leo_core::ast::AudioFormat;
+use leo_core::ast::{AudioFormat, mp3_duration_ms};
 use leo_core::context::Context;
 use leo_core::error::{CoreError, CoreResult};
 use leo_core::plugin::{
@@ -138,8 +138,9 @@ impl TTSProvider for EdgeTtsProvider {
                 }
             })?;
 
-            // 估算时长：基于 48kbps MP3 (6000 字节/秒)
-            let duration_ms = (audio.audio_bytes.len() as u64 * 1000) / 6000;
+            // 按 MP3 帧头计算真实时长；无法解析时退回 48kbps (6000 字节/秒) 估算
+            let duration_ms = mp3_duration_ms(&audio.audio_bytes)
+                .unwrap_or((audio.audio_bytes.len() as u64 * 1000) / 6000);
 
             Ok(SynthesisOutput {
                 audio_bytes: audio.audio_bytes,

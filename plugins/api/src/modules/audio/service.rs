@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use leo_core::ast::AudioFormat;
+use leo_core::ast::{AudioFormat, mp3_duration_ms};
 use leo_core::plugin::{StorageProvider, SynthesisPayload, TTSProvider};
 use leo_plugin_storage_csv::is_safe_clip_id;
 
@@ -85,11 +85,24 @@ pub async fn synthesize_chapter(
             continue;
         }
 
-        let clip_id = format!("clip_{seg_id}");
+        // 缓存键包含 TTS 引擎、声线、语速、音调与文本：任一参数变化都会生成新的切片，
+        // 不会再把旧声线的音频当作新声线返回
+        let clip_id = synthesis_clip_id(
+            seg_id,
+            tts.provider_id(),
+            &req.voice,
+            req.speed,
+            req.pitch,
+            text,
+        );
         let relative_key = format!("audio/clips/{clip_id}.mp3");
 
-        // 如果未开启强制重新合成，且文件已存在，则复用
-        if !req.force && storage.load_audio_clip(&relative_key).await.ok().flatten().is_some() {
+        // 如果未开启强制重新合成，且相同参数的切片已存在，则复用并从音频本身计算时长
+        if !req.force
+            && let Some(cached) = storage.load_audio_clip(&relative_key).await.ok().flatten()
+        {
+            let duration = mp3_duration_ms(&cached).unwrap_or(0);
+            total_duration_ms += duration;
             skipped_count += 1;
             clips.push(AudioClipItem {
                 clip_id: clip_id.clone(),
@@ -97,7 +110,7 @@ pub async fn synthesize_chapter(
                 text: text.clone(),
                 kind: seg_kind.clone(),
                 voice: req.voice.clone(),
-                duration_ms: 1500, // 默认占位估算
+                duration_ms: duration,
                 audio_url: format!("/api/v2/audio/{clip_id}"),
             });
             continue;
@@ -116,7 +129,11 @@ pub async fn synthesize_chapter(
             AppError::internal(format!("合成片段「{text}」失败: {err}"))
         })?;
 
-        let duration = output.duration_ms;
+        // 优先按音频帧计算真实时长，无法解析时退回 TTS 插件给出的值
+        let duration = match output.format {
+            AudioFormat::Mp3 => mp3_duration_ms(&output.audio_bytes).unwrap_or(output.duration_ms),
+            _ => output.duration_ms,
+        };
         total_duration_ms += duration;
 
         // 保存切片文件
@@ -146,6 +163,40 @@ pub async fn synthesize_chapter(
         total_duration_ms,
         clips,
     })
+}
+
+/// 生成音频切片 ID：`clip_{片段ID}_{参数指纹}`。
+///
+/// 指纹是 TTS 引擎、声线、语速、音调与文本的稳定 64 位 FNV-1a 哈希（16 位十六进制），
+/// 同一片段换声线/语速/音调或文本被修改后都会得到不同的切片 ID，从而不会命中旧缓存。
+pub fn synthesis_clip_id(
+    segment_id: &str,
+    engine: &str,
+    voice: &str,
+    speed: f32,
+    pitch: f32,
+    text: &str,
+) -> String {
+    const FNV_OFFSET: u64 = 0xcbf2_9ce4_8422_2325;
+    const FNV_PRIME: u64 = 0x0000_0100_0000_01b3;
+    let mut hash = FNV_OFFSET;
+    let speed_bits = speed.to_bits().to_le_bytes();
+    let pitch_bits = pitch.to_bits().to_le_bytes();
+    let parts: [&[u8]; 5] = [
+        engine.as_bytes(),
+        voice.as_bytes(),
+        &speed_bits,
+        &pitch_bits,
+        text.as_bytes(),
+    ];
+    for part in parts {
+        // 先写入长度，避免不同字段拼接产生相同字节序列
+        for byte in (part.len() as u64).to_le_bytes().iter().chain(part.iter()) {
+            hash ^= *byte as u64;
+            hash = hash.wrapping_mul(FNV_PRIME);
+        }
+    }
+    format!("clip_{segment_id}_{hash:016x}")
 }
 
 /// 获取单个音频切片的二进制流

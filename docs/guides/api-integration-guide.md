@@ -173,14 +173,31 @@ Content-Type: application/json
 }
 ```
 
+**缓存规则**：切片 ID 形如 `clip_{片段ID}_{参数指纹}`，指纹由 TTS 引擎、`voice`、`speed`、`pitch` 与片段文本共同计算。未传 `force: true` 时，只有这几项完全相同的已有切片才会被复用；换声线、调语速/音调或修改文本都会重新合成。旧版本生成的 `clip_{片段ID}.mp3` 不会再被命中。
+
+**时长**：`duration_ms` 与 `total_duration_ms` 由 MP3 帧头实际计算（复用的缓存切片同样从音频本身计算并计入 `total_duration_ms`），不再是 1500ms 占位值。
+
 **响应示例 (`200 OK`)**：
 ```json
 {
-  "code": "OK",
+  "code": 0,
   "data": {
-    "synthesized_clips": 26,
+    "chapter_id": "c1",
+    "total_segments": 26,
+    "newly_synthesized": 20,
+    "skipped_count": 6,
     "total_duration_ms": 78200,
-    "status": "completed"
+    "clips": [
+      {
+        "clip_id": "clip_s1_0_9f1c2a7b3d4e5f60",
+        "segment_id": "s1_0",
+        "text": "言罢，他一拳轰出。",
+        "kind": "narration",
+        "voice": "zh-CN-YunxiNeural",
+        "duration_ms": 1824,
+        "audio_url": "/api/v2/audio/clip_s1_0_9f1c2a7b3d4e5f60"
+      }
+    ]
   }
 }
 ```
