@@ -173,6 +173,8 @@ Content-Type: application/json
 }
 ```
 
+**参数**（Edge-TTS 插件）：`voice` 只允许字母、数字与 `-`；`speed` 为语速倍率 0.5 ~ 2.0（换算为 SSML `rate=(speed-1)×100%`）；`pitch` 为音调偏移，单位 Hz，-100 ~ +100。参数非法时返回 `422`，不会发起合成。片段文本中的 `&`、`<`、`>`、引号会自动做 XML 转义后再拼进 SSML。
+
 **缓存规则**：切片 ID 形如 `clip_{片段ID}_{参数指纹}`，指纹由 TTS 引擎、`voice`、`speed`、`pitch` 与片段文本共同计算。未传 `force: true` 时，只有这几项完全相同的已有切片才会被复用；换声线、调语速/音调或修改文本都会重新合成。旧版本生成的 `clip_{片段ID}.mp3` 不会再被命中。
 
 **时长**：`duration_ms` 与 `total_duration_ms` 由 MP3 帧头实际计算（复用的缓存切片同样从音频本身计算并计入 `total_duration_ms`），不再是 1500ms 占位值。

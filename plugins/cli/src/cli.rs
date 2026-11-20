@@ -69,7 +69,7 @@ pub enum Commands {
         #[arg(short, long, default_value_t = 1.0, help = "语速倍率 (0.5 ~ 2.0)")]
         speed: f32,
 
-        #[arg(short, long, default_value_t = 0.0, help = "音调调整 (-100% ~ +100%)")]
+        #[arg(short, long, default_value_t = 0.0, allow_hyphen_values = true, help = "音调偏移，单位 Hz (-100 ~ +100，0 为原调)")]
         pitch: f32,
     },
 }

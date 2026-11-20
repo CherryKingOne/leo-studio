@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
 use leo_core::ast::{AudioFormat, mp3_duration_ms};
+use leo_core::error::CoreError;
 use leo_core::plugin::{StorageProvider, SynthesisPayload, TTSProvider};
 use leo_plugin_storage_csv::is_safe_clip_id;
 
@@ -125,8 +126,10 @@ pub async fn synthesize_chapter(
             emotion: None,
         };
 
-        let output = tts.synthesize(&payload).await.map_err(|err| {
-            AppError::internal(format!("合成片段「{text}」失败: {err}"))
+        let output = tts.synthesize(&payload).await.map_err(|err| match err {
+            // 声线、语速、音调等参数非法属于请求错误，而不是服务端故障
+            CoreError::InvalidParameter(message) => AppError::invalid_parameter(message),
+            err => AppError::internal(format!("合成片段「{text}」失败: {err}")),
         })?;
 
         // 优先按音频帧计算真实时长，无法解析时退回 TTS 插件给出的值

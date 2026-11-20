@@ -152,3 +152,30 @@ fn clip_id_changes_with_every_synthesis_parameter() {
     }
     assert!(leo_plugin_storage_csv::is_safe_clip_id(&base));
 }
+
+#[tokio::test]
+async fn synthesize_rejects_invalid_edge_parameters_with_422() {
+    // 默认装配的 Edge-TTS 在本地校验参数，非法声线/语速不会联网，直接返回 422
+    let app = TestApp::new(1).await;
+    let novel = "第一章 试炼开始\n言罢，他一拳轰出。\n";
+    let (_, body) = app
+        .post_multipart(
+            "/api/v2/projects",
+            &[("name", "参数校验")],
+            Some(("test.txt", "text/plain", novel.as_bytes())),
+        )
+        .await;
+    let project_id = body["data"]["project_id"].as_str().unwrap().to_string();
+    let (_, body) = app.get(&format!("/api/v2/projects/{project_id}/chapters")).await;
+    let chapter_id = body["data"]["items"][0]["chapter_id"].as_str().unwrap().to_string();
+    let url = format!("/api/v2/projects/{project_id}/chapters/{chapter_id}/synthesize");
+
+    for payload in [
+        serde_json::json!({ "voice": "zh-CN-Yunxi'><prosody rate='+500%", "speed": 1.0, "pitch": 0.0 }),
+        serde_json::json!({ "voice": "zh-CN-YunxiNeural", "speed": 5.0, "pitch": 0.0 }),
+        serde_json::json!({ "voice": "zh-CN-YunxiNeural", "speed": 1.0, "pitch": 500.0 }),
+    ] {
+        let (status, body) = app.post_json(&url, &payload.to_string()).await;
+        assert_eq!(status, StatusCode::UNPROCESSABLE_ENTITY, "{payload}: {body}");
+    }
+}

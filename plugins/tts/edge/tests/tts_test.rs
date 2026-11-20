@@ -62,3 +62,72 @@ async fn test_edge_tts_live_synthesis() {
         }
     }
 }
+
+fn payload(text: &str, voice: &str, speed: f32, pitch: f32) -> SynthesisPayload {
+    SynthesisPayload {
+        text: text.into(),
+        voice: voice.into(),
+        speed,
+        pitch,
+        emotion: None,
+    }
+}
+
+#[test]
+fn test_speed_and_pitch_are_mapped_to_prosody() {
+    use leo_plugin_tts_edge::speech_config;
+
+    let config = speech_config(&payload("你好", "zh-CN-XiaoxiaoNeural", 1.5, -20.0)).unwrap();
+    assert_eq!(config.voice_name, "zh-CN-XiaoxiaoNeural");
+    assert_eq!(config.rate, 50);
+    assert_eq!(config.pitch, -20);
+
+    let config = speech_config(&payload("你好", "", 0.8, 12.4)).unwrap();
+    assert_eq!(config.voice_name, "zh-CN-YunxiNeural");
+    assert_eq!(config.rate, -20);
+    assert_eq!(config.pitch, 12);
+
+    let config = speech_config(&payload("你好", "zh-CN-YunxiNeural", 1.0, 0.0)).unwrap();
+    assert_eq!((config.rate, config.pitch), (0, 0));
+
+    for (speed, pitch) in [(0.4, 0.0), (2.1, 0.0), (f32::NAN, 0.0), (1.0, 101.0), (1.0, f32::INFINITY)] {
+        assert!(
+            speech_config(&payload("你好", "zh-CN-YunxiNeural", speed, pitch)).is_err(),
+            "speed={speed} pitch={pitch} 应被拒绝"
+        );
+    }
+}
+
+#[test]
+fn test_ssml_text_and_voice_are_escaped_or_rejected() {
+    use leo_plugin_tts_edge::{escape_ssml_text, speech_config};
+
+    assert_eq!(
+        escape_ssml_text("A&B <i>\"嗨\"</i> 'x'"),
+        "A&amp;B &lt;i&gt;&quot;嗨&quot;&lt;/i&gt; &apos;x&apos;"
+    );
+    assert_eq!(escape_ssml_text("第一句\u{0}\u{8}结束\n"), "第一句结束\n");
+    assert_eq!(escape_ssml_text("&amp;"), "&amp;amp;");
+
+    for voice in ["zh-CN-Yunxi'><prosody rate='+500%", "zh CN", "a\"b", "云希"] {
+        assert!(speech_config(&payload("你好", voice, 1.0, 0.0)).is_err(), "{voice}");
+    }
+}
+
+#[tokio::test]
+async fn test_invalid_parameters_fail_before_network() {
+    use leo_core::error::CoreError;
+    use leo_plugin_tts_edge::EdgeTtsProvider;
+
+    let provider = EdgeTtsProvider::new();
+    let err = provider
+        .synthesize(&payload("你好", "bad'voice", 1.0, 0.0))
+        .await
+        .expect_err("非法声线应直接报错");
+    assert!(matches!(err, CoreError::InvalidParameter(_)), "{err}");
+    let err = provider
+        .synthesize(&payload("你好", "zh-CN-YunxiNeural", 3.0, 0.0))
+        .await
+        .expect_err("越界语速应直接报错");
+    assert!(matches!(err, CoreError::InvalidParameter(_)), "{err}");
+}

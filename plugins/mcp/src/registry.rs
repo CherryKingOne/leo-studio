@@ -20,6 +20,10 @@ fn int_prop(description: &str) -> Value {
     json!({ "type": "integer", "description": description })
 }
 
+fn num_prop(description: &str) -> Value {
+    json!({ "type": "number", "description": description })
+}
+
 fn bool_prop(description: &str) -> Value {
     json!({ "type": "boolean", "description": description })
 }
@@ -376,6 +380,8 @@ fn destructive_tools() -> Vec<Tool> {
                 "project_id": str_prop("剧目 ID"),
                 "chapter_id": str_prop("章节 ID"),
                 "voice": str_prop("声线 ID，如 zh-CN-YunxiNeural"),
+                "speed": num_prop("语速倍率 0.5 ~ 2.0，默认 1.0"),
+                "pitch": num_prop("音调偏移，单位 Hz，-100 ~ +100，默认 0"),
                 "force": bool_prop("是否强制重新合成已有音频的切片，默认 false")
             }),
             &["project_id", "chapter_id"],
@@ -411,6 +417,10 @@ fn opt_string(args: &JsonObject, key: &str) -> Option<String> {
 
 fn opt_i64(args: &JsonObject, key: &str, default: i64) -> i64 {
     arg(args, key).and_then(Value::as_i64).unwrap_or(default)
+}
+
+fn opt_f64(args: &JsonObject, key: &str, default: f64) -> f64 {
+    arg(args, key).and_then(Value::as_f64).unwrap_or(default)
 }
 
 fn opt_bool(args: &JsonObject, key: &str, default: bool) -> bool {
@@ -813,8 +823,8 @@ impl McpHandler {
                 let force = opt_bool(args, "force", false);
                 let req = leo_plugin_api::modules::audio::schema::ChapterSynthesizeRequest {
                     voice,
-                    speed: 1.0,
-                    pitch: 0.0,
+                    speed: opt_f64(args, "speed", 1.0) as f32,
+                    pitch: opt_f64(args, "pitch", 0.0) as f32,
                     force,
                 };
                 let result = leo_plugin_api::modules::audio::service::synthesize_chapter(

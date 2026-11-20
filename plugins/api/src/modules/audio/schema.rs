@@ -5,10 +5,10 @@ pub struct ChapterSynthesizeRequest {
     /// 默认使用的角色声线，如 zh-CN-YunxiNeural
     #[serde(default = "default_voice")]
     pub voice: String,
-    /// 语速倍率，0.5 ~ 2.0，默认 1.0
+    /// 语速倍率，0.5 ~ 2.0，默认 1.0（Edge-TTS 换算为 rate=(speed-1)×100%）
     #[serde(default = "default_speed")]
     pub speed: f32,
-    /// 音调调整
+    /// 音调偏移，单位 Hz，-100 ~ +100，默认 0
     #[serde(default)]
     pub pitch: f32,
     /// 是否强制重新合成已有音频的片段
