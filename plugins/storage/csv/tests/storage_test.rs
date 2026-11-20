@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use leo_core::ast::{
-    AudioFormat, ChapterNode, ParagraphNode, ScriptDocument, SegmentKind, SegmentNode, SentenceNode,
+    Annotation, AudioFormat, ChapterNode, ParagraphNode, ScriptDocument, SegmentKind, SegmentNode, SentenceNode,
 };
 use leo_core::context::Context;
 use leo_core::plugin::{Plugin, StorageProvider};
@@ -229,4 +229,64 @@ async fn test_audio_clip_paths_cannot_escape_audio_dir() {
     let clip = storage.save_audio_clip("clip_ok-1", b"ID3", AudioFormat::Mp3).await.unwrap();
     assert_eq!(storage.load_audio_clip(&clip.storage_key).await.unwrap().unwrap(), b"ID3");
     assert!(storage.load_audio_clip("audio/clips/missing.mp3").await.unwrap().is_none());
+}
+
+#[tokio::test]
+async fn test_polyphones_survive_load_save_round_trip() {
+    let tmp = tempdir().unwrap();
+    let data_dir = tmp.path().to_path_buf();
+
+    let ctx = Context::new("test_storage_polyphones");
+    CsvStoragePlugin::new(&data_dir).apply(&ctx).await.unwrap();
+    let storage = ctx.inject::<Arc<dyn StorageProvider>>().await.unwrap();
+
+    let annotations = vec![
+        Annotation::Polyphone {
+            char_index: 0,
+            character: "行".into(),
+            pinyin: "háng".into(),
+            pinyin_base: "hang".into(),
+            tone: 2,
+            tts_pinyin: "hang2".into(),
+        },
+        Annotation::Polyphone {
+            char_index: 3,
+            character: "长".into(),
+            pinyin: "zhǎng".into(),
+            pinyin_base: "zhang".into(),
+            tone: 3,
+            tts_pinyin: "zhang3".into(),
+        },
+    ];
+
+    let mut script = ScriptDocument::new("p_poly".into(), "多音字".into(), "".into(), "".into());
+    let mut chapter = ChapterNode::new("ch_poly".into(), 1, "v_1_ch_1".into(), "第一章".into());
+    let mut paragraph = ParagraphNode {
+        id: "p_ch_poly".into(),
+        index: 0,
+        sentences: Vec::new(),
+    };
+    let mut sentence = SentenceNode::new("s_poly".into(), 0, "行长来了。".into());
+    let mut segment = SegmentNode::new("seg_poly".into(), 0, SegmentKind::Narration, "行长来了。".into());
+    segment.annotations = annotations.clone();
+    sentence.segments.push(segment);
+    paragraph.sentences.push(sentence);
+    chapter.paragraphs.push(paragraph);
+    script.chapters.push(chapter);
+
+    storage.save_script(&script).await.unwrap();
+    let loaded = storage.load_script("p_poly").await.unwrap().unwrap();
+    let loaded_annotations = &loaded.chapters[0].paragraphs[0].sentences[0].segments[0].annotations;
+    assert_eq!(loaded_annotations, &annotations);
+
+    // 读出再保存，多音字不应丢失
+    storage.save_script(&loaded).await.unwrap();
+    let ctx = Context::new("test_storage_polyphones_reopen");
+    CsvStoragePlugin::new(&data_dir).apply(&ctx).await.unwrap();
+    let storage = ctx.inject::<Arc<dyn StorageProvider>>().await.unwrap();
+    let reloaded = storage.load_script("p_poly").await.unwrap().unwrap();
+    assert_eq!(
+        &reloaded.chapters[0].paragraphs[0].sentences[0].segments[0].annotations,
+        &annotations
+    );
 }

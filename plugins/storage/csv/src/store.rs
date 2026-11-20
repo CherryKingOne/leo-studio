@@ -424,6 +424,25 @@ impl StorageProvider for CsvStorageService {
                         segment_node.speaker_id = Some(speaker_id.to_string());
                     }
 
+                    // 挂载多音字标注
+                    let mut polyphone_rows: Vec<_> = tables
+                        .polyphones
+                        .records()
+                        .iter()
+                        .filter(|r| str_field(r, "segment_id") == segment_id)
+                        .collect();
+                    polyphone_rows.sort_by_key(|r| int_field(r, "char_index"));
+                    for p_row in polyphone_rows {
+                        segment_node.annotations.push(Annotation::Polyphone {
+                            char_index: int_field(p_row, "char_index").max(0) as usize,
+                            character: str_field(p_row, "character").to_string(),
+                            pinyin: str_field(p_row, "pinyin").to_string(),
+                            pinyin_base: str_field(p_row, "pinyin_base").to_string(),
+                            tone: int_field(p_row, "tone").clamp(0, u8::MAX as i64) as u8,
+                            tts_pinyin: str_field(p_row, "tts_pinyin").to_string(),
+                        });
+                    }
+
                     // 挂载音频
                     if let Some(a_row) = tables
                         .audio_clips
