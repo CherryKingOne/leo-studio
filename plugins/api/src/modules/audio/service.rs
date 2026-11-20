@@ -2,6 +2,7 @@ use std::sync::Arc;
 
 use leo_core::ast::AudioFormat;
 use leo_core::plugin::{StorageProvider, SynthesisPayload, TTSProvider};
+use leo_plugin_storage_csv::is_safe_clip_id;
 
 use crate::error::{AppError, AppResult};
 use crate::modules::projects::service as project_service;
@@ -154,6 +155,10 @@ pub async fn get_audio_clip(state: &AppState, clip_id: &str) -> AppResult<Vec<u8
         .inject::<Arc<dyn StorageProvider>>()
         .await
         .map_err(|e| AppError::internal(format!("未找到 Storage 服务: {e}")))?;
+
+    if !is_safe_clip_id(clip_id) {
+        return Err(AppError::invalid_parameter("非法的音频切片 ID"));
+    }
 
     let relative_key = format!("audio/clips/{clip_id}.mp3");
     let bytes = storage

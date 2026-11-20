@@ -537,3 +537,37 @@ async fn v2_import_survives_project_create() {
     assert_eq!(status, 200);
     assert_eq!(body["data"]["total"], 2);
 }
+
+#[tokio::test]
+async fn v2_audio_clip_rejects_path_traversal() {
+    let dir = tempfile::tempdir().unwrap();
+    let app = TestApp::with_dir(dir.path(), 1).await;
+    std::fs::write(dir.path().join("secret.mp3"), b"TOPSECRET").unwrap();
+    std::fs::write(dir.path().join("csv/audio/clips/clip_ok.mp3"), b"ID3OK").unwrap();
+
+    for path in [
+        "/api/v2/audio/..%2F..%2F..%2Fsecret",
+        "/api/v2/audio/..%2f..%2f..%2fsecret",
+        "/api/v2/audio/%2E%2E%2F%2E%2E%2F%2E%2E%2Fsecret",
+        "/api/v2/audio/%252e%252e%252f%252e%252e%252fsecret",
+        "/api/v2/audio/%2Fetc%2Fpasswd",
+        "/api/v2/audio/..%5C..%5Csecret",
+    ] {
+        let (status, body) = app
+            .send_raw(Request::builder().uri(path).body(Body::empty()).unwrap())
+            .await;
+        assert_eq!(status, 422, "{path} 应被拒绝");
+        assert!(!body.contains("TOPSECRET"));
+    }
+
+    let (status, body) = app
+        .send_raw(
+            Request::builder()
+                .uri("/api/v2/audio/clip_ok")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await;
+    assert_eq!(status, 200);
+    assert_eq!(body, "ID3OK");
+}

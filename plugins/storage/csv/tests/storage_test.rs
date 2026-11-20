@@ -183,3 +183,50 @@ async fn test_csv_storage_does_not_touch_rest_store_tables() {
     assert!(storage.load_script("p_new").await.unwrap().is_some());
     assert!(storage.load_script("old_plugin").await.unwrap().is_some());
 }
+
+#[tokio::test]
+async fn test_audio_clip_paths_cannot_escape_audio_dir() {
+    let tmp = tempdir().unwrap();
+    let data_dir = tmp.path().join("data");
+    std::fs::create_dir_all(&data_dir).unwrap();
+    std::fs::write(tmp.path().join("secret.mp3"), b"TOPSECRET").unwrap();
+
+    let ctx = Context::new("test_storage_traversal");
+    CsvStoragePlugin::new(&data_dir).apply(&ctx).await.unwrap();
+    let storage = ctx.inject::<Arc<dyn StorageProvider>>().await.unwrap();
+
+    for clip_id in ["../../../written", "/tmp/abs", "a/b", "..", "", "a\\b", "%2e%2e"] {
+        assert!(
+            storage.save_audio_clip(clip_id, b"x", AudioFormat::Mp3).await.is_err(),
+            "clip_id {clip_id:?} 应被拒绝"
+        );
+    }
+    assert!(!tmp.path().join("written.mp3").exists());
+
+    for key in [
+        "audio/clips/../../../secret.mp3",
+        "../secret.mp3",
+        "/etc/passwd",
+        "./audio/clips/x.mp3",
+        "scripts/novels.csv",
+        "",
+    ] {
+        assert!(
+            storage.load_audio_clip(key).await.is_err(),
+            "storage_key {key:?} 应被拒绝"
+        );
+    }
+
+    #[cfg(unix)]
+    {
+        let link = data_dir.join("audio").join("clips").join("clip_link.mp3");
+        std::os::unix::fs::symlink(tmp.path().join("secret.mp3"), &link).unwrap();
+        assert!(storage.load_audio_clip("audio/clips/clip_link.mp3").await.is_err());
+        assert!(storage.save_audio_clip("clip_link", b"x", AudioFormat::Mp3).await.is_err());
+        assert_eq!(std::fs::read(tmp.path().join("secret.mp3")).unwrap(), b"TOPSECRET");
+    }
+
+    let clip = storage.save_audio_clip("clip_ok-1", b"ID3", AudioFormat::Mp3).await.unwrap();
+    assert_eq!(storage.load_audio_clip(&clip.storage_key).await.unwrap().unwrap(), b"ID3");
+    assert!(storage.load_audio_clip("audio/clips/missing.mp3").await.unwrap().is_none());
+}

@@ -10,7 +10,7 @@ use leo_core::context::Context;
 use leo_core::error::CoreResult;
 use leo_core::plugin::{Plugin, PluginCategory, PluginManifest, StorageProvider};
 
-pub use store::CsvStorageService;
+pub use store::{CsvStorageService, is_safe_clip_id};
 pub use table::{CsvTable, Record, bool_field, int_field, str_field};
 
 pub struct CsvStoragePlugin {

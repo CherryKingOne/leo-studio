@@ -1,6 +1,6 @@
 use std::collections::HashSet;
 use std::fs;
-use std::path::{Path, PathBuf};
+use std::path::{Component, Path, PathBuf};
 use std::sync::Arc;
 use tokio::sync::RwLock;
 
@@ -475,9 +475,20 @@ impl StorageProvider for CsvStorageService {
         data: &[u8],
         format: AudioFormat,
     ) -> CoreResult<AudioClipRef> {
+        if !is_safe_clip_id(clip_id) {
+            return Err(CoreError::InvalidParameter(format!("非法的音频切片 ID: {clip_id:?}")));
+        }
         let filename = format!("{clip_id}.{}", format.extension());
         let full_path = self.audio_dir.join(&filename);
         let relative_key = format!("audio/clips/{filename}");
+        if let Ok(meta) = tokio::fs::symlink_metadata(&full_path).await
+            && meta.file_type().is_symlink()
+        {
+            return Err(CoreError::InvalidParameter(format!(
+                "音频文件 {:?} 是符号链接，拒绝写入",
+                full_path
+            )));
+        }
 
         tokio::fs::write(&full_path, data).await.map_err(|err| {
             CoreError::Storage(format!("写入音频文件 {:?} 失败: {err}", full_path))
@@ -499,13 +510,41 @@ impl StorageProvider for CsvStorageService {
     }
 
     async fn load_audio_clip(&self, storage_key: &str) -> CoreResult<Option<Vec<u8>>> {
-        let full_path = self.base_dir.join(storage_key);
+        let relative = Path::new(storage_key);
+        if storage_key.is_empty()
+            || !relative
+                .components()
+                .all(|c| matches!(c, Component::Normal(_)))
+        {
+            return Err(CoreError::InvalidParameter(format!("非法的音频存储键: {storage_key:?}")));
+        }
+        let full_path = self.base_dir.join(relative);
         if !full_path.exists() {
             return Ok(None);
         }
-        let data = tokio::fs::read(&full_path).await.map_err(|err| {
+        let resolved = full_path.canonicalize().map_err(|err| {
+            CoreError::Storage(format!("解析音频路径 {:?} 失败: {err}", full_path))
+        })?;
+        let audio_root = self.audio_dir.canonicalize().map_err(|err| {
+            CoreError::Storage(format!("解析音频目录 {:?} 失败: {err}", self.audio_dir))
+        })?;
+        if !resolved.starts_with(&audio_root) {
+            return Err(CoreError::InvalidParameter(format!(
+                "音频存储键越出音频目录: {storage_key:?}"
+            )));
+        }
+        let data = tokio::fs::read(&resolved).await.map_err(|err| {
             CoreError::Storage(format!("读取音频文件 {:?} 失败: {err}", full_path))
         })?;
         Ok(Some(data))
     }
+}
+
+/// 音频切片 ID 只允许 ASCII 字母、数字、`_` 与 `-`，杜绝任何路径分隔或 `..`。
+pub fn is_safe_clip_id(clip_id: &str) -> bool {
+    !clip_id.is_empty()
+        && clip_id.len() <= 128
+        && clip_id
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || c == '_' || c == '-')
 }
