@@ -23,6 +23,8 @@ members = [
     # 语音合成：注册层 + 子插件
     "plugins/tts/registry",
     "plugins/tts/edge",
+    "plugins/tts/stepfun",
+    "plugins/tts/minimax",
 
     # 对外入口（只依赖内核与各注册层，不依赖具体子插件）
     "plugins/interfaces/api",

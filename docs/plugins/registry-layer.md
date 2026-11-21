@@ -56,7 +56,20 @@ leo-studio/
 │   │   └── csv/                       驱动 csv
 │   ├── tts/
 │   │   ├── registry/                  leo-plugin-tts       注册层：默认驱动 + “驱动id:声线”路由
-│   │   └── edge/                      驱动 edge
+│   │   ├── edge/                      驱动 edge（微软 Edge，免费）
+│   │   ├── stepfun/                   驱动 stepfun（阶跃星辰，需 STEPFUN_API_KEY）
+│   │   │   ├── src/lib.rs             插件入口 + 官方文档链接
+│   │   │   ├── src/config.rs          参数（leo-plugins.json → settings）与校验
+│   │   │   ├── src/client.rs          /v1/audio/speech、/v1/audio/system_voices
+│   │   │   ├── src/voices.rs          内置兜底音色
+│   │   │   ├── src/audio.rs           从 wav/mp3 算时长
+│   │   │   └── tests/                 本地假服务器测试 + 真实调用测试（--ignored）
+│   │   └── minimax/                   驱动 minimax（MiniMax，需 MINIMAX_API_KEY）
+│   │       ├── src/lib.rs             插件入口 + 官方文档链接
+│   │       ├── src/config.rs          参数与校验
+│   │       ├── src/client.rs          /v1/t2a_v2（hex 音频）、/v1/get_voice
+│   │       ├── src/voices.rs          兜底音色、情绪映射、音调换算
+│   │       └── tests/
 │   ├── interfaces/                    对外入口：只依赖 core + 各注册层
 │   │   ├── api/
 │   │   ├── mcp/
@@ -136,7 +149,20 @@ let (_, exporter) = ExchangeHub::of(&ctx).await.exporter(Some("csv"))?;
 
 注册层插件不能停用（停用会报错）；子插件随便停。
 
+`settings` 按插件 id 放各子插件自己的参数，由子插件自己解析校验，写错字段名或取值超范围启动时直接报错：
+
+```json
+"settings": {
+  "leo-plugin-tts-stepfun": { "model": "step-tts-2", "response_format": "mp3", "default_voice": "cixingnansheng" },
+  "leo-plugin-tts-minimax": { "model": "speech-2.8-hd", "format": "mp3", "default_voice": "male-qn-qingse" }
+}
+```
+
+API Key 不写进配置文件，只从环境变量读（`STEPFUN_API_KEY`、`MINIMAX_API_KEY`）；没设置时插件照常装配、只是不注册驱动，日志里有警告。
+
 ## 7. 还没做的（与本次重构无关，单独排期）
 
 - API 的 v2 项目流程仍用 `plugins/interfaces/api/src/text/` 里复制的文本算法和自己的 `Store`，没有走注册层（上一轮审查的“两套存储互相覆盖”问题）。注册层就绪后，下一步是把它迁到 `TextHub` / `StorageHub`。
 - Rust 不做运行时动态加载（dylib / wasm），插件清单在编译期确定；启用 / 停用 / 选默认驱动在运行期由配置决定。
+
+> 测试提示：stepfun / minimax 的测试会在 127.0.0.1 起一个假服务器。如果本机设置了 HTTP(S)_PROXY，请同时设置 `NO_PROXY=127.0.0.1,localhost`，否则请求会被代理转走导致 404。真实接口测试默认跳过，设置好 Key 后用 `cargo test -p leo-plugin-tts-stepfun -- --ignored`（会计费）。

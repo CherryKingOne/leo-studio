@@ -23,6 +23,8 @@ leo-plugin-exporter-json = { path = "../exchange/exporters/json" }
 leo-plugin-exporter-csv = { path = "../exchange/exporters/csv" }
 leo-plugin-storage-csv = { path = "../storage/csv" }
 leo-plugin-tts-edge = { path = "../tts/edge" }
+leo-plugin-tts-stepfun = { path = "../tts/stepfun" }
+leo-plugin-tts-minimax = { path = "../tts/minimax" }
 
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"

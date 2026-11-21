@@ -13,5 +13,20 @@
   },
   "tts": {
     "default": "edge"
+  },
+  "settings": {
+    "leo-plugin-tts-stepfun": {
+      "model": "step-tts-2",
+      "response_format": "mp3",
+      "sample_rate": 24000,
+      "default_voice": "cixingnansheng"
+    },
+    "leo-plugin-tts-minimax": {
+      "model": "speech-2.8-hd",
+      "format": "mp3",
+      "sample_rate": 32000,
+      "bitrate": 128000,
+      "default_voice": "male-qn-qingse"
+    }
   }
 }
