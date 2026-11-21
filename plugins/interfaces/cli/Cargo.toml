@@ -1,0 +1,32 @@
+[package]
+name = "leo-plugin-cli"
+version = "0.2.0"
+edition = "2024"
+description = "Leo Studio 命令行交互插件 CLI"
+license = "MIT"
+
+[[bin]]
+name = "leo-cli"
+path = "src/main.rs"
+
+[dependencies]
+leo-core = { path = "../../../core" }
+leo-plugin-catalog = { path = "../../catalog" }
+# 接口层只依赖各注册层，不依赖具体子插件
+leo-plugin-text = { path = "../../text/registry" }
+leo-plugin-exchange = { path = "../../exchange/registry" }
+leo-plugin-storage = { path = "../../storage/registry" }
+leo-plugin-tts = { path = "../../tts/registry" }
+
+clap = { version = "4", features = ["derive"] }
+tokio = { version = "1", features = ["full"] }
+async-trait = "0.1"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+uuid = { version = "1.12", features = ["v4"] }
+chrono = { version = "0.4" }
+
+[dev-dependencies]
+tempfile = "3"

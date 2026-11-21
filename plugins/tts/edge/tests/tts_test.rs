@@ -1,4 +1,3 @@
-use std::sync::Arc;
 
 use leo_core::context::Context;
 use leo_core::plugin::{Plugin, SynthesisPayload, TTSProvider};
@@ -18,10 +17,7 @@ async fn test_edge_tts_plugin_registration() {
     plugin.apply(&ctx).await.expect("插件加载失败");
 
     // 依赖注入提取 TTS 服务
-    let provider = ctx
-        .inject::<Arc<dyn TTSProvider>>()
-        .await
-        .expect("未能获取 TTSProvider 服务");
+    let provider = ctx.registry::<dyn TTSProvider>().get("edge").expect("驱动未注册");
 
     // 验证声线列表
     let voices = provider.list_voices().await.expect("获取声线失败");
@@ -35,7 +31,7 @@ async fn test_edge_tts_live_synthesis() {
     let ctx = Context::new("test_live_synthesis");
     plugin.apply(&ctx).await.unwrap();
 
-    let provider = ctx.inject::<Arc<dyn TTSProvider>>().await.unwrap();
+    let provider = ctx.registry::<dyn TTSProvider>().get("edge").expect("驱动未注册");
 
     let payload = SynthesisPayload {
         text: "欢迎来到 Leo Studio，有声书插件化引擎已成功启动。".into(),

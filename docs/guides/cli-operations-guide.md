@@ -19,7 +19,7 @@ cargo run -p leo-plugin-cli -- <子命令>
 
 将 `leo-cli` 安装至 `$HOME/.cargo/bin`：
 ```bash
-cargo install --path plugins/cli
+cargo install --path plugins/interfaces/cli
 ```
 
 安装完成后，在终端任意路径下均可直接运行：

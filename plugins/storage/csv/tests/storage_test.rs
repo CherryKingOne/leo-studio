@@ -1,4 +1,3 @@
-use std::sync::Arc;
 
 use leo_core::ast::{
     AudioFormat, ChapterNode, ParagraphNode, ScriptDocument, SegmentKind, SegmentNode, SentenceNode,
@@ -19,7 +18,7 @@ async fn test_csv_storage_plugin_full_cycle() {
     // 挂载插件
     plugin.apply(&ctx).await.unwrap();
 
-    let storage = ctx.inject::<Arc<dyn StorageProvider>>().await.unwrap();
+    let storage = ctx.registry::<dyn StorageProvider>().get("csv").expect("驱动未注册");
 
     // 构造测试用的 AST 剧本
     let mut script = ScriptDocument::new(

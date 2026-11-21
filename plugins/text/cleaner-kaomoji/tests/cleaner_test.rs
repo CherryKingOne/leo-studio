@@ -1,4 +1,3 @@
-use std::sync::Arc;
 
 use leo_core::context::Context;
 use leo_core::plugin::{Plugin, TextCleaner};
@@ -11,7 +10,7 @@ async fn test_kaomoji_cleaner_plugin() {
 
     plugin.apply(&ctx).await.unwrap();
 
-    let cleaner = ctx.inject::<Arc<dyn TextCleaner>>().await.unwrap();
+    let cleaner = ctx.registry::<dyn TextCleaner>().get("kaomoji").expect("驱动未注册");
 
     // 含有颜文字和破折号的典型网络小说文本
     let dirty_line = "林冲心里一惊(╯°□°)╯，师姐怎么会在这里？！";

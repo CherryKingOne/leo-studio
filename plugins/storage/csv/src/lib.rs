@@ -13,6 +13,9 @@ use leo_core::plugin::{Plugin, PluginCategory, PluginManifest, StorageProvider};
 pub use store::CsvStorageService;
 pub use table::{CsvTable, Record, bool_field, int_field, str_field};
 
+/// 本插件在注册表里的驱动 id
+pub const DRIVER_ID: &str = "csv";
+
 pub struct CsvStoragePlugin {
     data_dir: PathBuf,
 }
@@ -53,7 +56,7 @@ impl Plugin for CsvStoragePlugin {
     async fn apply(&self, ctx: &Context) -> CoreResult<()> {
         let service = CsvStorageService::new(self.data_dir.clone())?;
         let provider: Arc<dyn StorageProvider> = Arc::new(service);
-        ctx.provide(provider).await;
+        ctx.register::<dyn StorageProvider>(DRIVER_ID, provider)?;
         tracing::info!(
             "已挂载 CsvStoragePlugin，数据存储目录: {:?}",
             self.data_dir

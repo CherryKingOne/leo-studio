@@ -30,12 +30,12 @@ graph TD
     end
 
     subgraph Plugins ["分类归集插件 (plugins)"]
-        Imp["plugins/importers/*\n(txt, epub...)"]
-        Exp["plugins/exporters/*\n(csv, json...)"]
+        Imp["plugins/exchange/importers/*\n(txt, epub...)"]
+        Exp["plugins/exchange/exporters/*\n(csv, json...)"]
         Txt["plugins/text/*\n(cleaner, parser, dialogue)"]
         TTS["plugins/tts/*\n(edge, cosyvoice...)"]
         Sto["plugins/storage/*\n(csv, sqlite...)"]
-        Trans["plugins/api, mcp, cli\n(传输与接入层)"]
+        Trans["plugins/interfaces/{api,mcp,cli}\n(传输与接入层)"]
     end
 
     subgraph Host ["宿主启动器 (app)"]
@@ -64,14 +64,14 @@ graph TD
 
 ### 3. 分类归集规范 (Directory Taxonomy)
 所有插件均归类在 `plugins/` 目录的子类别文件夹中，严禁平铺堆放：
-- `plugins/importers/`：文档导入器（如 txt, docx, epub 等）
-- `plugins/exporters/`：剧本与台账导出器（如 csv, json, fcp-xml 等）
+- `plugins/exchange/importers/`：文档导入器（如 txt, docx, epub 等）
+- `plugins/exchange/exporters/`：剧本与台账导出器（如 csv, json, fcp-xml 等）
 - `plugins/text/`：文本流水线处理插件（清洗 cleaner、分章 parser、切台词 dialogue 等）
 - `plugins/tts/`：语音合成引擎（如 edge, cosyvoice, gpt-sovits 等）
 - `plugins/storage/`：持久化存储插件（如 csv, sqlite 等）
-- `plugins/api/`：RESTful API 传输层插件（基于 Axum 的 HTTP 服务）
-- `plugins/mcp/`：Model Context Protocol 传输层插件（让 AI Agent 调度微内核）
-- `plugins/cli/`：CLI 命令行生产交互插件（提供 `leo-cli` 本地工具）
+- `plugins/interfaces/api/`：RESTful API 传输层插件（基于 Axum 的 HTTP 服务）
+- `plugins/interfaces/mcp/`：Model Context Protocol 传输层插件（让 AI Agent 调度微内核）
+- `plugins/interfaces/cli/`：CLI 命令行生产交互插件（提供 `leo-cli` 本地工具）
 
 ---
 

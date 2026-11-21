@@ -11,16 +11,9 @@ path = "src/main.rs"
 
 [dependencies]
 leo-core = { path = "../core" }
-leo-plugin-importer-txt = { path = "../plugins/importers/txt" }
-leo-plugin-exporter-csv = { path = "../plugins/exporters/csv" }
-leo-plugin-exporter-json = { path = "../plugins/exporters/json" }
-leo-plugin-cleaner-kaomoji = { path = "../plugins/text/cleaner-kaomoji" }
-leo-plugin-parser-novel-regex = { path = "../plugins/text/parser-novel-regex" }
-leo-plugin-dialogue-quotes = { path = "../plugins/text/dialogue-quotes" }
-leo-plugin-storage-csv = { path = "../plugins/storage/csv" }
-leo-plugin-tts-edge = { path = "../plugins/tts/edge" }
-leo-plugin-api = { path = "../plugins/api" }
-leo-plugin-mcp = { path = "../plugins/mcp" }
+leo-plugin-catalog = { path = "../plugins/catalog" }
+leo-plugin-api = { path = "../plugins/interfaces/api" }
+leo-plugin-mcp = { path = "../plugins/interfaces/mcp" }
 
 tokio = { version = "1", features = ["full"] }
 tracing = "0.1"

@@ -1,18 +1,38 @@
 [workspace]
 resolver = "2"
 members = [
+    # 微内核：AST、Context、通用注册表、插件管理器、扩展点契约（新增插件不需要改它）
     "core",
-    "plugins/importers/txt",
-    "plugins/exporters/json",
-    "plugins/exporters/csv",
+
+    # 文本处理：注册层 + 子插件
+    "plugins/text/registry",
     "plugins/text/cleaner-kaomoji",
     "plugins/text/parser-novel-regex",
     "plugins/text/dialogue-quotes",
+
+    # 导入导出：注册层 + 子插件
+    "plugins/exchange/registry",
+    "plugins/exchange/importers/txt",
+    "plugins/exchange/exporters/json",
+    "plugins/exchange/exporters/csv",
+
+    # 存储：注册层 + 子插件
+    "plugins/storage/registry",
     "plugins/storage/csv",
+
+    # 语音合成：注册层 + 子插件
+    "plugins/tts/registry",
     "plugins/tts/edge",
-    "plugins/api",
-    "plugins/mcp",
-    "plugins/cli",
+
+    # 对外入口（只依赖内核与各注册层，不依赖具体子插件）
+    "plugins/interfaces/api",
+    "plugins/interfaces/mcp",
+    "plugins/interfaces/cli",
+
+    # 插件目录：编进程序的插件清单 + 启用 / 默认驱动配置（新增插件只改这里）
+    "plugins/catalog",
+
+    # 宿主程序
     "app",
 ]
 

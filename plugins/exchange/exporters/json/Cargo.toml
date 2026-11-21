@@ -1,0 +1,13 @@
+[package]
+name = "leo-plugin-exporter-json"
+version = "0.1.0"
+edition = "2024"
+description = "Leo Studio 官方插件：将剧本 AST 导出为标准格式化 JSON 字符串"
+license = "MIT"
+
+[dependencies]
+leo-core = { path = "../../../../core" }
+serde_json = "1"
+async-trait = "0.1"
+tokio = { version = "1", features = ["sync", "rt", "macros"] }
+tracing = "0.1"

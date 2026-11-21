@@ -12,6 +12,9 @@ use leo_core::plugin::{
 
 pub use algorithm::{DialogueLine, DialogueSegment, ParseStatus, SegmentType, split_dialogue_line};
 
+/// 本插件在注册表里的驱动 id
+pub const DRIVER_ID: &str = "quotes";
+
 pub struct DialogueQuotesPlugin;
 
 impl Default for DialogueQuotesPlugin {
@@ -43,8 +46,8 @@ impl Plugin for DialogueQuotesPlugin {
 
     async fn apply(&self, ctx: &Context) -> CoreResult<()> {
         let splitter: Arc<dyn DialogueSplitter> = Arc::new(QuotesDialogueSplitter);
-        ctx.provide(splitter).await;
-        tracing::info!("已挂载 DialogueQuotesPlugin，提供 DialogueSplitter 服务");
+        ctx.register::<dyn DialogueSplitter>(DRIVER_ID, splitter)?;
+        tracing::info!("已挂载 DialogueQuotesPlugin，已注册台词切分器 quotes");
         Ok(())
     }
 }

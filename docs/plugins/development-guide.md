@@ -176,7 +176,7 @@ plugin_manager.register(Arc::new(CosyVoicePlugin::new("http://localhost:50000"))
 ### 第一步：创建 Crate
 
 ```bash
-cargo new --lib plugins/importers/epub
+cargo new --lib plugins/exchange/importers/epub
 ```
 
 ### 第二步：配置 `Cargo.toml`
@@ -200,7 +200,7 @@ uuid = { version = "1.15", features = ["v4"] }
 
 ### 第三步：编写插件实现代码
 
-编辑 `plugins/importers/epub/src/lib.rs`：
+编辑 `plugins/exchange/importers/epub/src/lib.rs`：
 
 ```rust
 use std::sync::Arc;

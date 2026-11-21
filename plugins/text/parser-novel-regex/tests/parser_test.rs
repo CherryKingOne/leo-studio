@@ -1,4 +1,3 @@
-use std::sync::Arc;
 
 use leo_core::context::Context;
 use leo_core::plugin::{ChapterSplitter, Plugin};
@@ -26,7 +25,7 @@ async fn test_novel_parser_plugin() {
     let plugin = NovelRegexParserPlugin::new();
     plugin.apply(&ctx).await.unwrap();
 
-    let splitter = ctx.inject::<Arc<dyn ChapterSplitter>>().await.unwrap();
+    let splitter = ctx.registry::<dyn ChapterSplitter>().get("novel-regex").expect("驱动未注册");
 
     let novel_text = r#"
 前言

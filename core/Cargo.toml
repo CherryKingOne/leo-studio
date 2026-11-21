@@ -8,7 +8,6 @@ license = "MIT"
 [dependencies]
 serde = { version = "1", features = ["derive"] }
 serde_json = { version = "1", features = ["preserve_order"] }
-uuid = { version = "1", features = ["v4"] }
 chrono = { version = "0.4", features = ["serde"] }
 async-trait = "0.1"
 tokio = { version = "1", features = ["sync", "rt", "macros"] }
@@ -16,7 +15,4 @@ thiserror = "2"
 tracing = "0.1"
 
 [dev-dependencies]
-leo-plugin-cleaner-kaomoji = { path = "../plugins/text/cleaner-kaomoji" }
-leo-plugin-parser-novel-regex = { path = "../plugins/text/parser-novel-regex" }
-leo-plugin-dialogue-quotes = { path = "../plugins/text/dialogue-quotes" }
-leo-plugin-tts-edge = { path = "../plugins/tts/edge" }
+tokio = { version = "1", features = ["sync", "rt", "macros", "rt-multi-thread"] }

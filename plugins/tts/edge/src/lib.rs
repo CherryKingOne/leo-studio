@@ -11,6 +11,9 @@ use leo_core::plugin::{
 use msedge_tts::tts::client::connect;
 use msedge_tts::tts::SpeechConfig;
 
+/// 本插件在注册表里的驱动 id
+pub const DRIVER_ID: &str = "edge";
+
 pub struct EdgeTtsPlugin;
 
 impl Default for EdgeTtsPlugin {
@@ -42,8 +45,8 @@ impl Plugin for EdgeTtsPlugin {
 
     async fn apply(&self, ctx: &Context) -> CoreResult<()> {
         let provider: Arc<dyn TTSProvider> = Arc::new(EdgeTtsProvider::new());
-        ctx.provide(provider).await;
-        tracing::info!("Edge-TTS 插件加载完成，已注册 TTSProvider 服务");
+        ctx.register::<dyn TTSProvider>(DRIVER_ID, provider)?;
+        tracing::info!("Edge-TTS 插件加载完成，已注册 TTS 驱动 edge");
         Ok(())
     }
 }

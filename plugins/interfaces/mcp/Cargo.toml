@@ -1,0 +1,18 @@
+[package]
+name = "leo-plugin-mcp"
+version = "0.2.0"
+edition = "2024"
+
+[dependencies]
+leo-core = { path = "../../../core" }
+leo-plugin-api = { path = "../api" }
+
+rmcp = { version = "3.8", features = ["transport-streamable-http-server", "tower"] }
+tokio = { version = "1.43", features = ["sync", "rt", "macros", "io-std"] }
+axum = { version = "0.8" }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+async-trait = "0.1"
+tracing = "0.1"
+uuid = { version = "1.12", features = ["v4"] }
+chrono = { version = "0.4", features = ["serde"] }

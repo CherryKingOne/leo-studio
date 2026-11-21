@@ -12,6 +12,9 @@ pub use algorithm::{
     parse_pinyin_elements, resolve_chapter_key,
 };
 
+/// 本插件在注册表里的驱动 id
+pub const DRIVER_ID: &str = "novel-regex";
+
 pub struct NovelRegexParserPlugin;
 
 impl Default for NovelRegexParserPlugin {
@@ -43,8 +46,8 @@ impl Plugin for NovelRegexParserPlugin {
 
     async fn apply(&self, ctx: &Context) -> CoreResult<()> {
         let splitter: Arc<dyn ChapterSplitter> = Arc::new(NovelRegexSplitter);
-        ctx.provide(splitter).await;
-        tracing::info!("已挂载 NovelRegexParserPlugin，提供 ChapterSplitter 服务");
+        ctx.register::<dyn ChapterSplitter>(DRIVER_ID, splitter)?;
+        tracing::info!("已挂载 NovelRegexParserPlugin，已注册分章器 novel-regex");
         Ok(())
     }
 }
@@ -61,5 +64,9 @@ impl ChapterSplitter for NovelRegexSplitter {
 
     fn resolve_fingerprint(&self, title: &str) -> String {
         resolve_chapter_key(title)
+    }
+
+    fn parse_filename(&self, filename: &str) -> (String, String, String) {
+        parse_novel_filename(filename)
     }
 }

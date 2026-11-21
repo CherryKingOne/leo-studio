@@ -69,16 +69,16 @@ pub struct PluginManifest {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum PluginCategory {
-    Importer,    // 文档导入器 (plugins/importers/)
-    Exporter,    // 剧本与台账导出器 (plugins/exporters/)
+    Importer,    // 文档导入器 (plugins/exchange/importers/)
+    Exporter,    // 剧本与台账导出器 (plugins/exchange/exporters/)
     Cleaner,     // 文本清洗过滤 (plugins/text/)
     Parser,      // 小说分章与大纲解析 (plugins/text/)
     Dialogue,    // 台词与旁白切分提取 (plugins/text/)
     Tts,         // 语音合成引擎 (plugins/tts/)
     Storage,     // 持久化与存储层 (plugins/storage/)
-    Api,         // Web RESTful 传输协议 (plugins/api/)
-    Mcp,         // Model Context Protocol 智能体协议 (plugins/mcp/)
-    Cli,         // 命令行交互工具 (plugins/cli/)
+    Api,         // Web RESTful 传输协议 (plugins/interfaces/api/)
+    Mcp,         // Model Context Protocol 智能体协议 (plugins/interfaces/mcp/)
+    Cli,         // 命令行交互工具 (plugins/interfaces/cli/)
     Transport,   // 其他网络/RPC 传输协议
     Other,       // 其他通用扩展
 }

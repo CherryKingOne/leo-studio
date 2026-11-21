@@ -1,4 +1,3 @@
-use std::sync::Arc;
 
 use leo_core::ast::SegmentKind;
 use leo_core::context::Context;
@@ -11,7 +10,7 @@ async fn test_dialogue_quotes_plugin() {
     let plugin = DialogueQuotesPlugin::new();
     plugin.apply(&ctx).await.unwrap();
 
-    let splitter = ctx.inject::<Arc<dyn DialogueSplitter>>().await.unwrap();
+    let splitter = ctx.registry::<dyn DialogueSplitter>().get("quotes").expect("驱动未注册");
 
     // 典型的对白混排句子
     let line = "林冲拱了拱手：“娘子受惊了，且随我回房歇息。”便扶着林娘子往后院走去。";

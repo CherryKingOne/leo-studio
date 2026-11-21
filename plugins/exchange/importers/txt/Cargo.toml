@@ -1,0 +1,21 @@
+[package]
+name = "leo-plugin-importer-txt"
+version = "0.2.0"
+edition = "2024"
+description = "Leo Studio 官方插件：TXT 纯文本小说导入与 AST 构建引擎"
+license = "MIT"
+
+[dependencies]
+leo-core = { path = "../../../../core" }
+leo-plugin-text = { path = "../../../text/registry" }
+encoding_rs = "0.8"
+async-trait = "0.1"
+tokio = { version = "1", features = ["sync", "rt", "macros"] }
+tracing = "0.1"
+uuid = { version = "1", features = ["v4"] }
+chrono = { version = "0.4", features = ["serde"] }
+
+[dev-dependencies]
+leo-plugin-cleaner-kaomoji = { path = "../../../text/cleaner-kaomoji" }
+leo-plugin-parser-novel-regex = { path = "../../../text/parser-novel-regex" }
+leo-plugin-dialogue-quotes = { path = "../../../text/dialogue-quotes" }

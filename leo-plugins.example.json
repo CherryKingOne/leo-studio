@@ -1,0 +1,17 @@
+{
+  "disabled": [],
+  "text": {
+    "cleaners": ["kaomoji"],
+    "chapter_splitter": "novel-regex",
+    "dialogue_splitter": "quotes"
+  },
+  "exchange": {
+    "default_exporter": "json"
+  },
+  "storage": {
+    "default": "csv"
+  },
+  "tts": {
+    "default": "edge"
+  }
+}

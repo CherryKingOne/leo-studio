@@ -4,7 +4,7 @@ use axum::Router;
 use axum::body::Body;
 use axum::http::{Request, StatusCode};
 use http_body_util::BodyExt;
-use leo_app::app::build_router;
+use leo_app::runtime::build_router;
 use leo_app::config::Settings;
 use leo_app::storage::store::Store;
 use serde_json::Value;
@@ -55,7 +55,7 @@ impl TestApp {
         .unwrap();
 
         Self {
-            router: build_router(Arc::new(settings), store).await,
+            router: build_router(Arc::new(settings), store).await.expect("装配插件失败"),
         }
     }
 

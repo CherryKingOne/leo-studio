@@ -66,7 +66,8 @@ async fn test_cordis_context_and_plugin_manager() -> CoreResult<()> {
     let ctx = Context::new("test_project_1");
     let manager = PluginManager::new();
 
-    manager.register(Arc::new(DummyCleanerPlugin)).await;
+    manager.register(Arc::new(DummyCleanerPlugin)).await?;
+    assert!(manager.register(Arc::new(DummyCleanerPlugin)).await.is_err(), "同 id 重复登记应报错");
 
     let manifests = manager.list_manifests().await;
     assert_eq!(manifests.len(), 1);
@@ -80,4 +81,36 @@ async fn test_cordis_context_and_plugin_manager() -> CoreResult<()> {
     assert_eq!(service.as_str(), "cleaner_service_ready");
 
     Ok(())
+}
+
+struct FailingPlugin;
+
+#[async_trait]
+impl Plugin for FailingPlugin {
+    fn manifest(&self) -> PluginManifest {
+        PluginManifest::new("failing", "必定失败", "0.1.0", PluginCategory::Other).depends_on(["dummy-cleaner"])
+    }
+
+    async fn apply(&self, _ctx: &Context) -> CoreResult<()> {
+        Err(leo_core::CoreError::Internal("boom".into()))
+    }
+}
+
+#[tokio::test]
+async fn test_apply_all_rolls_back_on_failure() {
+    let ctx = Context::new("rollback");
+    let manager = PluginManager::new();
+    manager.register(Arc::new(FailingPlugin)).await.unwrap();
+    manager.register(Arc::new(DummyCleanerPlugin)).await.unwrap();
+
+    // 依赖先装配：dummy-cleaner 先装上，failing 失败后 dummy-cleaner 被回滚
+    assert!(manager.apply_all(&ctx).await.is_err());
+    assert!(ctx.inject::<String>().await.is_err(), "失败时已装配的插件应被回滚");
+
+    manager.unload("failing").await.unwrap();
+    manager.apply_all(&ctx).await.unwrap();
+    assert_eq!(ctx.inject::<String>().await.unwrap().as_str(), "cleaner_service_ready");
+
+    manager.unload("dummy-cleaner").await.unwrap();
+    assert!(ctx.inject::<String>().await.is_err(), "卸载后服务应被撤销");
 }

@@ -1,0 +1,34 @@
+[package]
+name = "leo-plugin-catalog"
+version = "0.1.0"
+edition = "2024"
+description = "Leo Studio 插件目录：编进程序的全部插件清单，以及按 leo-plugins.json 启用 / 停用插件、选择默认驱动"
+license = "MIT"
+
+[dependencies]
+leo-core = { path = "../../core" }
+
+# 注册层
+leo-plugin-text = { path = "../text/registry" }
+leo-plugin-exchange = { path = "../exchange/registry" }
+leo-plugin-storage = { path = "../storage/registry" }
+leo-plugin-tts = { path = "../tts/registry" }
+
+# 子插件（新增插件：在这里加一行依赖，再在 src/lib.rs 的 CATALOG 里加一项）
+leo-plugin-cleaner-kaomoji = { path = "../text/cleaner-kaomoji" }
+leo-plugin-parser-novel-regex = { path = "../text/parser-novel-regex" }
+leo-plugin-dialogue-quotes = { path = "../text/dialogue-quotes" }
+leo-plugin-importer-txt = { path = "../exchange/importers/txt" }
+leo-plugin-exporter-json = { path = "../exchange/exporters/json" }
+leo-plugin-exporter-csv = { path = "../exchange/exporters/csv" }
+leo-plugin-storage-csv = { path = "../storage/csv" }
+leo-plugin-tts-edge = { path = "../tts/edge" }
+
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tracing = "0.1"
+
+[dev-dependencies]
+chrono = "0.4"
+tokio = { version = "1", features = ["rt", "macros"] }
+serde_json = "1"

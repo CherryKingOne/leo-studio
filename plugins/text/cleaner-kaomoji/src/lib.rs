@@ -9,6 +9,9 @@ use leo_core::plugin::{Plugin, PluginCategory, PluginManifest, TextCleaner};
 
 pub use algorithm::{clean_line_text, is_han, strip_kaomoji};
 
+/// 本插件在注册表里的驱动 id
+pub const DRIVER_ID: &str = "kaomoji";
+
 pub struct KaomojiCleanerPlugin;
 
 impl Default for KaomojiCleanerPlugin {
@@ -40,8 +43,8 @@ impl Plugin for KaomojiCleanerPlugin {
 
     async fn apply(&self, ctx: &Context) -> CoreResult<()> {
         let cleaner: Arc<dyn TextCleaner> = Arc::new(KaomojiCleanerProvider);
-        ctx.provide(cleaner).await;
-        tracing::info!("已挂载 KaomojiCleanerPlugin，提供 TextCleaner 服务");
+        ctx.register::<dyn TextCleaner>(DRIVER_ID, cleaner)?;
+        tracing::info!("已挂载 KaomojiCleanerPlugin，已注册清洗器 kaomoji");
         Ok(())
     }
 }

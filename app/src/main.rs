@@ -1,7 +1,8 @@
 use std::sync::Arc;
 
-use leo_plugin_api::{ApiPlugin, Settings, Store, build_app_state, build_router_from_state};
-use leo_plugin_mcp::{McpPlugin, McpSettings, http_router};
+use leo_app::runtime::build_state;
+use leo_plugin_api::{Settings, Store, build_router_from_state};
+use leo_plugin_mcp::{McpSettings, http_router};
 
 #[tokio::main]
 async fn main() {
@@ -31,15 +32,15 @@ async fn main() {
         }
     };
 
-    let state = build_app_state(settings.clone(), store).await;
-
-    // 挂载 API 与 MCP 插件清单
-    let api_plugin = Arc::new(ApiPlugin::new(settings.clone()));
-    state.plugin_manager.register(api_plugin).await;
-
+    // 插件：目录里的插件（按 leo-plugins.json / LEO_PLUGINS_CONFIG 启用）+ API / MCP 接口插件
     let mcp_settings = Arc::new(McpSettings::from_env());
-    let mcp_plugin = Arc::new(McpPlugin::new(mcp_settings.clone()));
-    state.plugin_manager.register(mcp_plugin).await;
+    let state = match build_state(settings.clone(), store, mcp_settings.clone(), None).await {
+        Ok(state) => state,
+        Err(err) => {
+            tracing::error!("装配插件失败：{err}");
+            std::process::exit(1);
+        }
+    };
 
     let mut router = build_router_from_state(state.clone());
     if mcp_settings.enabled {
