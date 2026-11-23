@@ -156,7 +156,7 @@ async fn test_end_to_end_audiobook_pipeline() {
 /// 通过插件目录装配全部插件后，各注册层都能拿到驱动
 #[tokio::test]
 async fn test_catalog_bootstrap_wires_every_registry() {
-    use leo_plugin_catalog::{ExchangeHub, HostEnv, PluginsConfig, StorageHub, TextHub, TtsHub, bootstrap};
+    use leo_plugin_catalog::{ExchangeHub, HostEnv, LlmHub, PluginsConfig, StorageHub, TextHub, TtsHub, bootstrap};
     let dir = std::env::temp_dir().join(format!("leo-catalog-{}", std::process::id()));
     let env = HostEnv { csv_dir: dir.clone() };
     let (ctx, manager) = bootstrap("catalog", &env, &PluginsConfig::default()).await.unwrap();
@@ -169,6 +169,7 @@ async fn test_catalog_bootstrap_wires_every_registry() {
     assert!(StorageHub::of(&ctx).await.default_storage().is_ok());
     assert_eq!(TtsHub::of(&ctx).await.route("zh-CN-YunxiNeural").unwrap().provider_id, "edge");
     assert_eq!(TextHub::of(&ctx).await.clean_line("  "), "");
+    assert_eq!(LlmHub::of(&ctx).await.provider(None).unwrap().0, "deepseek");
 
     // 端到端：导入 → 存储 → 读回 → 导出
     let (_, importer) = exchange.importer_for("测试——作者——玄幻.txt").unwrap();
@@ -184,6 +185,19 @@ async fn test_catalog_bootstrap_wires_every_registry() {
     assert!(exchange.exporter(Some("csv")).is_err());
     assert!(exchange.exporter(Some("json")).is_ok());
     let _ = std::fs::remove_dir_all(dir);
+}
+
+/// 配置的默认 LLM 驱动被停用时，调用直接报错而不是换别的驱动
+#[tokio::test]
+async fn test_catalog_llm_default_disabled_is_error() {
+    use leo_plugin_catalog::{HostEnv, LlmHub, PluginsConfig, bootstrap};
+    let env = HostEnv { csv_dir: std::env::temp_dir().join(format!("leo-catalog-llm-{}", std::process::id())) };
+    let config: PluginsConfig =
+        serde_json::from_str(r#"{"disabled":["leo-plugin-llm-deepseek"],"llm":{"default":"deepseek"}}"#).unwrap();
+    let (ctx, _) = bootstrap("catalog", &env, &config).await.unwrap();
+    let err = LlmHub::of(&ctx).await.provider(None).err().expect("应报错").to_string();
+    assert!(err.contains("deepseek"), "{err}");
+    let _ = std::fs::remove_dir_all(env.csv_dir);
 }
 
 /// 停用插件只需改配置
