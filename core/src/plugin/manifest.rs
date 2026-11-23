@@ -9,6 +9,8 @@ pub enum PluginCategory {
     Parser,
     Dialogue,
     Tts,
+    /// 大模型对话
+    Llm,
     Storage,
     Api,
     Transport,

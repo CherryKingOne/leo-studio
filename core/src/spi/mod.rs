@@ -4,11 +4,13 @@
 //! （`Registry<dyn TTSProvider>` 等），子插件往表里注册，注册层插件负责挑选与对外服务。
 
 pub mod exchange;
+pub mod llm;
 pub mod storage;
 pub mod text;
 pub mod tts;
 
 pub use exchange::{Exporter, Importer};
+pub use llm::{ChatMessage, ChatRequest, ChatResponse, ChatRole, LlmProvider, ResponseFormat, TokenUsage};
 pub use storage::StorageProvider;
 pub use text::{ChapterSplitter, DialogueSplitter, RawChapter, RawDialogueSegment, TextCleaner};
 pub use tts::{SynthesisOutput, SynthesisPayload, TTSProvider, VoiceInfo};
