@@ -26,6 +26,9 @@ members = [
     "plugins/tts/stepfun",
     "plugins/tts/minimax",
 
+    # 大模型对话：注册层 + 子插件
+    "plugins/llm/registry",
+
     # 对外入口（只依赖内核与各注册层，不依赖具体子插件）
     "plugins/interfaces/api",
     "plugins/interfaces/mcp",
