@@ -1,0 +1,21 @@
+[package]
+name = "leo-plugin-llm-deepseek"
+version = "0.1.0"
+edition = "2024"
+description = "Leo Studio 大模型子插件：DeepSeek Chat Completions（OpenAI 兼容），注册为 LLM 驱动 deepseek"
+license = "MIT"
+
+[dependencies]
+leo-core = { path = "../../../core" }
+async-trait = "0.1"
+reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls-webpki-roots-no-provider"] }
+# 与 TTS 子插件一致：reqwest 用 no-provider 版 rustls，进程级加密后端统一用 aws-lc-rs
+rustls = "0.23"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tokio = { version = "1", features = ["time"] }
+tracing = "0.1"
+
+[dev-dependencies]
+axum = "0.8"
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "net", "time"] }

@@ -28,6 +28,7 @@ members = [
 
     # 大模型对话：注册层 + 子插件
     "plugins/llm/registry",
+    "plugins/llm/deepseek",
 
     # 对外入口（只依赖内核与各注册层，不依赖具体子插件）
     "plugins/interfaces/api",
