@@ -10,7 +10,10 @@ pub mod text;
 pub mod tts;
 
 pub use exchange::{Exporter, Importer};
-pub use llm::{ChatMessage, ChatRequest, ChatResponse, ChatRole, LlmProvider, ResponseFormat, TokenUsage};
+pub use llm::{
+    ChatMessage, ChatRequest, ChatResponse, ChatRole, LlmApi, LlmApiCapabilities, LlmCapabilities, LlmProvider, ResponseFormat,
+    TokenUsage, chat_typed, check_json_schema, from_json_value, validate_json_schema,
+};
 pub use storage::StorageProvider;
 pub use text::{ChapterSplitter, DialogueSplitter, RawChapter, RawDialogueSegment, TextCleaner};
 pub use tts::{SynthesisOutput, SynthesisPayload, TTSProvider, VoiceInfo};
