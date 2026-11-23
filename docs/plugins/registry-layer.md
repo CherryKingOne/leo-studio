@@ -71,8 +71,8 @@ leo-studio/
 │   │       ├── src/voices.rs          兜底音色、情绪映射、音调换算
 │   │       └── tests/
 │   ├── llm/
-│   │   ├── registry/                  leo-plugin-llm       注册层：默认驱动（配置的默认驱动未注册时报错）
-│   │   └── deepseek/                  驱动 deepseek（DeepSeek Chat Completions，需 DEEPSEEK_API_KEY）
+│   │   ├── registry/                  leo-plugin-llm       注册层：默认驱动（配置的默认驱动未注册时报错）、驱动能力、JsonSchema 降级策略
+│   │   └── deepseek/                  驱动 deepseek（DeepSeek Chat Completions / Responses 两种接口，需 DEEPSEEK_API_KEY）
 │   ├── interfaces/                    对外入口：只依赖 core + 各注册层
 │   │   ├── api/
 │   │   ├── mcp/
@@ -146,9 +146,14 @@ let (_, exporter) = ExchangeHub::of(&ctx).await.exporter(Some("csv"))?;
   "text":     { "cleaners": ["kaomoji"], "chapter_splitter": "novel-regex", "dialogue_splitter": "quotes" },
   "exchange": { "default_exporter": "json" },
   "storage":  { "default": "csv" },
-  "tts":      { "default": "edge" }
+  "tts":      { "default": "edge" },
+  "llm":      { "default": "deepseek", "schema_fallback": "json_object" }
 }
 ```
+
+`llm.schema_fallback`：请求要 `JsonSchema` 结构化输出，但所选驱动 / 接口不支持时（如 DeepSeek 的 Chat Completions），
+`json_object`（默认）改用 JsonObject，把 Schema 写进系统提示词并在返回后本地校验，同时打 warn 日志；`error` 直接报错、不发请求。
+不会静默降级。`LlmHub::capabilities(driver)` / `drivers_with_capabilities()` 可以查询每个驱动支持的接口风格（`chat_completions` / `responses`）与输出格式。
 
 注册层插件不能停用（停用会报错）；子插件随便停。
 
@@ -157,7 +162,8 @@ let (_, exporter) = ExchangeHub::of(&ctx).await.exporter(Some("csv"))?;
 ```json
 "settings": {
   "leo-plugin-tts-stepfun": { "model": "step-tts-2", "response_format": "mp3", "default_voice": "cixingnansheng" },
-  "leo-plugin-tts-minimax": { "model": "speech-2.8-hd", "format": "mp3", "default_voice": "male-qn-qingse" }
+  "leo-plugin-tts-minimax": { "model": "speech-2.8-hd", "format": "mp3", "default_voice": "male-qn-qingse" },
+  "leo-plugin-llm-deepseek": { "api": "chat_completions", "model": "deepseek-flash", "thinking": false }
 }
 ```
 

@@ -203,28 +203,56 @@ pub trait DialogueSplitter: Send + Sync {
 
 LLM 插件连接大模型服务（如 DeepSeek），供说话人归属、文本理解等工作流调用。契约定义于 `leo_core::spi::llm`，注册层为 `leo-plugin-llm`（`LlmHub`），首个驱动为 `leo-plugin-llm-deepseek`（驱动 id `deepseek`）。
 
+同一家服务可能同时提供两种接口风格：OpenAI 兼容的 **Chat Completions**（`messages` / `response_format`）与 **Responses**（`input` / `text.format`）。契约用 `LlmApi` 表示接口风格，驱动通过 `capabilities()` 声明自己支持哪些接口、每种接口支持哪些输出格式。
+
 ```rust
 #[async_trait]
 pub trait LlmProvider: Send + Sync {
     fn provider_id(&self) -> &str;
+    /// 驱动能力；有默认实现（只有 Chat Completions + JsonObject），老驱动不用改
+    fn capabilities(&self) -> LlmCapabilities { LlmCapabilities::default() }
     async fn chat(&self, req: ChatRequest) -> CoreResult<ChatResponse>;
-    /// 以 JSON 模式对话并解析为 serde_json::Value（内容为空或非法 JSON 时报错）
+    /// 以 JSON 模式对话并解析为 serde_json::Value（内容为空或非法 JSON 时报错）。
+    /// Text 自动改为 JsonObject；JsonSchema 原样发送，返回后再按 Schema 本地校验
     async fn chat_json(&self, req: ChatRequest) -> CoreResult<serde_json::Value>;
 }
 
+/// 反序列化为业务类型（JsonSchema 时先校验）
+pub async fn chat_typed<T: DeserializeOwned>(provider: &dyn LlmProvider, req: ChatRequest) -> CoreResult<T>;
+
 pub struct ChatRequest {
-    pub model: Option<String>,          // 覆盖驱动配置的模型
-    pub messages: Vec<ChatMessage>,     // ChatMessage { role: System | User | Assistant, content }
+    pub model: Option<String>,           // 覆盖驱动配置的模型
+    pub messages: Vec<ChatMessage>,      // ChatMessage { role: System | User | Assistant, content }
     pub temperature: Option<f32>,
     pub max_tokens: Option<u32>,
-    pub response_format: ResponseFormat, // Text | JsonObject
+    pub response_format: ResponseFormat, // 见下
+    pub api: Option<LlmApi>,             // 覆盖驱动配置的接口风格；None 用驱动默认（serde 缺省为 None，老 JSON 兼容）
+}
+
+pub enum ResponseFormat {
+    Text,
+    JsonObject,
+    JsonSchema { name: String, schema: serde_json::Value, strict: bool },
+}
+
+pub enum LlmApi { ChatCompletions, Responses }   // 序列化为 "chat_completions" / "responses"
+
+pub struct LlmCapabilities {
+    pub default_api: LlmApi,
+    pub apis: Vec<LlmApiCapabilities>,   // { api, json_object: bool, json_schema: bool }
 }
 
 pub struct ChatResponse {
     pub content: String,
     pub model: String,
-    pub usage: TokenUsage,              // prompt_tokens / completion_tokens / total_tokens
-    pub finish_reason: Option<String>,
+    pub usage: TokenUsage,               // prompt_tokens / completion_tokens / total_tokens
+    pub finish_reason: Option<String>,   // stop / length / content_filter ...
 }
 ```
 
+约定：
+
+- 两种接口的结果统一映射到 `ChatResponse`：Responses 的 `usage.input_tokens / output_tokens` 对应 `prompt_tokens / completion_tokens`；`status=completed` → `finish_reason=stop`，`incomplete` + `max_output_tokens` → `length`，`incomplete` + `content_filter` → `content_filter`；`failed` 返回错误。
+- 驱动收到它**不支持**的输出格式时必须返回清楚的错误，**不能**自行改格式；降级只由注册层按配置做（见 `registry-layer.md` 与 `leo-plugin-llm` README）。
+- Schema 本地校验是轻量子集：`type`（含类型数组、integer ⊂ number）、`required`、`properties`、`additionalProperties: false`、`items`、`enum`、`const`；其余关键字忽略。不符合时错误里列出全部问题与 JSON 路径（如 `$.items[0].name`）。
+- 兼容性：trait 只新增带默认实现的 `capabilities()`，现有驱动无需改动；`ChatRequest` 新增 `api` 字段，用结构体字面量构造的代码需补 `api: None` 或改用 `..Default::default()`；`ResponseFormat` 因为带 `serde_json::Value` 不再是 `Copy`。
