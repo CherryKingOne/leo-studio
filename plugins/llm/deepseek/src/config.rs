@@ -1,14 +1,19 @@
 //! DeepSeek 配置。
 //!
-//! 参数含义与取值范围以官方文档为准：<https://api-docs.deepseek.com/api/create-chat-completion>
+//! 参数含义与取值范围以官方文档为准：
+//! - Chat Completions：<https://api-docs.deepseek.com/api/create-chat-completion>
+//! - Responses：<https://api-docs.deepseek.com/api/create-response>
+//! - 思考模式：<https://api-docs.deepseek.com/guides/thinking_mode>
 
 use leo_core::error::{CoreError, CoreResult};
+use leo_core::spi::LlmApi;
 use serde::{Deserialize, Serialize};
 
 /// `leo-plugins.json` → `"settings": {"leo-plugin-llm-deepseek": { ... }}`
 ///
 /// ```json
 /// {
+///   "api": "chat_completions",
 ///   "model": "deepseek-flash",
 ///   "temperature": 0.2,
 ///   "max_tokens": 4096,
@@ -20,8 +25,10 @@ use serde::{Deserialize, Serialize};
 pub struct DeepSeekConfig {
     /// 读取 API Key 的环境变量名（Key 本身不写进配置文件）
     pub api_key_env: String,
-    /// 接口地址（OpenAI 兼容格式），请求发往 `{base_url}/chat/completions`
+    /// 接口地址（OpenAI 兼容格式），请求发往 `{base_url}/chat/completions` 或 `{base_url}/responses`
     pub base_url: String,
+    /// 默认接口风格：`chat_completions`（默认）/ `responses`；请求里的 `api` 优先
+    pub api: LlmApi,
     /// 默认模型：deepseek-flash / deepseek-v4-pro（请求里的 model 优先）
     pub model: String,
     /// 采样温度 [0, 2]；不填不传（官方默认 1）。思考模式下无效
@@ -30,6 +37,8 @@ pub struct DeepSeekConfig {
     pub max_tokens: Option<u32>,
     /// 思考模式：false 关闭（默认）、true 开启、null 不传（官方默认开启）
     pub thinking: Option<bool>,
+    /// 思考强度：low / high / max；不填不传（官方默认 high）。只在思考模式下有意义，thinking=false 时不能填
+    pub reasoning_effort: Option<ReasoningEffort>,
     /// 单次请求超时（秒）
     pub timeout_secs: u64,
     /// 429 / 5xx / 网络错误时的最大重试次数
@@ -41,12 +50,33 @@ impl Default for DeepSeekConfig {
         Self {
             api_key_env: "DEEPSEEK_API_KEY".into(),
             base_url: "https://api.deepseek.com".into(),
+            api: LlmApi::ChatCompletions,
             model: "deepseek-flash".into(),
             temperature: None,
             max_tokens: None,
             thinking: Some(false),
+            reasoning_effort: None,
             timeout_secs: 120,
             max_retries: 2,
+        }
+    }
+}
+
+/// 思考强度（官方：Chat Completions 用 `reasoning_effort`，Responses 用 `reasoning.effort`）
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ReasoningEffort {
+    Low,
+    High,
+    Max,
+}
+
+impl ReasoningEffort {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            Self::Low => "low",
+            Self::High => "high",
+            Self::Max => "max",
         }
     }
 }
@@ -84,6 +114,9 @@ impl DeepSeekConfig {
         }
         if let Some(n) = self.max_tokens {
             check_max_tokens(n).or_else(bad)?;
+        }
+        if self.thinking == Some(false) && self.reasoning_effort.is_some() {
+            return bad("reasoning_effort 只在思考模式下生效，thinking=false 时不要填写".into());
         }
         if self.timeout_secs == 0 {
             return bad("timeout_secs 必须大于 0".into());

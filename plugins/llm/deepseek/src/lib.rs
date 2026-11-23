@@ -6,6 +6,8 @@
 //! # 官方文档（维护时直接打开这些链接核对接口）
 //! - 文档首页：<https://api-docs.deepseek.com>
 //! - Chat Completions `POST /chat/completions`：<https://api-docs.deepseek.com/api/create-chat-completion>
+//! - Responses `POST /responses`：<https://api-docs.deepseek.com/api/create-response>
+//! - Responses 兼容性说明：<https://api-docs.deepseek.com/guides/responses_api>
 //! - 模型与价格（当前模型名）：<https://api-docs.deepseek.com/quick_start/pricing>
 //! - JSON 输出：<https://api-docs.deepseek.com/guides/json_mode>
 //! - 思考模式开关：<https://api-docs.deepseek.com/guides/thinking_mode>
@@ -16,6 +18,8 @@
 //! # 配置
 //! API Key 只从环境变量读取（默认 `DEEPSEEK_API_KEY`），不写进配置文件。其余参数写在
 //! `leo-plugins.json` 的 `"settings": {"leo-plugin-llm-deepseek": {...}}` 里，见 [`DeepSeekConfig`]。
+//! `api` 选默认接口风格（`chat_completions` 默认 / `responses`），单次请求可用 `ChatRequest::api` 覆盖。
+//! 结构化输出 `ResponseFormat::JsonSchema` 只有 Responses 接口原生支持。
 //! 没有 API Key 时驱动照常注册，调用时返回明确的错误（不会悄悄换成别的驱动）。
 
 mod client;
@@ -29,8 +33,8 @@ use leo_core::error::CoreResult;
 use leo_core::plugin::{Plugin, PluginCategory, PluginManifest};
 use leo_core::spi::LlmProvider;
 
-pub use client::{DeepSeekLlmProvider, is_retryable, map_http_error, parse_response};
-pub use config::DeepSeekConfig;
+pub use client::{DeepSeekLlmProvider, is_retryable, map_http_error, parse_response, parse_responses_response};
+pub use config::{DeepSeekConfig, ReasoningEffort};
 
 /// 插件 id
 pub const PLUGIN_ID: &str = "leo-plugin-llm-deepseek";
@@ -62,8 +66,10 @@ impl Default for DeepSeekLlmPlugin {
 impl Plugin for DeepSeekLlmPlugin {
     fn manifest(&self) -> PluginManifest {
         PluginManifest::new(PLUGIN_ID, "DeepSeek 大模型", env!("CARGO_PKG_VERSION"), PluginCategory::Llm)
-            .with_description("调用 DeepSeek /chat/completions（OpenAI 兼容），注册为 LLM 驱动 deepseek。需要环境变量 DEEPSEEK_API_KEY。")
-            .with_capabilities(["llm:chat", "llm:json"])
+            .with_description(
+                "调用 DeepSeek /chat/completions 或 /responses（OpenAI 兼容），注册为 LLM 驱动 deepseek。需要环境变量 DEEPSEEK_API_KEY。",
+            )
+            .with_capabilities(["llm:chat", "llm:json", "llm:json_schema", "llm:api:chat_completions", "llm:api:responses"])
     }
 
     async fn apply(&self, ctx: &Context) -> CoreResult<()> {
@@ -75,7 +81,7 @@ impl Plugin for DeepSeekLlmPlugin {
         }
         let provider: Arc<dyn LlmProvider> = Arc::new(DeepSeekLlmProvider::new(self.config.clone())?);
         ctx.register::<dyn LlmProvider>(DRIVER_ID, provider)?;
-        tracing::info!("DeepSeek LLM 插件加载完成，已注册 LLM 驱动 {DRIVER_ID}（模型 {}）", self.config.model);
+        tracing::info!("DeepSeek LLM 插件加载完成，已注册 LLM 驱动 {DRIVER_ID}（模型 {}，接口 {}）", self.config.model, self.config.api);
         Ok(())
     }
 }
