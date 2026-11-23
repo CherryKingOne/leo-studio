@@ -39,7 +39,7 @@ leo-studio/
 │       ├── context/                   Context：服务 + 事件 + 插件作用域（卸载自动撤销）
 │       ├── registry/                  通用注册表 Registry<T>：驱动 id、内置/插件槽位、默认驱动
 │       ├── plugin/                    Plugin trait、manifest（depends）、PluginManager（有序/依赖/回滚/卸载）
-│       ├── spi/                       扩展点契约：tts / storage / exchange / text
+│       ├── spi/                       扩展点契约：tts / llm / storage / exchange / text
 │       └── pipeline/
 ├── plugins/
 │   ├── text/
@@ -70,6 +70,9 @@ leo-studio/
 │   │       ├── src/client.rs          /v1/t2a_v2（hex 音频）、/v1/get_voice
 │   │       ├── src/voices.rs          兜底音色、情绪映射、音调换算
 │   │       └── tests/
+│   ├── llm/
+│   │   ├── registry/                  leo-plugin-llm       注册层：默认驱动（配置的默认驱动未注册时报错）
+│   │   └── deepseek/                  驱动 deepseek（DeepSeek Chat Completions，需 DEEPSEEK_API_KEY）
 │   ├── interfaces/                    对外入口：只依赖 core + 各注册层
 │   │   ├── api/
 │   │   ├── mcp/

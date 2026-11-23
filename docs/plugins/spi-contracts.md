@@ -196,3 +196,35 @@ pub trait DialogueSplitter: Send + Sync {
     fn split_sentence(&self, sentence: &str) -> Vec<RawDialogueSegment>;
 }
 ```
+
+---
+
+## 6. 大模型对话扩展点 (`LlmProvider`)
+
+LLM 插件连接大模型服务（如 DeepSeek），供说话人归属、文本理解等工作流调用。契约定义于 `leo_core::spi::llm`，注册层为 `leo-plugin-llm`（`LlmHub`），首个驱动为 `leo-plugin-llm-deepseek`（驱动 id `deepseek`）。
+
+```rust
+#[async_trait]
+pub trait LlmProvider: Send + Sync {
+    fn provider_id(&self) -> &str;
+    async fn chat(&self, req: ChatRequest) -> CoreResult<ChatResponse>;
+    /// 以 JSON 模式对话并解析为 serde_json::Value（内容为空或非法 JSON 时报错）
+    async fn chat_json(&self, req: ChatRequest) -> CoreResult<serde_json::Value>;
+}
+
+pub struct ChatRequest {
+    pub model: Option<String>,          // 覆盖驱动配置的模型
+    pub messages: Vec<ChatMessage>,     // ChatMessage { role: System | User | Assistant, content }
+    pub temperature: Option<f32>,
+    pub max_tokens: Option<u32>,
+    pub response_format: ResponseFormat, // Text | JsonObject
+}
+
+pub struct ChatResponse {
+    pub content: String,
+    pub model: String,
+    pub usage: TokenUsage,              // prompt_tokens / completion_tokens / total_tokens
+    pub finish_reason: Option<String>,
+}
+```
+

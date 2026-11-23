@@ -14,6 +14,9 @@
   "tts": {
     "default": "edge"
   },
+  "llm": {
+    "default": "deepseek"
+  },
   "settings": {
     "leo-plugin-tts-stepfun": {
       "model": "step-tts-2",
@@ -27,6 +30,16 @@
       "sample_rate": 32000,
       "bitrate": 128000,
       "default_voice": "male-qn-qingse"
+    },
+    "leo-plugin-llm-deepseek": {
+      "api_key_env": "DEEPSEEK_API_KEY",
+      "base_url": "https://api.deepseek.com",
+      "model": "deepseek-flash",
+      "temperature": 0.2,
+      "max_tokens": 4096,
+      "thinking": false,
+      "timeout_secs": 120,
+      "max_retries": 2
     }
   }
 }
