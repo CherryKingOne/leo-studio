@@ -13,7 +13,8 @@ Leo Studio 采用了类似 **Cordis** 的微内核架构设计：**`core` 抽象
 | 文档 | 描述 | 适用对象 |
 | :--- | :--- | :--- |
 | 📘 [**插件协议与契约规范**](./protocol-specification.md) | 插件 Manifest 元数据规范、生命周期、Context 依赖注入机制与事件流标准 | 所有插件开发者 |
-| 🧩 [**核心 SPI 扩展点详解**](./spi-contracts.md) | `Importer`, `Exporter`, `TTSProvider`, `StorageProvider`, `TextCleaner` 等 SPI 接口定义与模型 | 核心功能扩展者 |
+| 🧩 [**核心 SPI 扩展点详解**](./spi-contracts.md) | `Importer`, `Exporter`, `TTSProvider`, `StorageProvider`, `TextCleaner`, `LlmProvider` 等 SPI 接口定义与模型 | 核心功能扩展者 |
+| 🔀 [**LLM 协议层**](./llm-protocols.md) | OpenAI Chat / Responses / Anthropic 三套协议的编解码、鉴权与跨协议转换 | LLM 供应商与接入层开发者 |
 | 🛠️ [**插件实战开发教程**](./development-guide.md) | 手把手保姆级教程：从 0 到 1 编写一个自定义 TTS 插件与自定义导入器 | 新插件开发实操 |
 
 ---
@@ -34,6 +35,7 @@ graph TD
         Exp["plugins/exchange/exporters/*\n(csv, json...)"]
         Txt["plugins/text/*\n(cleaner, parser, dialogue)"]
         TTS["plugins/tts/*\n(edge, cosyvoice...)"]
+        LLM["plugins/llm/*\n(deepseek, volcengine, bailian...)"]
         Sto["plugins/storage/*\n(csv, sqlite...)"]
         Trans["plugins/interfaces/{api,mcp,cli}\n(传输与接入层)"]
     end
@@ -46,6 +48,7 @@ graph TD
     Exp -->|实现 SPI| SPI
     Txt -->|实现 SPI| SPI
     TTS -->|实现 SPI| SPI
+    LLM -->|实现 SPI| SPI
     Sto -->|实现 SPI| SPI
     Trans -->|挂载端点| Context
 
@@ -54,7 +57,7 @@ graph TD
 
 ### 1. 严格单向依赖 (Dependency Rule)
 - **`core` 绝不依赖任何具体插件**：微内核仅定义纯数据模型（AST）、上下文服务契约（Traits）和事件调度逻辑。
-- **插件仅依赖 `core`**：各功能插件相互解耦，禁止插件之间产生循环依赖或强耦合。
+- **插件仅依赖 `core`**：各功能插件相互解耦，禁止插件之间产生循环依赖或强耦合。LLM 子插件额外依赖纯库 `leo-llm-protocol`，它不实现 `Plugin`、不进 `CATALOG`。
 - **宿主 `app` 是唯一的总装配中心**：负责按需挑选引入插件，执行依赖注入。
 
 ### 2. Cordis 风格的 Context 依赖注入
@@ -68,6 +71,7 @@ graph TD
 - `plugins/exchange/exporters/`：剧本与台账导出器（如 csv, json, fcp-xml 等）
 - `plugins/text/`：文本流水线处理插件（清洗 cleaner、分章 parser、切台词 dialogue 等）
 - `plugins/tts/`：语音合成引擎（如 edge, cosyvoice, gpt-sovits 等）
+- `plugins/llm/`：大语言模型注册层、供应商插件与共享协议库（deepseek / volcengine / bailian）
 - `plugins/storage/`：持久化存储插件（如 csv, sqlite 等）
 - `plugins/interfaces/api/`：RESTful API 传输层插件（基于 Axum 的 HTTP 服务）
 - `plugins/interfaces/mcp/`：Model Context Protocol 传输层插件（让 AI Agent 调度微内核）

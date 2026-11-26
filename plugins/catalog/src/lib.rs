@@ -13,9 +13,13 @@
 //!   "exchange": { "default_exporter": "json" },
 //!   "storage":  { "default": "csv" },
 //!   "tts":      { "default": "edge" },
+//!   "llm":      { "default": "deepseek" },
 //!   "settings": {
 //!     "leo-plugin-tts-stepfun": { "model": "step-tts-2" },
-//!     "leo-plugin-tts-minimax": { "model": "speech-2.8-hd" }
+//!     "leo-plugin-tts-minimax": { "model": "speech-2.8-hd" },
+//!     "leo-plugin-llm-deepseek": { "protocol": "openai-chat", "model": "deepseek-chat" },
+//!     "leo-plugin-llm-volcengine": { "protocol": "openai-chat", "model": "ep-2026xxxxxxxx" },
+//!     "leo-plugin-llm-bailian": { "protocol": "openai-chat", "model": "qwen-plus" }
 //!   }
 //! }
 //! ```
@@ -33,6 +37,7 @@ use leo_core::plugin::{Plugin, PluginManager};
 use serde::{Deserialize, Serialize};
 
 pub use leo_plugin_exchange::{ExchangeHub, ExchangeRegistryConfig};
+pub use leo_plugin_llm::{LlmHub, LlmRegistryConfig};
 pub use leo_plugin_storage::{StorageHub, StorageRegistryConfig};
 pub use leo_plugin_text::{TextHub, TextRegistryConfig};
 pub use leo_plugin_tts::{TtsHub, TtsRegistryConfig};
@@ -50,6 +55,7 @@ pub struct PluginsConfig {
     pub exchange: ExchangeRegistryConfig,
     pub storage: StorageRegistryConfig,
     pub tts: TtsRegistryConfig,
+    pub llm: LlmRegistryConfig,
     /// 各子插件自己的参数，键为插件 id
     pub settings: BTreeMap<String, serde_json::Value>,
 }
@@ -103,6 +109,7 @@ pub const CATALOG: &[CatalogEntry] = &[
     CatalogEntry { id: leo_plugin_exchange::PLUGIN_ID, required: true, build: |_, c| Ok(Arc::new(leo_plugin_exchange::ExchangeRegistryPlugin::new(c.exchange.clone()))) },
     CatalogEntry { id: leo_plugin_storage::PLUGIN_ID, required: true, build: |_, c| Ok(Arc::new(leo_plugin_storage::StorageRegistryPlugin::new(c.storage.clone()))) },
     CatalogEntry { id: leo_plugin_tts::PLUGIN_ID, required: true, build: |_, c| Ok(Arc::new(leo_plugin_tts::TtsRegistryPlugin::new(c.tts.clone()))) },
+    CatalogEntry { id: leo_plugin_llm::PLUGIN_ID, required: true, build: |_, c| Ok(Arc::new(leo_plugin_llm::LlmRegistryPlugin::new(c.llm.clone()))) },
     // ---- 文本子插件 ----
     CatalogEntry { id: "leo-plugin-cleaner-kaomoji", required: false, build: |_, _| Ok(Arc::new(leo_plugin_cleaner_kaomoji::KaomojiCleanerPlugin::new())) },
     CatalogEntry { id: "leo-plugin-parser-novel-regex", required: false, build: |_, _| Ok(Arc::new(leo_plugin_parser_novel_regex::NovelRegexParserPlugin::new())) },
@@ -126,6 +133,25 @@ pub const CATALOG: &[CatalogEntry] = &[
         id: leo_plugin_tts_minimax::PLUGIN_ID,
         required: false,
         build: |_, c| Ok(Arc::new(leo_plugin_tts_minimax::MinimaxTtsPlugin::from_settings(c.settings_for(leo_plugin_tts_minimax::PLUGIN_ID))?)),
+    },
+    // ---- 大语言模型子插件 ----
+    // DeepSeek：需要环境变量 DEEPSEEK_API_KEY，没有时不注册驱动
+    CatalogEntry {
+        id: leo_plugin_llm_deepseek::PLUGIN_ID,
+        required: false,
+        build: |_, c| Ok(Arc::new(leo_plugin_llm_deepseek::DeepseekLlmPlugin::from_settings(c.settings_for(leo_plugin_llm_deepseek::PLUGIN_ID))?)),
+    },
+    // 火山方舟（豆包）：需要环境变量 ARK_API_KEY，没有时不注册驱动
+    CatalogEntry {
+        id: leo_plugin_llm_volcengine::PLUGIN_ID,
+        required: false,
+        build: |_, c| Ok(Arc::new(leo_plugin_llm_volcengine::VolcengineLlmPlugin::from_settings(c.settings_for(leo_plugin_llm_volcengine::PLUGIN_ID))?)),
+    },
+    // 阿里云百炼（Qwen）：需要环境变量 DASHSCOPE_API_KEY，没有时不注册驱动
+    CatalogEntry {
+        id: leo_plugin_llm_bailian::PLUGIN_ID,
+        required: false,
+        build: |_, c| Ok(Arc::new(leo_plugin_llm_bailian::BailianLlmPlugin::from_settings(c.settings_for(leo_plugin_llm_bailian::PLUGIN_ID))?)),
     },
 ];
 
@@ -214,5 +240,29 @@ mod tests {
             serde_json::from_str(r#"{"settings":{"leo-plugin-tts-minimax":{"sample_rate":12345}}}"#).unwrap();
         let err = enabled_plugins(&env, &bad).err().expect("参数写错要报错").to_string();
         assert!(err.contains("sample_rate"), "{err}");
+    }
+
+    #[test]
+    fn llm_config_and_settings_are_validated() {
+        let env = HostEnv { csv_dir: std::env::temp_dir() };
+        let ok: PluginsConfig = serde_json::from_str(
+            r#"{
+                "llm": {"default": "deepseek"},
+                "settings": {
+                    "leo-plugin-llm-deepseek": {"protocol": "anthropic", "model": "deepseek-chat"},
+                    "leo-plugin-llm-bailian": {"model": "qwen-plus", "enable_thinking": false}
+                }
+            }"#,
+        )
+        .unwrap();
+        assert_eq!(ok.llm.default.as_deref(), Some("deepseek"));
+        assert!(enabled_plugins(&env, &ok).is_ok());
+
+        let bad: PluginsConfig = serde_json::from_str(
+            r#"{"settings":{"leo-plugin-llm-deepseek":{"protocol":"grpc"}}}"#,
+        )
+        .unwrap();
+        let err = enabled_plugins(&env, &bad).err().expect("未知协议要报错").to_string();
+        assert!(err.contains("openai-chat") && err.contains("grpc"), "{err}");
     }
 }

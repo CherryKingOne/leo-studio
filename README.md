@@ -29,14 +29,13 @@ leo-studio/
 ├── core/                                  # 【微内核】纯净 AST 抽象、Context 依赖注入、扩展契约 SPI
 │
 ├── plugins/                               # 【分类归集插件集】
-│   ├── importers/                         # 📥 导入器插件（txt 等，解析为 Script AST）
-│   ├── exporters/                         # 📤 导出器插件（csv 配音台账、json 剧本等）
+│   ├── exchange/                          # 📥📤 导入器 / 导出器（txt、csv 配音台账、json 剧本等）
 │   ├── text/                              # ✍️ 文本处理插件（颜文字清洗、正则分章、引号台词切分）
-│   ├── tts/                               # 🎙️ 语音合成插件（微软 Edge TTS、CosyVoice 等）
+│   ├── tts/                               # 🎙️ 语音合成插件（Edge TTS、阶跃星辰、MiniMax 等）
+│   ├── llm/                               # 🧠 大语言模型（协议库 + 注册层 + DeepSeek / 豆包 / 百炼）
 │   ├── storage/                           # 💾 数据存储插件（纯文本 CSV 文件存储等）
-│   ├── api/                               # 🌐 RESTful API 传输服务插件（Axum HTTP /api/v2）
-│   ├── mcp/                               # 🤖 MCP 智能体协议服务插件（Model Context Protocol）
-│   └── cli/                               # 💻 CLI 命令行生产工具插件（leo-cli）
+│   ├── interfaces/                        # 🌐 对外入口（RESTful API、MCP、CLI）
+│   └── catalog/                           # 🧩 编译期插件清单 + leo-plugins.json 解析
 │
 ├── app/                                   # 【启动器 Host App】极简总装入口（main.rs + lib.rs）
 │
@@ -135,6 +134,7 @@ Leo Studio 为开发者提供了高度扩展能力的插件生态体系。所有
    - `Importer`：支持各类电子书与文档解析为 `ScriptDocument` AST。
    - `Exporter`：支持导出各类制作台账与工程文件。
    - `TTSProvider`：接入任意本地大模型或云端语音合成供应商。
+   - `LlmProvider`：接入 OpenAI Chat / Responses / Anthropic 三种协议的 LLM 供应商，并支持跨协议转换。
    - `StorageProvider`：持久化扩展（CSV, SQLite, 对象存储）。
    - `TextCleaner`, `ChapterSplitter`, `DialogueSplitter`：文本流水线扩展。
 3. [**插件实战开发教程 (Development Guide)**](docs/plugins/development-guide.md)：

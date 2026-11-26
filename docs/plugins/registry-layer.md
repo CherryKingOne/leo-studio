@@ -39,7 +39,7 @@ leo-studio/
 │       ├── context/                   Context：服务 + 事件 + 插件作用域（卸载自动撤销）
 │       ├── registry/                  通用注册表 Registry<T>：驱动 id、内置/插件槽位、默认驱动
 │       ├── plugin/                    Plugin trait、manifest（depends）、PluginManager（有序/依赖/回滚/卸载）
-│       ├── spi/                       扩展点契约：tts / storage / exchange / text
+│       ├── spi/                       扩展点契约：tts / storage / exchange / text / llm
 │       └── pipeline/
 ├── plugins/
 │   ├── text/
@@ -70,6 +70,29 @@ leo-studio/
 │   │       ├── src/client.rs          /v1/t2a_v2（hex 音频）、/v1/get_voice
 │   │       ├── src/voices.rs          兜底音色、情绪映射、音调换算
 │   │       └── tests/
+│   ├── llm/
+│   │   ├── protocol/                  leo-llm-protocol     纯库（非插件）：三套协议编解码 + 跨协议转换
+│   │   │   ├── src/lib.rs             encode/decode request/response、endpoint、auth、错误映射
+│   │   │   ├── src/endpoint.rs        路径与鉴权（OpenAI Bearer / Anthropic x-api-key）
+│   │   │   ├── src/openai/chat_completions.rs   Chat Completions（旧）
+│   │   │   ├── src/openai/responses.rs          Responses API（新）
+│   │   │   ├── src/anthropic/messages.rs        Messages API
+│   │   │   ├── src/convert.rs         OpenAI Chat ↔ Responses ↔ Anthropic 互转
+│   │   │   └── src/error.rs           三家错误体 → CoreError
+│   │   ├── registry/                  leo-plugin-llm       注册层：默认驱动 + “驱动id:模型”路由 + 协议桥
+│   │   ├── deepseek/                  驱动 deepseek（DeepSeek，需 DEEPSEEK_API_KEY）
+│   │   │   ├── src/lib.rs             插件入口 + 官方文档链接
+│   │   │   ├── src/config.rs          base_url / protocol / model / 采样参数 / extra_headers / extra_body
+│   │   │   ├── src/client.rs          按协议拼 URL、鉴权、发送、解码
+│   │   │   └── tests/                 三协议假服务器测试 + 真实调用测试（--ignored）
+│   │   ├── volcengine/                驱动 volcengine（火山方舟豆包，需 ARK_API_KEY）
+│   │   │   ├── src/config.rs          推理接入点 / thinking 开关
+│   │   │   ├── src/client.rs
+│   │   │   └── tests/
+│   │   └── bailian/                   驱动 bailian（阿里云百炼 Qwen，需 DASHSCOPE_API_KEY）
+│   │       ├── src/config.rs          enable_thinking / enable_search
+│   │       ├── src/client.rs
+│   │       └── tests/
 │   ├── interfaces/                    对外入口：只依赖 core + 各注册层
 │   │   ├── api/
 │   │   ├── mcp/
@@ -84,7 +107,7 @@ leo-studio/
 ```text
 app / cli ──► catalog ──► 各注册层 + 各子插件 ──► core
 api / mcp ──► 各注册层 ──► core
-子插件     ──► core（必要时 + 别的注册层，如 importer-txt → leo-plugin-text）
+子插件     ──► core（必要时 + 别的注册层，如 importer-txt → leo-plugin-text；LLM 子插件另加 leo-llm-protocol）
 ```
 
 子插件之间不再互相依赖；接口层不认识任何具体子插件。
@@ -143,7 +166,8 @@ let (_, exporter) = ExchangeHub::of(&ctx).await.exporter(Some("csv"))?;
   "text":     { "cleaners": ["kaomoji"], "chapter_splitter": "novel-regex", "dialogue_splitter": "quotes" },
   "exchange": { "default_exporter": "json" },
   "storage":  { "default": "csv" },
-  "tts":      { "default": "edge" }
+  "tts":      { "default": "edge" },
+  "llm":      { "default": "deepseek" }
 }
 ```
 
@@ -154,11 +178,16 @@ let (_, exporter) = ExchangeHub::of(&ctx).await.exporter(Some("csv"))?;
 ```json
 "settings": {
   "leo-plugin-tts-stepfun": { "model": "step-tts-2", "response_format": "mp3", "default_voice": "cixingnansheng" },
-  "leo-plugin-tts-minimax": { "model": "speech-2.8-hd", "format": "mp3", "default_voice": "male-qn-qingse" }
+  "leo-plugin-tts-minimax": { "model": "speech-2.8-hd", "format": "mp3", "default_voice": "male-qn-qingse" },
+  "leo-plugin-llm-deepseek": { "protocol": "openai-chat", "model": "deepseek-chat", "max_tokens": 4096 },
+  "leo-plugin-llm-volcengine": { "protocol": "openai-chat", "model": "ep-2026xxxxxxxx", "thinking": "auto" },
+  "leo-plugin-llm-bailian": { "protocol": "openai-chat", "model": "qwen-plus", "enable_thinking": false }
 }
 ```
 
-API Key 不写进配置文件，只从环境变量读（`STEPFUN_API_KEY`、`MINIMAX_API_KEY`）；没设置时插件照常装配、只是不注册驱动，日志里有警告。
+LLM 的 `protocol` 可选 `openai-chat` / `openai-responses` / `anthropic`，`base_url` 填协议根地址（例如 `https://api.deepseek.com/v1`、`https://ark.cn-beijing.volces.com/api/v3`、`https://dashscope.aliyuncs.com/compatible-mode/v1`）。详见 [llm-protocols.md](./llm-protocols.md)。
+
+API Key 不写进配置文件，只从环境变量读（`STEPFUN_API_KEY`、`MINIMAX_API_KEY`、`DEEPSEEK_API_KEY`、`ARK_API_KEY`、`DASHSCOPE_API_KEY`）；没设置时插件照常装配、只是不注册驱动，日志里有警告。
 
 ## 7. 还没做的（与本次重构无关，单独排期）
 

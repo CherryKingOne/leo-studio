@@ -13,6 +13,7 @@ leo-plugin-text = { path = "../text/registry" }
 leo-plugin-exchange = { path = "../exchange/registry" }
 leo-plugin-storage = { path = "../storage/registry" }
 leo-plugin-tts = { path = "../tts/registry" }
+leo-plugin-llm = { path = "../llm/registry" }
 
 # 子插件（新增插件：在这里加一行依赖，再在 src/lib.rs 的 CATALOG 里加一项）
 leo-plugin-cleaner-kaomoji = { path = "../text/cleaner-kaomoji" }
@@ -25,6 +26,9 @@ leo-plugin-storage-csv = { path = "../storage/csv" }
 leo-plugin-tts-edge = { path = "../tts/edge" }
 leo-plugin-tts-stepfun = { path = "../tts/stepfun" }
 leo-plugin-tts-minimax = { path = "../tts/minimax" }
+leo-plugin-llm-deepseek = { path = "../llm/deepseek" }
+leo-plugin-llm-volcengine = { path = "../llm/volcengine" }
+leo-plugin-llm-bailian = { path = "../llm/bailian" }
 
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"

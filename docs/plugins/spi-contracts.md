@@ -196,3 +196,87 @@ pub trait DialogueSplitter: Send + Sync {
     fn split_sentence(&self, sentence: &str) -> Vec<RawDialogueSegment>;
 }
 ```
+
+---
+
+## 6. 大语言模型扩展点 (`LlmProvider`)
+
+内部统一使用与协议无关的 canonical 请求 / 响应；OpenAI Chat、OpenAI Responses、Anthropic Messages 的互相转换放在 `leo-llm-protocol` 共享库里，不进入 SPI。
+
+### Trait 定义
+
+```rust
+#[async_trait]
+pub trait LlmProvider: Send + Sync {
+    fn provider_id(&self) -> &str;
+    fn protocol(&self) -> LlmProtocol;
+    async fn list_models(&self) -> CoreResult<Vec<ModelInfo>>;
+    async fn chat(&self, request: &ChatRequest) -> CoreResult<ChatResponse>;
+}
+```
+
+### 协议枚举
+
+```rust
+pub enum LlmProtocol {
+    OpenAiChat,       // POST {base_url}/chat/completions
+    OpenAiResponses,  // POST {base_url}/responses
+    Anthropic,        // POST {base_url}/v1/messages
+}
+```
+
+### 请求载荷
+
+```rust
+pub struct ChatRequest {
+    pub model: Option<String>,
+    pub messages: Vec<ChatMessage>,
+    pub temperature: Option<f32>,
+    pub top_p: Option<f32>,
+    pub max_tokens: Option<u32>,
+    pub stop: Vec<String>,
+    pub response_format: ResponseFormat,
+}
+
+pub struct ChatMessage {
+    pub role: ChatRole,        // System / User / Assistant
+    pub content: String,
+    pub name: Option<String>,
+}
+
+pub enum ResponseFormat {
+    Text,
+    JsonObject,
+    JsonSchema { schema: serde_json::Value },
+}
+```
+
+当前只覆盖文本、非流式对话；不支持 tool / function calling、图片/音频内容块和流式事件。
+
+### 响应结果
+
+```rust
+pub struct ChatResponse {
+    pub id: Option<String>,
+    pub model: String,
+    pub content: String,
+    pub reasoning_content: Option<String>,
+    pub finish_reason: FinishReason,
+    pub usage: Option<TokenUsage>,
+}
+
+pub struct TokenUsage {
+    pub input_tokens: u32,
+    pub output_tokens: u32,
+    pub total_tokens: u32,
+}
+```
+
+`finish_reason` 归一化为 `stop / length / content_filter / tool_calls / other`。
+
+### 实现约定
+
+- 供应商子插件只负责地址、鉴权、模型和供应商专有参数；请求/响应体用 `leo-llm-protocol` 编解码。
+- 注册层 `LlmHub` 负责默认驱动、`驱动id:模型` 路由，以及 `chat_raw(protocol, body)` 协议桥。
+- 协议细节与转换规则见 [llm-protocols.md](./llm-protocols.md)。
+
