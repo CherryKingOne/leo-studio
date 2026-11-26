@@ -137,7 +137,56 @@ let out = hub.chat_raw(LlmProtocol::Anthropic, body).await?;
 
 API Key 只从环境变量读，不写进 `leo-plugins.json`。没有 Key 时插件照常装配，但不注册驱动，日志里会有警告。
 
-## 6. 新增一家供应商
+## 6. 手动联调
+
+### 6.1 不花钱的假服务器测试
+
+三套协议、鉴权头、请求体映射都有本地假服务器测试，不需要 Key：
+
+```bash
+cargo test -p leo-plugin-llm-deepseek
+cargo test -p leo-plugin-llm-volcengine
+cargo test -p leo-plugin-llm-bailian
+cargo test -p leo-plugin-llm-protocol
+```
+
+### 6.2 真实调用单个供应商
+
+先把 Key 放进 `.env`，再导入当前 shell：
+
+```bash
+set -a; source .env; set +a
+```
+
+然后跑各插件自带的 `#[ignore]` 真实调用测试（会调用线上接口并计费）：
+
+```bash
+cargo test -p leo-plugin-llm-deepseek live_chat -- --ignored --nocapture
+cargo test -p leo-plugin-llm-bailian live_chat -- --ignored --nocapture
+
+# 火山方舟必须指定推理接入点 ID
+ARK_MODEL=ep-2026xxxxxxxx \
+  cargo test -p leo-plugin-llm-volcengine live_chat -- --ignored --nocapture
+```
+
+默认模型：DeepSeek `deepseek-chat`，百炼 `qwen-plus`，火山方舟由 `ARK_MODEL` 决定。
+
+### 6.3 自定义问题 / 模型
+
+`plugins/catalog/examples/llm_chat.rs` 会装配完整 catalog，再通过 `LlmHub` 发一轮对话：
+
+```bash
+# 用默认驱动 + 默认模型
+cargo run -p leo-plugin-catalog --example llm_chat -- "用一句话介绍有声书制作"
+
+# 指定驱动和模型
+cargo run -p leo-plugin-catalog --example llm_chat -- "你好" deepseek:deepseek-chat
+cargo run -p leo-plugin-catalog --example llm_chat -- "你好" volcengine:ep-2026xxxxxxxx
+```
+
+它会先打印当前注册了哪些 LLM 驱动；如果一个都没有，说明对应的 API Key 没有加载成功。想用自定义 `leo-plugins.json` 时加 `LEO_PLUGINS_CONFIG=./leo-plugins.json`。
+
+## 7. 新增一家供应商
 
 1. 新建 `plugins/llm/<name>/`（crate `leo-plugin-llm-<name>`），依赖 `leo-core` + `leo-llm-protocol`。
 2. `config.rs` 定义 `base_url` / `protocol` / `model` / 采样参数，按需加 `extra_headers` / `extra_body` 和供应商专有字段。

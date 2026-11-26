@@ -1,5 +1,6 @@
 //! 用本地假服务器模拟火山方舟的三种协议入口（不需要 API Key、不联网）。
-//! 真实调用测试：设置 ARK_API_KEY 后运行 `cargo test -p leo-plugin-llm-volcengine -- --ignored`。
+//! 真实调用测试：设置 ARK_API_KEY 和 ARK_MODEL（推理接入点 `ep-...`）后运行
+//! `cargo test -p leo-plugin-llm-volcengine live_chat -- --ignored --nocapture`。
 
 use std::sync::{Arc, Mutex};
 
@@ -206,10 +207,18 @@ async fn without_api_key_plugin_loads_but_registers_nothing() {
 }
 
 #[tokio::test]
-#[ignore = "需要 ARK_API_KEY 和一个可用的推理接入点，会真实调用火山方舟接口并计费"]
+#[ignore = "需要 ARK_API_KEY + ARK_MODEL（推理接入点 ep-...），会真实调用火山方舟接口并计费"]
 async fn live_chat() {
+    let model = std::env::var("ARK_MODEL")
+        .expect("需要 ARK_MODEL，填火山方舟控制台的推理接入点 ID（ep-...）");
     let ctx = Context::new("volcengine_live");
-    VolcengineLlmPlugin::default().apply(&ctx).await.unwrap();
+    VolcengineLlmPlugin::new(VolcengineConfig {
+        model,
+        ..Default::default()
+    })
+    .apply(&ctx)
+    .await
+    .unwrap();
     let provider = ctx
         .registry::<dyn LlmProvider>()
         .get("volcengine")
