@@ -153,6 +153,48 @@ pub const CATALOG: &[CatalogEntry] = &[
         required: false,
         build: |_, c| Ok(Arc::new(leo_plugin_llm_bailian::BailianLlmPlugin::from_settings(c.settings_for(leo_plugin_llm_bailian::PLUGIN_ID))?)),
     },
+    // Agnes AI：需要环境变量 AGNES_API_KEY，没有时不注册驱动
+    CatalogEntry {
+        id: leo_plugin_llm_agnes::PLUGIN_ID,
+        required: false,
+        build: |_, c| Ok(Arc::new(leo_plugin_llm_agnes::AgnesLlmPlugin::from_settings(c.settings_for(leo_plugin_llm_agnes::PLUGIN_ID))?)),
+    },
+    // 讯飞星辰：需要环境变量 SPARK_API_KEY（兼容 XFYUN_API_KEY），没有时不注册驱动
+    CatalogEntry {
+        id: leo_plugin_llm_spark::PLUGIN_ID,
+        required: false,
+        build: |_, c| Ok(Arc::new(leo_plugin_llm_spark::SparkLlmPlugin::from_settings(c.settings_for(leo_plugin_llm_spark::PLUGIN_ID))?)),
+    },
+    // 百度千帆：需要环境变量 QIANFAN_API_KEY，没有时不注册驱动
+    CatalogEntry {
+        id: leo_plugin_llm_qianfan::PLUGIN_ID,
+        required: false,
+        build: |_, c| Ok(Arc::new(leo_plugin_llm_qianfan::QianfanLlmPlugin::from_settings(c.settings_for(leo_plugin_llm_qianfan::PLUGIN_ID))?)),
+    },
+    // LongCat 龙猫：需要环境变量 LONGCAT_API_KEY，没有时不注册驱动
+    CatalogEntry {
+        id: leo_plugin_llm_longcat::PLUGIN_ID,
+        required: false,
+        build: |_, c| Ok(Arc::new(leo_plugin_llm_longcat::LongcatLlmPlugin::from_settings(c.settings_for(leo_plugin_llm_longcat::PLUGIN_ID))?)),
+    },
+    // Google Gemini：需要环境变量 GEMINI_API_KEY（兼容 GOOGLE_API_KEY），没有时不注册驱动
+    CatalogEntry {
+        id: leo_plugin_llm_gemini::PLUGIN_ID,
+        required: false,
+        build: |_, c| Ok(Arc::new(leo_plugin_llm_gemini::GeminiLlmPlugin::from_settings(c.settings_for(leo_plugin_llm_gemini::PLUGIN_ID))?)),
+    },
+    // MiniMax：需要环境变量 MINIMAX_API_KEY，没有时不注册驱动
+    CatalogEntry {
+        id: leo_plugin_llm_minimax::PLUGIN_ID,
+        required: false,
+        build: |_, c| Ok(Arc::new(leo_plugin_llm_minimax::MinimaxLlmPlugin::from_settings(c.settings_for(leo_plugin_llm_minimax::PLUGIN_ID))?)),
+    },
+    // 智谱 Z.ai：需要环境变量 ZAI_API_KEY（兼容 ZHIPU_API_KEY），没有时不注册驱动
+    CatalogEntry {
+        id: leo_plugin_llm_zai::PLUGIN_ID,
+        required: false,
+        build: |_, c| Ok(Arc::new(leo_plugin_llm_zai::ZaiLlmPlugin::from_settings(c.settings_for(leo_plugin_llm_zai::PLUGIN_ID))?)),
+    },
 ];
 
 /// 按配置挑出要启用的插件
@@ -210,6 +252,26 @@ mod tests {
         let config = PluginsConfig::default();
         for e in CATALOG {
             assert_eq!((e.build)(&env, &config).unwrap().manifest().id, e.id);
+        }
+    }
+
+    #[test]
+    fn example_settings_for_new_llm_plugins_are_valid() {
+        let raw = include_str!("../../../leo-plugins.example.json");
+        let config: PluginsConfig = serde_json::from_str(raw).unwrap();
+        let env = HostEnv { csv_dir: std::env::temp_dir() };
+        for id in [
+            "leo-plugin-llm-agnes",
+            "leo-plugin-llm-spark",
+            "leo-plugin-llm-qianfan",
+            "leo-plugin-llm-longcat",
+            "leo-plugin-llm-gemini",
+            "leo-plugin-llm-minimax",
+            "leo-plugin-llm-zai",
+        ] {
+            let entry = CATALOG.iter().find(|entry| entry.id == id).unwrap();
+            let plugin = (entry.build)(&env, &config).unwrap();
+            assert_eq!(plugin.manifest().id, id);
         }
     }
 

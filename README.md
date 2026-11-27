@@ -32,7 +32,7 @@ leo-studio/
 │   ├── exchange/                          # 📥📤 导入器 / 导出器（txt、csv 配音台账、json 剧本等）
 │   ├── text/                              # ✍️ 文本处理插件（颜文字清洗、正则分章、引号台词切分）
 │   ├── tts/                               # 🎙️ 语音合成插件（Edge TTS、阶跃星辰、MiniMax 等）
-│   ├── llm/                               # 🧠 大语言模型（协议库 + 注册层 + DeepSeek / 豆包 / 百炼）
+│   ├── llm/                               # 🧠 大语言模型（协议库 + 注册层 + DeepSeek / 豆包 / 百炼 / Agnes / 讯飞星辰 / 千帆 / LongCat / Gemini / MiniMax / 智谱）
 │   ├── storage/                           # 💾 数据存储插件（纯文本 CSV 文件存储等）
 │   ├── interfaces/                        # 🌐 对外入口（RESTful API、MCP、CLI）
 │   └── catalog/                           # 🧩 编译期插件清单 + leo-plugins.json 解析

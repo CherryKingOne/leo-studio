@@ -17,7 +17,7 @@ plugins/llm/protocol                 leo-llm-protocol（纯库，不是插件）
    └── error.rs                      三家错误体 → CoreError
         ▲
         │
-plugins/llm/{deepseek,volcengine,bailian}   供应商插件：地址、Key、模型、特殊参数
+plugins/llm/{deepseek,volcengine,bailian,agnes,spark,qianfan,longcat,gemini,minimax,zai}   供应商插件：地址、Key、模型、特殊参数
         ▲
         │
 plugins/llm/registry                 leo-plugin-llm：默认驱动 + 模型路由 + 协议桥
@@ -138,7 +138,7 @@ let out = hub.chat_raw(LlmProtocol::OpenAiChat, body).await?;
 
 `chat_raw` 目前仍是**一次性 JSON 返回**的协议桥：即使入参 body 里 `stream: true`，供应商内部会走流式并聚合成完整响应，再由注册层编码成非流式 JSON。需要真正的 SSE 输出时，直接用 `chat_stream`。
 
-驱动实际走什么协议由驱动自己的 `protocol` 配置决定，和调用方协议无关。因此三家供应商可以任意混用三套协议：例如 DeepSeek 配 `anthropic`、火山配 `openai-responses`、百炼配 `openai-chat`，上层只认一种格式。
+驱动实际走什么协议由驱动自己的 `protocol` 配置决定，和调用方协议无关。因此不同供应商可以各自选协议：DeepSeek 配 `anthropic`、火山配 `openai-responses`、百炼配 `openai-chat`；`qianfan` / `gemini` 只能配 `openai-chat`，`zai` 可配 `openai-chat` / `anthropic`。上层只认一种格式。
 
 模型路由：
 
@@ -186,8 +186,17 @@ let out = hub.chat_raw(LlmProtocol::OpenAiChat, body).await?;
 | `deepseek` | `DEEPSEEK_API_KEY` | `https://api.deepseek.com/v1` | `deepseek-chat` | `true` | `thinking: { mode, effort }`（默认 enabled + high） |
 | `volcengine` | `ARK_API_KEY` | `https://ark.cn-beijing.volces.com/api/v3` | 空，需填 `ep-...` 或模型 ID | `true` | `thinking: enabled / disabled / auto`、`reasoning_effort` |
 | `bailian` | `DASHSCOPE_API_KEY` | `https://dashscope.aliyuncs.com/compatible-mode/v1` | `qwen-plus` | `true` | `enable_thinking`、`thinking_budget`、`reasoning_effort`、`enable_search` |
+| `agnes` | `AGNES_API_KEY` | `https://apihub.agnes-ai.com/v1` | `agnes-3.0-flash` | `true` | 通用 `thinking: { mode, effort }` |
+| `spark` | `SPARK_API_KEY`（兼容 `XFYUN_API_KEY`） | `https://maas-api.cn-huabei-1.xf-yun.com/v2` | `spark-x2.6` | `true` | 通用 `thinking`；Responses / Anthropic 根地址见供应商矩阵 |
+| `qianfan` | `QIANFAN_API_KEY` | `https://qianfan.baidubce.com/v2` | `ernie-5.5-flash-preview` | `true` | 只支持 OpenAI Chat |
+| `longcat` | `LONGCAT_API_KEY` | `https://api.longcat.chat/openai/v1` | `LongCat-2.5` | `true` | 通用 `thinking`；Anthropic 根地址见供应商矩阵 |
+| `gemini` | `GEMINI_API_KEY`（兼容 `GOOGLE_API_KEY`） | `https://generativelanguage.googleapis.com/v1beta/openai` | `gemini-4-hydrogen` | `true` | 只支持 OpenAI Chat 兼容层 |
+| `minimax` | `MINIMAX_LLM_API_KEY`（兼容 `MINIMAX_API_KEY`） | `https://api.minimax.cn/v1` | `MiniMax-M3.1-Flash` | `true` | 通用 `thinking`；Anthropic 根地址见供应商矩阵 |
+| `zai` | `ZAI_API_KEY`（兼容 `ZHIPU_API_KEY`） | `https://open.bigmodel.cn/api/paas/v4` | `glm-5.4` | `true` | `thinking.type`（Chat）；Anthropic 根地址见供应商矩阵 |
 
-三个驱动都能编解码 `openai-chat` / `openai-responses` / `anthropic`。能否真的用某个协议，取决于供应商是否提供对应端点：例如 DeepSeek 同时提供 OpenAI Chat 与 Anthropic 兼容地址；如果某家只提供 OpenAI Chat，就让驱动保持 `openai-chat`，调用方仍可用 Anthropic 格式进来，由注册层的 `chat_raw` 做协议转换。切换上游协议时改 `protocol` 和对应的 `base_url`，请求/响应体由协议库转换。
+这些驱动分别声明自己实际支持的协议：`agnes` / `spark` / `longcat` / `minimax` 支持三种；`zai` 支持 Chat + Anthropic；`qianfan` / `gemini` 只支持 OpenAI Chat。完整矩阵、每家的模型清单和“只接自家模型”的过滤规则见 [LLM 供应商矩阵](./llm-providers.md)。
+
+能否真的用某个协议，取决于供应商是否提供对应端点。切换上游协议时改 `protocol` 和对应的 `base_url`，请求/响应体由协议库转换；没有公开端点的协议不硬做。调用方仍可用其他协议格式进来，由注册层的 `chat_raw` 做协议转换。
 
 **供应商专有字段由各插件自己负责**：
 
