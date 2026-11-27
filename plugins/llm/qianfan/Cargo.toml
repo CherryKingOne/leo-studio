@@ -1,0 +1,21 @@
+[package]
+name = "leo-plugin-llm-qianfan"
+version = "0.1.0"
+edition = "2024"
+description = "Leo Studio 大语言模型子插件：百度千帆，注册为 LLM 驱动 qianfan，支持 OpenAI Chat 协议"
+license = "MIT"
+
+[dependencies]
+leo-core = { path = "../../../core" }
+leo-llm-protocol = { path = "../protocol" }
+async-trait = "0.1"
+futures-util = { version = "0.3", default-features = false, features = ["std"] }
+reqwest = { version = "0.12", default-features = false, features = ["json", "stream", "rustls-tls-webpki-roots-no-provider"] }
+rustls = "0.23"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tracing = "0.1"
+
+[dev-dependencies]
+axum = "0.8"
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "net"] }

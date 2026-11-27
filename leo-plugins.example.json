@@ -61,6 +61,65 @@
       "max_tokens": 4096,
       "stream": true,
       "reasoning_effort": "high"
+    },
+    "leo-plugin-llm-agnes": {
+      "protocol": "openai-chat",
+      "base_url": "https://apihub.agnes-ai.com/v1",
+      "model": "agnes-3.0-flash",
+      "temperature": 0.7,
+      "max_tokens": 4096,
+      "stream": true
+    },
+    "leo-plugin-llm-spark": {
+      "protocol": "openai-chat",
+      "base_url": "https://maas-api.cn-huabei-1.xf-yun.com/v2",
+      "model": "spark-x2.6",
+      "temperature": 0.7,
+      "max_tokens": 4096,
+      "stream": true
+    },
+    "leo-plugin-llm-qianfan": {
+      "protocol": "openai-chat",
+      "base_url": "https://qianfan.baidubce.com/v2",
+      "model": "ernie-5.5-flash-preview",
+      "temperature": 0.7,
+      "max_tokens": 4096,
+      "stream": true
+    },
+    "leo-plugin-llm-longcat": {
+      "protocol": "openai-chat",
+      "base_url": "https://api.longcat.chat/openai/v1",
+      "model": "LongCat-2.5",
+      "temperature": 0.7,
+      "max_tokens": 4096,
+      "stream": true
+    },
+    "leo-plugin-llm-gemini": {
+      "protocol": "openai-chat",
+      "base_url": "https://generativelanguage.googleapis.com/v1beta/openai",
+      "model": "gemini-4-hydrogen",
+      "temperature": 0.7,
+      "max_tokens": 4096,
+      "stream": true
+    },
+    "leo-plugin-llm-minimax": {
+      "protocol": "openai-chat",
+      "base_url": "https://api.minimax.cn/v1",
+      "model": "MiniMax-M3.1-Flash",
+      "temperature": 0.7,
+      "max_tokens": 4096,
+      "stream": true
+    },
+    "leo-plugin-llm-zai": {
+      "protocol": "openai-chat",
+      "base_url": "https://open.bigmodel.cn/api/paas/v4",
+      "model": "glm-5.4",
+      "temperature": 0.7,
+      "max_tokens": 4096,
+      "stream": true,
+      "thinking": {
+        "mode": "enabled"
+      }
     }
   }
 }

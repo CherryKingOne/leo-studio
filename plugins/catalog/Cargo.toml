@@ -29,6 +29,13 @@ leo-plugin-tts-minimax = { path = "../tts/minimax" }
 leo-plugin-llm-deepseek = { path = "../llm/deepseek" }
 leo-plugin-llm-volcengine = { path = "../llm/volcengine" }
 leo-plugin-llm-bailian = { path = "../llm/bailian" }
+leo-plugin-llm-agnes = { path = "../llm/agnes" }
+leo-plugin-llm-spark = { path = "../llm/spark" }
+leo-plugin-llm-qianfan = { path = "../llm/qianfan" }
+leo-plugin-llm-longcat = { path = "../llm/longcat" }
+leo-plugin-llm-gemini = { path = "../llm/gemini" }
+leo-plugin-llm-minimax = { path = "../llm/minimax" }
+leo-plugin-llm-zai = { path = "../llm/zai" }
 
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
