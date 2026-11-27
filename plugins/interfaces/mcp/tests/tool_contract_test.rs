@@ -47,6 +47,11 @@ fn tool_contract_has_explicit_schemas_and_canonical_parameters() {
     assert!(names.contains(&"leo_update_character"));
     assert!(names.contains(&"leo_delete_character"));
     assert!(names.contains(&"leo_delete_sentence_polyphone"));
+    assert!(names.contains(&"leo_list_dialogues"));
+    assert!(names.contains(&"leo_get_dialogue"));
+    assert!(names.contains(&"leo_list_unbound_dialogues"));
+    assert!(names.contains(&"leo_bind_dialogue_speaker"));
+    assert!(names.contains(&"leo_unbind_dialogue_speaker"));
     assert!(!names.contains(&"leo_rename_project"));
     assert!(tools.iter().all(|tool| tool.output_schema.is_some()));
 
@@ -148,4 +153,77 @@ async fn character_tools_round_trip_and_project_isolation() {
         .await
         .unwrap_err();
     assert_eq!(error.code, 40400);
+}
+
+#[tokio::test]
+async fn dialogue_tools_list_bind_and_unbind() {
+    let (_dir, handler) = handler();
+    let project = call(
+        &handler,
+        "leo_create_project",
+        json!({ "name": "台词项目", "text": "第1章 相遇\n林冲说：“武松。”" }),
+    )
+    .await;
+    let project_id = project["project_id"].as_str().unwrap().to_string();
+    let chapters = call(
+        &handler,
+        "leo_list_chapters",
+        json!({ "project_id": project_id }),
+    )
+    .await;
+    let chapter_id = chapters["items"][0]["chapter_id"]
+        .as_str()
+        .unwrap()
+        .to_string();
+    let character = call(
+        &handler,
+        "leo_create_character",
+        json!({ "project_id": project_id, "name": "林冲" }),
+    )
+    .await;
+    let character_id = character["character_id"].as_str().unwrap().to_string();
+    let dialogues = call(
+        &handler,
+        "leo_list_dialogues",
+        json!({ "project_id": project_id, "chapter_id": chapter_id }),
+    )
+    .await;
+    assert_eq!(dialogues["total"], 2);
+    let dialogue_id = dialogues["items"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|item| item["segment_type"] == "dialogue")
+        .unwrap()["dialogue_id"]
+        .as_str()
+        .unwrap()
+        .to_string();
+
+    let bound = call(
+        &handler,
+        "leo_bind_dialogue_speaker",
+        json!({
+            "project_id": project_id,
+            "chapter_id": chapter_id,
+            "dialogue_id": dialogue_id,
+            "speaker_id": character_id
+        }),
+    )
+    .await;
+    assert_eq!(bound["speaker_name"], "林冲");
+    let unbound = call(
+        &handler,
+        "leo_list_unbound_dialogues",
+        json!({ "project_id": project_id, "chapter_id": chapter_id }),
+    )
+    .await;
+    assert_eq!(unbound["total"], 1);
+
+    let result = call(
+        &handler,
+        "leo_unbind_dialogue_speaker",
+        json!({ "project_id": project_id, "chapter_id": chapter_id, "dialogue_id": dialogue_id }),
+    )
+    .await;
+    assert_eq!(result["unbound"], true);
 }

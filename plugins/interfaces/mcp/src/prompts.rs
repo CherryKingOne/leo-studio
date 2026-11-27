@@ -5,6 +5,9 @@ use leo_plugin_api::error::AppError;
 use leo_plugin_api::modules::projects::characters::service::{
     self as character_service, CharacterListFilter,
 };
+use leo_plugin_api::modules::projects::dialogues::service::{
+    self as dialogue_service, DialogueListFilter,
+};
 use leo_plugin_api::modules::projects::service as project_service;
 
 use super::server::McpHandler;
@@ -33,6 +36,14 @@ pub fn list() -> Vec<Prompt> {
             "leo_character_overview",
             Some("汇总指定剧目中的角色档案、类型、状态与标签。"),
             Some(vec![argument("project_id", "剧目 ID", true)]),
+        ),
+        Prompt::new(
+            "leo_dialogue_binding_review",
+            Some("审阅章节台词说话人绑定，列出未绑定片段和建议角色。"),
+            Some(vec![
+                argument("project_id", "剧目 ID", true),
+                argument("chapter_id", "章节 ID", true),
+            ]),
         ),
         Prompt::new(
             "leo_chapter_digest",
@@ -146,6 +157,62 @@ pub async fn render(
                 ));
             }
             lines.push("\n请总结主要角色、角色类型分布、归档角色和标签规律。".to_string());
+            lines.join("\n")
+        }
+        "leo_dialogue_binding_review" => {
+            let project_id = req_arg(args, "project_id")?;
+            let chapter_id = req_arg(args, "chapter_id")?;
+            let character_filter = CharacterListFilter {
+                keyword: None,
+                gender: None,
+                role_type: None,
+                status: None,
+                tag: None,
+            };
+            let (characters, character_total) = character_service::list_characters(
+                &*handler.store.lock().await,
+                &project_id,
+                1,
+                100,
+                "name",
+                "asc",
+                &character_filter,
+            )?;
+            let dialogue_filter = DialogueListFilter {
+                segment_type: None,
+                binding_status: Some("unbound"),
+                speaker_id: None,
+                keyword: None,
+            };
+            let (dialogues, dialogue_total) = dialogue_service::list_dialogues(
+                &*handler.store.lock().await,
+                &project_id,
+                &chapter_id,
+                1,
+                100,
+                &dialogue_filter,
+            )?;
+            let mut lines = vec![format!(
+                "项目：{project_id}\n章节：{chapter_id}\n角色：{character_total} 个\n未绑定片段：{dialogue_total} 个"
+            )];
+            lines.push("\n角色清单：".to_string());
+            lines.extend(characters.iter().map(|item| {
+                format!(
+                    "- {}（{}）：{}",
+                    item.name, item.character_id, item.role_type
+                )
+            }));
+            lines.push("\n未绑定片段：".to_string());
+            lines.extend(dialogues.iter().map(|item| {
+                format!(
+                    "- {}：{} / {}",
+                    item.dialogue_id, item.segment_type, item.content
+                )
+            }));
+            lines.push(
+                "\n请逐条建议说话人；有把握时调用 leo_bind_dialogue_speaker，有疑问时先向作者确认。不要假设旁白一定需要角色。"
+                    .to_string(),
+            );
             lines.join("\n")
         }
         "leo_chapter_digest" => {

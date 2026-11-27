@@ -1,6 +1,6 @@
 # Leo Studio API v3 接口文档
 
-本文档以当前 Rust 代码实际挂载的路由为准，路径为 `plugins/interfaces/api/src`。当前 API 只暴露 `/api/v3` 项目管理相关接口，共 23 个。
+本文档以当前 Rust 代码实际挂载的路由为准，路径为 `plugins/interfaces/api/src`。当前 API 只暴露 `/api/v3` 项目管理相关接口，共 27 个。
 
 ## 基本信息
 
@@ -21,6 +21,7 @@ docs/api/
 ├── route-migration-plan.md
 ├── projects/          # 项目管理（5 个接口）
 ├── project-chapters/  # 项目章节管理（4 个接口）
+├── project-dialogues/   # 项目台词管理（4 个接口）
 ├── project-characters/ # 项目角色管理（5 个接口）
 ├── project-polyphones/ # 项目多音字管理（5 个接口）
 └── recycle-bin/       # 回收站管理（4 个接口）
@@ -66,6 +67,15 @@ docs/api/
 | POST | `/api/v3/projects/{project_id}/chapters` | [project-chapters/append.md](project-chapters/append.md) |
 | GET | `/api/v3/projects/{project_id}/chapters/{chapter_id}` | [project-chapters/get.md](project-chapters/get.md) |
 | DELETE | `/api/v3/projects/{project_id}/chapters/{chapter_id}` | [project-chapters/delete.md](project-chapters/delete.md) |
+
+## 项目台词管理（4）
+
+| 方法 | 路径 | 文档 |
+| --- | --- | --- |
+| GET | `/api/v3/projects/{project_id}/chapters/{chapter_id}/dialogues` | [project-dialogues/list.md](project-dialogues/list.md) |
+| GET | `/api/v3/projects/{project_id}/chapters/{chapter_id}/dialogues/{dialogue_id}` | [project-dialogues/get.md](project-dialogues/get.md) |
+| PUT | `/api/v3/projects/{project_id}/chapters/{chapter_id}/dialogues/{dialogue_id}/speaker` | [project-dialogues/bind-speaker.md](project-dialogues/bind-speaker.md) |
+| DELETE | `/api/v3/projects/{project_id}/chapters/{chapter_id}/dialogues/{dialogue_id}/speaker` | [project-dialogues/unbind-speaker.md](project-dialogues/unbind-speaker.md) |
 
 ## 项目角色管理（5）
 

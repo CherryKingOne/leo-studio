@@ -1,14 +1,14 @@
 use std::fs;
 
-use leo_plugin_cli::cli::{CharacterCommands, ProjectCommands};
-use leo_plugin_cli::commands::{characters, projects};
+use leo_plugin_cli::cli::{CharacterCommands, DialogueCommands, ProjectCommands};
+use leo_plugin_cli::commands::{characters, dialogues, projects};
 use leo_plugin_cli::runtime::build_store;
 
 #[tokio::test]
 async fn project_and_character_commands_use_v3_store() {
     let dir = tempfile::tempdir().unwrap();
     let novel = dir.path().join("novel.txt");
-    fs::write(&novel, "第1章 开端\n林冲与武松相遇。").unwrap();
+    fs::write(&novel, "第1章 开端\n林冲说：“武松。”").unwrap();
     let (settings, mut store) = build_store(dir.path(), None).unwrap();
 
     projects::run(
@@ -47,6 +47,47 @@ async fn project_and_character_commands_use_v3_store() {
         .get("character_id")
         .unwrap()
         .clone();
+    let chapter_id = store.contents.find_all()[0]
+        .get("chapter_id")
+        .unwrap()
+        .clone();
+    let dialogue_id = store.dialogues.find_all()[0]
+        .get("dialogue_id")
+        .unwrap()
+        .clone();
+    dialogues::run(
+        &mut store,
+        DialogueCommands::Bind {
+            project_id: project_id.clone(),
+            chapter_id: chapter_id.clone(),
+            dialogue_id: dialogue_id.clone(),
+            speaker_id: character_id.clone(),
+            binding_source: "manual".into(),
+            binding_confidence: None,
+        },
+    )
+    .await
+    .unwrap();
+    assert_eq!(
+        store.dialogues.find_all()[0].get("speaker_id").unwrap(),
+        &character_id
+    );
+    dialogues::run(
+        &mut store,
+        DialogueCommands::Unbind {
+            project_id: project_id.clone(),
+            chapter_id,
+            dialogue_id,
+        },
+    )
+    .await
+    .unwrap();
+    assert!(
+        store.dialogues.find_all()[0]
+            .get("speaker_id")
+            .unwrap()
+            .is_empty()
+    );
 
     characters::run(
         &mut store,

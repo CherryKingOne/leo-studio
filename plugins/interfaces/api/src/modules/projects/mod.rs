@@ -1,4 +1,5 @@
 pub mod characters;
+pub mod dialogues;
 pub mod model;
 pub mod multipart;
 pub mod schema;

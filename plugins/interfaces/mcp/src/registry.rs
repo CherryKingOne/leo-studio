@@ -10,6 +10,12 @@ use leo_plugin_api::modules::projects::characters::schema::{
 use leo_plugin_api::modules::projects::characters::service::{
     self as character_service, CharacterListFilter,
 };
+use leo_plugin_api::modules::projects::dialogues::schema::{
+    DialogueListResponse, DialogueSpeakerBindRequest,
+};
+use leo_plugin_api::modules::projects::dialogues::service::{
+    self as dialogue_service, DialogueListFilter as DialogueFilter,
+};
 use leo_plugin_api::modules::projects::model::ChapterContentInfo;
 use leo_plugin_api::modules::projects::schema::PolyphoneAnnotation;
 use leo_plugin_api::modules::projects::service as project_service;
@@ -218,6 +224,62 @@ impl McpHandler {
                     limit,
                 )?;
                 Ok(json!({ "project_id": project_id, "total": items.len(), "items": items }))
+            }
+            "leo_list_dialogues" | "leo_list_unbound_dialogues" => {
+                let project_id = req_string(args, "project_id")?;
+                let chapter_id = req_string(args, "chapter_id")?;
+                let (page, page_size) = pagination(args, self.mcp.max_page_size)?;
+                let segment_type = validate_enum(
+                    opt_string(args, "segment_type").as_deref(),
+                    &["narration", "dialogue"],
+                    "片段类型",
+                )?;
+                let binding_status = if name == "leo_list_unbound_dialogues" {
+                    Some("unbound".to_string())
+                } else {
+                    validate_enum(
+                        opt_string(args, "binding_status").as_deref(),
+                        &["all", "bound", "unbound"],
+                        "绑定状态",
+                    )?
+                };
+                let speaker_id = opt_string(args, "speaker_id");
+                let keyword = opt_string(args, "keyword");
+                let filter = DialogueFilter {
+                    segment_type: segment_type.as_deref(),
+                    binding_status: binding_status.as_deref(),
+                    speaker_id: speaker_id.as_deref(),
+                    keyword: keyword.as_deref(),
+                };
+                let (items, total) = dialogue_service::list_dialogues(
+                    &*self.store.lock().await,
+                    &project_id,
+                    &chapter_id,
+                    page,
+                    page_size,
+                    &filter,
+                )?;
+                Ok(value_of(&DialogueListResponse {
+                    project_id,
+                    chapter_id,
+                    total,
+                    page,
+                    page_size,
+                    pages: page_count(total, page_size),
+                    items,
+                })?)
+            }
+            "leo_get_dialogue" => {
+                let project_id = req_string(args, "project_id")?;
+                let chapter_id = req_string(args, "chapter_id")?;
+                let dialogue_id = req_string(args, "dialogue_id")?;
+                let dialogue = dialogue_service::get_dialogue(
+                    &*self.store.lock().await,
+                    &project_id,
+                    &chapter_id,
+                    &dialogue_id,
+                )?;
+                Ok(value_of(&dialogue)?)
             }
             "leo_list_recycle_bin" => {
                 let (page, page_size) = pagination(args, self.mcp.max_page_size)?;
@@ -520,6 +582,32 @@ impl McpHandler {
                     &character_id,
                 )?;
                 Ok(value_of(&character)?)
+            }
+            "leo_bind_dialogue_speaker" => {
+                let project_id = req_string(args, "project_id")?;
+                let chapter_id = req_string(args, "chapter_id")?;
+                let dialogue_id = req_string(args, "dialogue_id")?;
+                let payload: DialogueSpeakerBindRequest = parse_payload(args)?;
+                let dialogue = dialogue_service::bind_speaker(
+                    &mut *self.store.lock().await,
+                    &project_id,
+                    &chapter_id,
+                    &dialogue_id,
+                    &payload,
+                )?;
+                Ok(value_of(&dialogue)?)
+            }
+            "leo_unbind_dialogue_speaker" => {
+                let project_id = req_string(args, "project_id")?;
+                let chapter_id = req_string(args, "chapter_id")?;
+                let dialogue_id = req_string(args, "dialogue_id")?;
+                let result = dialogue_service::unbind_speaker(
+                    &mut *self.store.lock().await,
+                    &project_id,
+                    &chapter_id,
+                    &dialogue_id,
+                )?;
+                Ok(value_of(&result)?)
             }
             "leo_create_character" => {
                 let project_id = req_string(args, "project_id")?;

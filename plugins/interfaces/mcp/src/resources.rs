@@ -5,6 +5,9 @@ use leo_plugin_api::error::AppError;
 use leo_plugin_api::modules::projects::characters::service::{
     self as character_service, CharacterListFilter,
 };
+use leo_plugin_api::modules::projects::dialogues::service::{
+    self as dialogue_service, DialogueListFilter,
+};
 use leo_plugin_api::modules::projects::service as project_service;
 
 use super::server::McpHandler;
@@ -61,6 +64,16 @@ pub fn templates() -> Vec<ResourceTemplate> {
             "chapter-text",
         )
         .with_mime_type("text/plain; charset=utf-8"),
+        ResourceTemplate::new(
+            "leo://projects/{project_id}/chapters/{chapter_id}/dialogues",
+            "chapter-dialogues",
+        )
+        .with_mime_type("application/json"),
+        ResourceTemplate::new(
+            "leo://projects/{project_id}/chapters/{chapter_id}/dialogues/{dialogue_id}",
+            "dialogue",
+        )
+        .with_mime_type("application/json"),
     ]
 }
 
@@ -183,6 +196,49 @@ pub async fn read(handler: &McpHandler, uri: &str) -> Result<ReadResourceResult,
                 "sentence_count": info.sentences.len()
             }))
             .map_err(|err| AppError::internal(format!("序列化资源失败：{err}")))?;
+            Ok(contents(body, uri, "application/json"))
+        }
+        ["projects", project_id, "chapters", chapter_id, "dialogues"] => {
+            let filter = DialogueListFilter {
+                segment_type: None,
+                binding_status: None,
+                speaker_id: None,
+                keyword: None,
+            };
+            let (items, total) = dialogue_service::list_dialogues(
+                &*handler.store.lock().await,
+                project_id,
+                chapter_id,
+                1,
+                100,
+                &filter,
+            )?;
+            let body = serde_json::to_string_pretty(&json!({
+                "project_id": project_id,
+                "chapter_id": chapter_id,
+                "total": total,
+                "returned": items.len(),
+                "items": items
+            }))
+            .map_err(|err| AppError::internal(format!("序列化资源失败：{err}")))?;
+            Ok(contents(body, uri, "application/json"))
+        }
+        [
+            "projects",
+            project_id,
+            "chapters",
+            chapter_id,
+            "dialogues",
+            dialogue_id,
+        ] => {
+            let dialogue = dialogue_service::get_dialogue(
+                &*handler.store.lock().await,
+                project_id,
+                chapter_id,
+                dialogue_id,
+            )?;
+            let body = serde_json::to_string_pretty(&dialogue)
+                .map_err(|err| AppError::internal(format!("序列化资源失败：{err}")))?;
             Ok(contents(body, uri, "application/json"))
         }
         ["projects", project_id, "chapters", chapter_id, "text"] => {

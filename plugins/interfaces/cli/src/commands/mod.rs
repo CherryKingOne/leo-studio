@@ -1,5 +1,6 @@
 pub mod chapters;
 pub mod characters;
+pub mod dialogues;
 pub mod export;
 pub mod import;
 pub mod plugins;

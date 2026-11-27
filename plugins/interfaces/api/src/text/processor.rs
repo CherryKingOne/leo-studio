@@ -157,5 +157,9 @@ fn dialogue_record(
     record.insert("content".into(), content.to_string());
     record.insert("word_count".into(), count_words(content).to_string());
     record.insert("parse_status".into(), status.as_str().to_string());
+    record.insert("speaker_id".into(), String::new());
+    record.insert("binding_source".into(), String::new());
+    record.insert("binding_confidence".into(), String::new());
+    record.insert("speaker_updated_at".into(), String::new());
     record
 }

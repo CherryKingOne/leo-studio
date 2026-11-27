@@ -46,6 +46,10 @@ const DIALOGUE_HEADERS: &[&str] = &[
     "content",
     "word_count",
     "parse_status",
+    "speaker_id",
+    "binding_source",
+    "binding_confidence",
+    "speaker_updated_at",
 ];
 
 const POLYPHONE_HEADERS: &[&str] = &[

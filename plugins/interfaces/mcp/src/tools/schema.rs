@@ -309,6 +309,78 @@ pub fn character_list_schema() -> Arc<JsonObject> {
     )
 }
 
+pub fn dialogue_info_schema() -> Arc<JsonObject> {
+    output_schema(
+        json!({
+            "project_id": string("项目 ID"),
+            "chapter_id": string("章节 ID"),
+            "dialogue_id": string("台词片段 ID"),
+            "parent_sentence_id": string("来源句子 ID"),
+            "sentence_index": integer("来源句子序号"),
+            "segment_index": integer("片段序号"),
+            "segment_type": string("片段类型"),
+            "content": string("片段正文"),
+            "word_count": integer("片段字数"),
+            "parse_status": string("切分状态"),
+            "speaker_id": nullable_string("说话人角色 ID"),
+            "speaker_name": nullable_string("说话人名称"),
+            "binding_source": nullable_string("绑定来源"),
+            "binding_confidence": { "type": ["number", "null"], "description": "自动匹配置信度" },
+            "speaker_updated_at": nullable_string("绑定更新时间")
+        }),
+        &[
+            "project_id",
+            "chapter_id",
+            "dialogue_id",
+            "parent_sentence_id",
+            "sentence_index",
+            "segment_index",
+            "segment_type",
+            "content",
+            "word_count",
+            "parse_status",
+            "speaker_id",
+            "speaker_name",
+            "binding_source",
+            "binding_confidence",
+            "speaker_updated_at",
+        ],
+    )
+}
+
+pub fn dialogue_list_schema() -> Arc<JsonObject> {
+    output_schema(
+        json!({
+            "project_id": string("项目 ID"),
+            "chapter_id": string("章节 ID"),
+            "total": integer("总记录数"),
+            "page": integer("当前页"),
+            "page_size": integer("每页数量"),
+            "pages": integer("总页数"),
+            "items": array(dialogue_info_schema(), "台词片段列表")
+        }),
+        &[
+            "project_id",
+            "chapter_id",
+            "total",
+            "page",
+            "page_size",
+            "pages",
+            "items",
+        ],
+    )
+}
+
+pub fn dialogue_unbind_schema() -> Arc<JsonObject> {
+    output_schema(
+        json!({
+            "dialogue_id": string("台词片段 ID"),
+            "unbound": boolean("是否已解绑")
+        }),
+        &["dialogue_id", "unbound"],
+    )
+}
+
 pub fn sentence_polyphone_list_schema() -> Arc<JsonObject> {
     output_schema(
         json!({

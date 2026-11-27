@@ -8,8 +8,8 @@ use std::sync::Arc;
 
 use async_trait::async_trait;
 pub use cli::{
-    ChapterCommands, CharacterCommands, Cli, Commands, PolyphoneCommands, ProjectCommands,
-    RecycleBinCommands, execute_cli,
+    ChapterCommands, CharacterCommands, Cli, Commands, DialogueCommands, PolyphoneCommands,
+    ProjectCommands, RecycleBinCommands, execute_cli,
 };
 use leo_core::context::Context;
 use leo_core::error::CoreResult;
@@ -41,12 +41,13 @@ impl Plugin for CliPlugin {
             PluginCategory::Cli,
         );
         manifest.description =
-            "提供 v3 项目、章节、角色、多音字、回收站管理命令，并保留 AST 导入导出与语音生产命令。"
+            "提供 v3 项目、章节、台词、角色、多音字、回收站管理命令，并保留 AST 导入导出与语音生产命令。"
                 .into();
         manifest.capabilities = vec![
             "cli:projects".into(),
             "cli:chapters".into(),
             "cli:characters".into(),
+            "cli:dialogues".into(),
             "cli:polyphones".into(),
             "cli:recycle-bin".into(),
             "cli:import".into(),

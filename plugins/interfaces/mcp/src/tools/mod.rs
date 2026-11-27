@@ -1,5 +1,6 @@
 pub mod chapters;
 pub mod characters;
+pub mod dialogues;
 pub mod health;
 pub mod polyphones;
 pub mod projects;
@@ -15,6 +16,7 @@ pub fn definitions(settings: &McpSettings) -> Vec<Tool> {
         health::read_tools(),
         projects::read_tools(),
         chapters::read_tools(),
+        dialogues::read_tools(),
         polyphones::read_tools(),
         recycle_bin::read_tools(),
         characters::read_tools(),
@@ -26,6 +28,7 @@ pub fn definitions(settings: &McpSettings) -> Vec<Tool> {
     if settings.write_tools {
         tools.extend(projects::write_tools());
         tools.extend(chapters::write_tools());
+        tools.extend(dialogues::write_tools());
         tools.extend(polyphones::write_tools());
         tools.extend(recycle_bin::write_tools());
         tools.extend(characters::write_tools());

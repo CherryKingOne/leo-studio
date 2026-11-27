@@ -50,6 +50,7 @@ impl Plugin for ApiPlugin {
             "transport:http".into(),
             "api:projects".into(),
             "api:characters".into(),
+            "api:dialogues".into(),
             "api:v3".into(),
         ];
         manifest

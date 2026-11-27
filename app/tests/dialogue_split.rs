@@ -5,12 +5,8 @@ use leo_app::config::Settings;
 use leo_app::modules::projects::storage_compat::{backfill_dialogues, save_file};
 use leo_app::storage::csv_table::Record;
 use leo_app::storage::store::Store;
-use leo_app::text::dialogue::{
-    DialogueSegment, ParseStatus, SegmentType, split_dialogue_line,
-};
-use leo_app::text::processor::{
-    clean_dialogue_records, create_dialogue_records_from_sentence,
-};
+use leo_app::text::dialogue::{DialogueSegment, ParseStatus, SegmentType, split_dialogue_line};
+use leo_app::text::processor::{clean_dialogue_records, create_dialogue_records_from_sentence};
 
 fn segment(content: &str, segment_type: SegmentType) -> DialogueSegment {
     DialogueSegment {
@@ -270,6 +266,10 @@ fn upload_writes_dialogue_csv_for_every_sentence() {
             "content",
             "word_count",
             "parse_status",
+            "speaker_id",
+            "binding_source",
+            "binding_confidence",
+            "speaker_updated_at",
         ]
     );
 
@@ -282,6 +282,10 @@ fn upload_writes_dialogue_csv_for_every_sentence() {
     assert_eq!(&rows[4][7], "“你好。”");
     assert_eq!(&rows[5][7], "然后走了。");
     assert!(rows.iter().all(|row| &row[9] == "ok"));
+    assert!(
+        rows.iter()
+            .all(|row| (10..row.len()).all(|index| row[index].is_empty()))
+    );
 }
 
 #[test]

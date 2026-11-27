@@ -122,6 +122,11 @@ pub enum ProjectCommands {
         #[command(subcommand)]
         command: ChapterCommands,
     },
+    #[command(about = "项目台词管理")]
+    Dialogues {
+        #[command(subcommand)]
+        command: DialogueCommands,
+    },
     #[command(about = "项目角色管理")]
     Characters {
         #[command(subcommand)]
@@ -254,6 +259,52 @@ pub enum CharacterCommands {
         character_id: String,
         #[arg(long)]
         confirm: bool,
+    },
+}
+
+#[derive(Subcommand, Debug)]
+#[command(rename_all = "kebab-case")]
+pub enum DialogueCommands {
+    #[command(about = "台词片段列表与过滤")]
+    List {
+        project_id: String,
+        chapter_id: String,
+        #[arg(long, default_value_t = 1)]
+        page: usize,
+        #[arg(long, default_value_t = 20)]
+        page_size: usize,
+        #[arg(long)]
+        segment_type: Option<String>,
+        #[arg(long, default_value = "all")]
+        binding_status: String,
+        #[arg(long)]
+        speaker_id: Option<String>,
+        #[arg(long)]
+        keyword: Option<String>,
+    },
+    #[command(about = "台词片段详情")]
+    Get {
+        project_id: String,
+        chapter_id: String,
+        dialogue_id: String,
+    },
+    #[command(about = "绑定台词说话人")]
+    Bind {
+        project_id: String,
+        chapter_id: String,
+        dialogue_id: String,
+        #[arg(long)]
+        speaker_id: String,
+        #[arg(long, default_value = "manual")]
+        binding_source: String,
+        #[arg(long)]
+        binding_confidence: Option<f64>,
+    },
+    #[command(about = "解绑台词说话人")]
+    Unbind {
+        project_id: String,
+        chapter_id: String,
+        dialogue_id: String,
     },
 }
 

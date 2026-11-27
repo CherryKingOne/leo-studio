@@ -27,6 +27,23 @@ leo-cli project chapters get <project_id> <chapter_id>
 leo-cli project chapters delete <project_id> <chapter_id> --confirm
 ```
 
+## 项目台词
+
+```bash
+leo-cli project dialogues list <project_id> <chapter_id> \
+  --binding-status unbound \
+  --segment-type dialogue \
+  --page 1 \
+  --page-size 20
+leo-cli project dialogues get <project_id> <chapter_id> <dialogue_id>
+leo-cli project dialogues bind <project_id> <chapter_id> <dialogue_id> \
+  --speaker-id <character_id> \
+  --binding-source manual
+leo-cli project dialogues unbind <project_id> <chapter_id> <dialogue_id>
+```
+
+不提供批量绑定或批量解绑命令；批量操作可在脚本或前端中循环调用单条命令。
+
 ## 项目角色
 
 ```bash

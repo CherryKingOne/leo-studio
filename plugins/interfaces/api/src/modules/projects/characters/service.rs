@@ -271,6 +271,7 @@ pub fn delete_character(
     character_id: &str,
 ) -> AppResult<CharacterDeleteResponse> {
     let character = get_character(store, project_id, character_id)?;
+    super::super::dialogues::service::unbind_character(store, project_id, character_id)?;
     store.characters.delete_by("character_id", character_id);
     store.save_characters()?;
     Ok(CharacterDeleteResponse {

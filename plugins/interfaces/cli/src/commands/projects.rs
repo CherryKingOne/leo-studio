@@ -81,6 +81,7 @@ pub async fn run(
         ProjectCommands::Chapters { command } => {
             super::chapters::run(settings, store, command).await
         }
+        ProjectCommands::Dialogues { command } => super::dialogues::run(store, command).await,
         ProjectCommands::Characters { command } => super::characters::run(store, command).await,
         ProjectCommands::Polyphones { command } => super::polyphones::run(store, command).await,
     }

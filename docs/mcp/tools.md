@@ -26,6 +26,9 @@
 | `leo_get_stats` | 无 | `ProjectStats` |
 | `leo_list_characters` | `project_id`, 分页与过滤参数 | `CharacterListResponse` |
 | `leo_get_character` | `project_id`, `character_id` | `CharacterInfo` |
+| `leo_list_dialogues` | `project_id`, `chapter_id`, 分页与过滤参数 | `DialogueListResponse` |
+| `leo_get_dialogue` | `project_id`, `chapter_id`, `dialogue_id` | `DialogueInfo` |
+| `leo_list_unbound_dialogues` | `project_id`, `chapter_id`, `segment_type?`, 分页参数 | `DialogueListResponse` |
 
 ## 写入工具
 
@@ -37,6 +40,8 @@
 | `leo_update_chapter` | `project_id`, `chapter_id`, `title?`, `content?`, `confirm?` | `ChapterContentInfo` |
 | `leo_create_character` | `project_id`, `name`, 角色可选字段 | `CharacterInfo` |
 | `leo_update_character` | `project_id`, `character_id`, 角色可选字段 | `CharacterInfo` |
+| `leo_bind_dialogue_speaker` | `project_id`, `chapter_id`, `dialogue_id`, `speaker_id`, `binding_source?`, `binding_confidence?` | `DialogueInfo` |
+| `leo_unbind_dialogue_speaker` | `project_id`, `chapter_id`, `dialogue_id` | `DialogueSpeakerUnbindResponse` |
 | `leo_save_sentence_polyphones` | `project_id`, `chapter_id`, `sentence_id`, `annotations` | `SentencePolyphoneListResponse` |
 | `leo_restore_project` | `project_id` | `ProjectRestoreResponse` |
 
@@ -73,6 +78,8 @@
 - `leo://projects/{project_id}/chapters/{chapter_id}`
 - `leo://projects/{project_id}/characters`
 - `leo://projects/{project_id}/characters/{character_id}`
+- `leo://projects/{project_id}/chapters/{chapter_id}/dialogues`
+- `leo://projects/{project_id}/chapters/{chapter_id}/dialogues/{dialogue_id}`
 
 ## 提示词
 
@@ -80,3 +87,4 @@
 - `leo_import_novel`
 - `leo_character_overview`
 - `leo_chapter_digest`
+- `leo_dialogue_binding_review`
