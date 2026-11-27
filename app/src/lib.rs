@@ -9,7 +9,9 @@ pub mod runtime {
     use axum::Router;
     use leo_core::error::CoreResult;
     use leo_core::{Context, PluginManager};
-    use leo_plugin_api::{ApiPlugin, AppState, Settings, Store, build_app_state_with, build_router_from_state};
+    use leo_plugin_api::{
+        ApiPlugin, AppState, Settings, Store, build_app_state_with, build_router_from_state,
+    };
     use leo_plugin_catalog::{HostEnv, PluginsConfig};
     use leo_plugin_mcp::{McpPlugin, McpSettings};
 
@@ -23,13 +25,17 @@ pub mod runtime {
         plugins_config: Option<&Path>,
     ) -> CoreResult<AppState> {
         let config = PluginsConfig::load(plugins_config)?;
-        let env = HostEnv { csv_dir: settings.csv_dir.clone() };
+        let env = HostEnv {
+            csv_dir: settings.csv_dir.clone(),
+        };
         let context = Context::new("leo_app");
         let manager = Arc::new(PluginManager::new());
-        manager.register(Arc::new(ApiPlugin::new(settings.clone()))).await?;
+        manager
+            .register(Arc::new(ApiPlugin::new(settings.clone())))
+            .await?;
         manager.register(Arc::new(McpPlugin::new(mcp))).await?;
         leo_plugin_catalog::install(&context, &manager, &env, &config).await?;
-        Ok(build_app_state_with(settings, store, context, manager))
+        Ok(build_app_state_with(settings, store))
     }
 
     /// 测试 / 嵌入用：用默认插件配置构建路由（不挂 MCP HTTP）

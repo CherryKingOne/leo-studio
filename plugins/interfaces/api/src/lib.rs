@@ -16,7 +16,9 @@ use leo_core::context::Context;
 use leo_core::error::CoreResult;
 use leo_core::plugin::{Plugin, PluginCategory, PluginManifest};
 
-pub use app::{build_app_state, build_app_state_with, build_router, build_router_from_state, create_cors_layer};
+pub use app::{
+    build_app_state, build_app_state_with, build_router, build_router_from_state, create_cors_layer,
+};
 pub use config::Settings;
 pub use error::{AppError, AppResult, ErrorCode};
 pub use response::ApiResponse;
@@ -43,14 +45,11 @@ impl Plugin for ApiPlugin {
             "0.2.0",
             PluginCategory::Api,
         );
-        manifest.description =
-            "提供基于 Axum 的现代化 RESTful HTTP 接口、音频流式传输与剧本文档导入导出网关。".into();
+        manifest.description = "提供基于 Axum 的 v3 项目管理 HTTP 接口。".into();
         manifest.capabilities = vec![
             "transport:http".into(),
             "api:projects".into(),
-            "api:audio".into(),
-            "api:exchange".into(),
-            "api:v2".into(),
+            "api:v3".into(),
         ];
         manifest
     }

@@ -45,12 +45,7 @@ fn make_handler(dir: &Path, mcp: McpSettings) -> McpHandler {
     let store = Arc::new(Mutex::new(
         Store::new(&settings).expect("初始化 Store 失败"),
     ));
-    let state = leo_app::state::AppState {
-        settings,
-        store,
-        context: leo_core::Context::new("mcp_test"),
-        plugin_manager: Arc::new(leo_core::PluginManager::new()),
-    };
+    let state = leo_app::state::AppState { settings, store };
     McpHandler::new(state, Arc::new(mcp))
 }
 
@@ -85,6 +80,8 @@ fn read_only_tools_are_default() {
 
     assert!(names.contains(&"leo_health".to_string()));
     assert!(names.contains(&"leo_get_chapter".to_string()));
+    assert!(!names.contains(&"leo_list_voices".to_string()));
+    assert!(!names.contains(&"leo_synthesize_chapter".to_string()));
     assert!(!names.contains(&"leo_create_project".to_string()));
     assert!(!names.contains(&"leo_purge_project".to_string()));
 }

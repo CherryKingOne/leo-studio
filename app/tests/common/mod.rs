@@ -4,8 +4,8 @@ use axum::Router;
 use axum::body::Body;
 use axum::http::{Request, StatusCode};
 use http_body_util::BodyExt;
-use leo_app::runtime::build_router;
 use leo_app::config::Settings;
+use leo_app::runtime::build_router;
 use leo_app::storage::store::Store;
 use serde_json::Value;
 use tower::ServiceExt;
@@ -55,7 +55,9 @@ impl TestApp {
         .unwrap();
 
         Self {
-            router: build_router(Arc::new(settings), store).await.expect("装配插件失败"),
+            router: build_router(Arc::new(settings), store)
+                .await
+                .expect("装配插件失败"),
         }
     }
 
@@ -65,14 +67,6 @@ impl TestApp {
         let bytes = response.into_body().collect().await.unwrap().to_bytes();
         let value = serde_json::from_slice(&bytes).unwrap_or(Value::Null);
         (status, value)
-    }
-
-    #[allow(dead_code)]
-    pub async fn send_raw(&self, request: Request<Body>) -> (StatusCode, String) {
-        let response = self.router.clone().oneshot(request).await.unwrap();
-        let status = response.status();
-        let bytes = response.into_body().collect().await.unwrap().to_bytes();
-        (status, String::from_utf8_lossy(&bytes).to_string())
     }
 
     pub async fn get(&self, path: &str) -> (StatusCode, Value) {
@@ -111,19 +105,6 @@ impl TestApp {
                 .uri(path)
                 .header("content-type", content_type)
                 .body(Body::from(body))
-                .unwrap(),
-        )
-        .await
-    }
-
-    #[allow(dead_code)]
-    pub async fn post_json(&self, path: &str, payload: &str) -> (StatusCode, Value) {
-        self.send(
-            Request::builder()
-                .method("POST")
-                .uri(path)
-                .header("content-type", "application/json")
-                .body(Body::from(payload.to_string()))
                 .unwrap(),
         )
         .await

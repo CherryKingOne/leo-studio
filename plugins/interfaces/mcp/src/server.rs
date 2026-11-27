@@ -30,8 +30,6 @@ pub struct McpHandler {
     pub(crate) store: Arc<Mutex<Store>>,
     pub(crate) mcp: Arc<McpSettings>,
     pub(crate) tools: Arc<Vec<Tool>>,
-    pub(crate) context: leo_core::Context,
-    pub(crate) plugin_manager: Arc<leo_core::PluginManager>,
 }
 
 impl McpHandler {
@@ -40,19 +38,8 @@ impl McpHandler {
         Self {
             settings: state.settings,
             store: state.store,
-            context: state.context,
-            plugin_manager: state.plugin_manager,
             mcp,
             tools,
-        }
-    }
-
-    pub fn to_app_state(&self) -> AppState {
-        AppState {
-            settings: self.settings.clone(),
-            store: self.store.clone(),
-            context: self.context.clone(),
-            plugin_manager: self.plugin_manager.clone(),
         }
     }
 }

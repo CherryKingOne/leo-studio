@@ -9,35 +9,20 @@ use tower_http::cors::{AllowOrigin, CorsLayer};
 
 use crate::config::Settings;
 use crate::middleware::request_id_middleware;
-use crate::modules::{system, v2};
+use crate::modules::v3;
 use crate::state::AppState;
 use crate::storage::store::Store;
 
-/// 用一个空的插件上下文构建状态（不装配任何插件；宿主程序应使用 [`build_app_state_with`]）
+/// 构建 API 应用状态。
 pub async fn build_app_state(settings: Arc<Settings>, store: Store) -> AppState {
-    build_app_state_with(
-        settings,
-        store,
-        leo_core::Context::new("leo_app"),
-        Arc::new(leo_core::PluginManager::new()),
-    )
+    build_app_state_with(settings, store)
 }
 
-/// 用宿主装配好的插件上下文构建状态。
-///
-/// API 插件不再自己装配具体插件：有哪些插件由宿主（app / cli）通过 leo-plugin-catalog 决定，
-/// API 只通过各注册层（TextHub / ExchangeHub / StorageHub / TtsHub）使用它们。
-pub fn build_app_state_with(
-    settings: Arc<Settings>,
-    store: Store,
-    context: leo_core::Context,
-    plugin_manager: Arc<leo_core::PluginManager>,
-) -> AppState {
+/// 用设置与存储构建状态。
+pub fn build_app_state_with(settings: Arc<Settings>, store: Store) -> AppState {
     AppState {
         settings,
         store: Arc::new(Mutex::new(store)),
-        context,
-        plugin_manager,
     }
 }
 
@@ -96,11 +81,7 @@ pub fn build_router_from_state(state: AppState) -> Router {
         + 2 * 1024 * 1024;
 
     let api = Router::new()
-        .nest(
-            "/api/v2",
-            v2::router().merge(crate::modules::audio::router()),
-        )
-        .merge(system::root_router())
+        .nest("/api/v3", v3::router())
         .layer(middleware::from_fn(request_id_middleware))
         .with_state(state);
 
