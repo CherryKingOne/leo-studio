@@ -8,14 +8,16 @@
 //!   "base_url": "https://api.deepseek.com/v1",
 //!   "model": "deepseek-chat",
 //!   "temperature": 0.7,
-//!   "max_tokens": 4096
+//!   "max_tokens": 4096,
+//!   "stream": true,
+//!   "thinking": { "mode": "enabled", "effort": "high" }
 //! }
 //! ```
 
 use std::collections::BTreeMap;
 
 use leo_core::error::{CoreError, CoreResult};
-use leo_core::spi::LlmProtocol;
+use leo_core::spi::{LlmProtocol, ReasoningEffort, ThinkingConfig, ThinkingMode};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -33,6 +35,10 @@ pub struct DeepseekConfig {
     pub temperature: Option<f32>,
     pub top_p: Option<f32>,
     pub max_tokens: Option<u32>,
+    /// 默认是否走 SSE 流式；默认开启
+    pub stream: bool,
+    /// 默认思考模式 / 思考深度
+    pub thinking: ThinkingConfig,
     /// 单次请求超时（秒）
     pub timeout_secs: u64,
     /// 额外请求头，例如网关要求的 `OpenAI-Beta: responses=v1`
@@ -51,6 +57,12 @@ impl Default for DeepseekConfig {
             temperature: None,
             top_p: None,
             max_tokens: None,
+            stream: true,
+            thinking: ThinkingConfig {
+                mode: ThinkingMode::Enabled,
+                effort: Some(ReasoningEffort::High),
+                budget_tokens: None,
+            },
             timeout_secs: 120,
             extra_headers: BTreeMap::new(),
             extra_body: BTreeMap::new(),

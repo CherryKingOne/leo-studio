@@ -36,22 +36,31 @@
       "base_url": "https://api.deepseek.com/v1",
       "model": "deepseek-chat",
       "temperature": 0.7,
-      "max_tokens": 4096
+      "max_tokens": 4096,
+      "stream": true,
+      "thinking": {
+        "mode": "enabled",
+        "effort": "high"
+      }
     },
     "leo-plugin-llm-volcengine": {
       "protocol": "openai-chat",
       "base_url": "https://ark.cn-beijing.volces.com/api/v3",
       "model": "ep-2026xxxxxxxx",
       "temperature": 0.7,
-      "max_tokens": 4096
+      "max_tokens": 4096,
+      "stream": true,
+      "thinking": "enabled",
+      "reasoning_effort": "high"
     },
     "leo-plugin-llm-bailian": {
       "protocol": "openai-chat",
       "base_url": "https://dashscope.aliyuncs.com/compatible-mode/v1",
-      "model": "qwen-plus",
+      "model": "qwen3.8-flash",
       "temperature": 0.7,
       "max_tokens": 4096,
-      "enable_thinking": false
+      "stream": true,
+      "reasoning_effort": "high"
     }
   }
 }

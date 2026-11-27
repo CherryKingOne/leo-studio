@@ -179,13 +179,13 @@ let (_, exporter) = ExchangeHub::of(&ctx).await.exporter(Some("csv"))?;
 "settings": {
   "leo-plugin-tts-stepfun": { "model": "step-tts-2", "response_format": "mp3", "default_voice": "cixingnansheng" },
   "leo-plugin-tts-minimax": { "model": "speech-2.8-hd", "format": "mp3", "default_voice": "male-qn-qingse" },
-  "leo-plugin-llm-deepseek": { "protocol": "openai-chat", "model": "deepseek-chat", "max_tokens": 4096 },
-  "leo-plugin-llm-volcengine": { "protocol": "openai-chat", "model": "ep-2026xxxxxxxx", "thinking": "auto" },
-  "leo-plugin-llm-bailian": { "protocol": "openai-chat", "model": "qwen-plus", "enable_thinking": false }
+  "leo-plugin-llm-deepseek": { "protocol": "openai-chat", "model": "deepseek-chat", "max_tokens": 4096, "stream": true, "thinking": { "mode": "enabled", "effort": "high" } },
+  "leo-plugin-llm-volcengine": { "protocol": "openai-chat", "model": "ep-2026xxxxxxxx", "stream": true, "thinking": "enabled", "reasoning_effort": "high" },
+  "leo-plugin-llm-bailian": { "protocol": "openai-chat", "model": "qwen3.8-flash", "stream": true, "reasoning_effort": "high" }
 }
 ```
 
-LLM 的 `protocol` 可选 `openai-chat` / `openai-responses` / `anthropic`，`base_url` 填协议根地址（例如 `https://api.deepseek.com/v1`、`https://ark.cn-beijing.volces.com/api/v3`、`https://dashscope.aliyuncs.com/compatible-mode/v1`）。详见 [llm-protocols.md](./llm-protocols.md)。
+LLM 的 `protocol` 可选 `openai-chat` / `openai-responses` / `anthropic`，`base_url` 填协议根地址（例如 `https://api.deepseek.com/v1`、`https://ark.cn-beijing.volces.com/api/v3`、`https://dashscope.aliyuncs.com/compatible-mode/v1`）。三家 LLM 插件默认 `stream: true`；`thinking` / `reasoning_effort` / `thinking_budget` / `enable_thinking` 由各子插件映射到自己的上游字段。详见 [llm-protocols.md](./llm-protocols.md)。
 
 API Key 不写进配置文件，只从环境变量读（`STEPFUN_API_KEY`、`MINIMAX_API_KEY`、`DEEPSEEK_API_KEY`、`ARK_API_KEY`、`DASHSCOPE_API_KEY`）；没设置时插件照常装配、只是不注册驱动，日志里有警告。
 

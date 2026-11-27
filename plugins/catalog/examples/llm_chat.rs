@@ -12,6 +12,9 @@
 //!
 //! 也可以先用 `LEO_PLUGINS_CONFIG=./leo-plugins.json` 指定插件配置。
 
+use std::io::{self, Write};
+
+use futures_util::StreamExt;
 use leo_core::spi::{ChatMessage, ChatRequest};
 use leo_plugin_catalog::{HostEnv, LlmHub, PluginsConfig, bootstrap};
 
@@ -51,22 +54,58 @@ async fn main() -> leo_core::error::CoreResult<()> {
         );
     }
 
-    let response = hub
-        .chat(&ChatRequest {
+    println!("model: {}", model.as_deref().unwrap_or("<默认>"));
+
+    let mut stream = hub
+        .chat_stream(&ChatRequest {
             model,
             messages: vec![ChatMessage::user(prompt)],
-            max_tokens: Some(256),
+            max_tokens: Some(4096),
             ..Default::default()
         })
         .await?;
 
-    println!("model: {}", response.model);
-    println!("content: {}", response.content);
-    if let Some(reasoning) = &response.reasoning_content {
-        println!("reasoning: {reasoning}");
+    let mut thinking_open = false;
+    let mut content_open = false;
+    let mut finish_reason = None;
+    let mut usage = None;
+    while let Some(item) = stream.next().await {
+        let delta = item?;
+        if let Some(part) = delta.reasoning_content {
+            if !thinking_open {
+                println!("[thinking]");
+                thinking_open = true;
+            }
+            print!("{part}");
+            io::stdout().flush().ok();
+        }
+        if let Some(part) = delta.content {
+            if thinking_open {
+                println!();
+                thinking_open = false;
+            }
+            if !content_open {
+                println!("[content]");
+                content_open = true;
+            }
+            print!("{part}");
+            io::stdout().flush().ok();
+        }
+        if let Some(reason) = delta.finish_reason {
+            finish_reason = Some(reason);
+        }
+        if let Some(value) = delta.usage {
+            usage = Some(value);
+        }
     }
-    println!("finish_reason: {:?}", response.finish_reason);
-    if let Some(usage) = response.usage {
+    if thinking_open || content_open {
+        println!();
+    }
+
+    if let Some(reason) = finish_reason {
+        println!("finish_reason: {reason:?}");
+    }
+    if let Some(usage) = usage {
         println!(
             "usage: input={} output={} total={}",
             usage.input_tokens, usage.output_tokens, usage.total_tokens

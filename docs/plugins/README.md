@@ -14,7 +14,7 @@ Leo Studio 采用了类似 **Cordis** 的微内核架构设计：**`core` 抽象
 | :--- | :--- | :--- |
 | 📘 [**插件协议与契约规范**](./protocol-specification.md) | 插件 Manifest 元数据规范、生命周期、Context 依赖注入机制与事件流标准 | 所有插件开发者 |
 | 🧩 [**核心 SPI 扩展点详解**](./spi-contracts.md) | `Importer`, `Exporter`, `TTSProvider`, `StorageProvider`, `TextCleaner`, `LlmProvider` 等 SPI 接口定义与模型 | 核心功能扩展者 |
-| 🔀 [**LLM 协议层**](./llm-protocols.md) | OpenAI Chat / Responses / Anthropic 三套协议的编解码、鉴权与跨协议转换 | LLM 供应商与接入层开发者 |
+| 🔀 [**LLM 协议层**](./llm-protocols.md) | OpenAI Chat / Responses / Anthropic 三套协议的编解码、流式 SSE、思考参数、鉴权与跨协议转换 | LLM 供应商与接入层开发者 |
 | 🛠️ [**插件实战开发教程**](./development-guide.md) | 手把手保姆级教程：从 0 到 1 编写一个自定义 TTS 插件与自定义导入器 | 新插件开发实操 |
 
 ---

@@ -35,10 +35,8 @@ pub fn encode_request(request: &ChatRequest, model: &str) -> Value {
 
     let mut body = Map::new();
     body.insert("model".into(), json!(model));
-    body.insert(
-        "max_tokens".into(),
-        json!(request.max_tokens.unwrap_or(DEFAULT_MAX_TOKENS)),
-    );
+    let max_tokens = request.max_tokens.unwrap_or(DEFAULT_MAX_TOKENS);
+    body.insert("max_tokens".into(), json!(max_tokens));
     if !system.is_empty() {
         body.insert("system".into(), json!(system));
     }
@@ -52,6 +50,12 @@ pub fn encode_request(request: &ChatRequest, model: &str) -> Value {
     if !request.stop.is_empty() {
         body.insert("stop_sequences".into(), json!(request.stop));
     }
+    crate::thinking::apply_anthropic(
+        &mut body,
+        &request.thinking,
+        request.stream.unwrap_or(false),
+        max_tokens,
+    );
     Value::Object(body)
 }
 
@@ -157,6 +161,8 @@ pub fn decode_request(body: &Value) -> CoreResult<ChatRequest> {
             .unwrap_or_default(),
         // Anthropic 没有原生 response_format，解码时按普通文本处理。
         response_format: ResponseFormat::Text,
+        stream: body.get("stream").and_then(Value::as_bool),
+        thinking: crate::thinking::decode_anthropic(body),
     })
 }
 
@@ -257,6 +263,7 @@ mod tests {
             max_tokens: Some(2048),
             stop: vec!["END".into()],
             response_format: ResponseFormat::JsonObject,
+            ..Default::default()
         };
         let body = encode_request(&request, "claude-sonnet");
         assert_eq!(body["model"], json!("claude-sonnet"));
@@ -332,6 +339,26 @@ mod tests {
                 total_tokens: 10
             })
         );
+    }
+
+    #[test]
+    fn encode_request_maps_stream_thinking_and_effort() {
+        let request = ChatRequest {
+            messages: vec![ChatMessage::user("你好")],
+            max_tokens: Some(4096),
+            stream: Some(true),
+            thinking: leo_core::spi::ThinkingConfig {
+                mode: leo_core::spi::ThinkingMode::Enabled,
+                effort: Some(leo_core::spi::ReasoningEffort::High),
+                budget_tokens: Some(2048),
+            },
+            ..Default::default()
+        };
+        let body = encode_request(&request, "claude-sonnet");
+        assert_eq!(body["stream"], json!(true));
+        assert_eq!(body["thinking"]["type"], json!("enabled"));
+        assert_eq!(body["thinking"]["budget_tokens"], json!(2048));
+        assert_eq!(body["output_config"]["effort"], json!("high"));
     }
 
     #[test]

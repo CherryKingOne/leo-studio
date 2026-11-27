@@ -134,7 +134,7 @@ Leo Studio 为开发者提供了高度扩展能力的插件生态体系。所有
    - `Importer`：支持各类电子书与文档解析为 `ScriptDocument` AST。
    - `Exporter`：支持导出各类制作台账与工程文件。
    - `TTSProvider`：接入任意本地大模型或云端语音合成供应商。
-   - `LlmProvider`：接入 OpenAI Chat / Responses / Anthropic 三种协议的 LLM 供应商，并支持跨协议转换。
+   - `LlmProvider`：接入 OpenAI Chat / Responses / Anthropic 三种协议的 LLM 供应商，支持流式 / 非流式、思考开关与思考深度，并支持跨协议转换。
    - `StorageProvider`：持久化扩展（CSV, SQLite, 对象存储）。
    - `TextCleaner`, `ChapterSplitter`, `DialogueSplitter`：文本流水线扩展。
 3. [**插件实战开发教程 (Development Guide)**](docs/plugins/development-guide.md)：

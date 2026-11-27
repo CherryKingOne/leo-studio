@@ -38,6 +38,11 @@ pub fn encode_request(request: &ChatRequest, model: &str) -> Value {
     if let Some(format) = responses_text_format(&request.response_format) {
         body.insert("text".into(), json!({ "format": format }));
     }
+    crate::thinking::apply_responses(
+        &mut body,
+        &request.thinking,
+        request.stream.unwrap_or(false),
+    );
     // Responses API 没有原生 stop 参数；canonical.stop 在这里忽略（有损转换）
     Value::Object(body)
 }
@@ -127,6 +132,8 @@ pub fn decode_request(body: &Value) -> CoreResult<ChatRequest> {
             .map(|v| v as u32),
         stop: Vec::new(),
         response_format: parse_responses_format(body),
+        stream: body.get("stream").and_then(Value::as_bool),
+        thinking: crate::thinking::decode_responses(body),
     })
 }
 
@@ -333,6 +340,23 @@ mod tests {
             ResponseFormat::JsonSchema { schema } => assert_eq!(schema["type"], json!("object")),
             other => panic!("unexpected format: {other:?}"),
         }
+    }
+
+    #[test]
+    fn encode_request_maps_stream_and_reasoning() {
+        let request = ChatRequest {
+            messages: vec![ChatMessage::user("你好")],
+            stream: Some(true),
+            thinking: leo_core::spi::ThinkingConfig {
+                mode: leo_core::spi::ThinkingMode::Enabled,
+                effort: Some(leo_core::spi::ReasoningEffort::Medium),
+                budget_tokens: None,
+            },
+            ..Default::default()
+        };
+        let body = encode_request(&request, "gpt-5");
+        assert_eq!(body["stream"], json!(true));
+        assert_eq!(body["reasoning"]["effort"], json!("medium"));
     }
 
     #[test]

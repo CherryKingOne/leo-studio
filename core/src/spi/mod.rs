@@ -11,8 +11,9 @@ pub mod tts;
 
 pub use exchange::{Exporter, Importer};
 pub use llm::{
-    ChatMessage, ChatRequest, ChatResponse, ChatRole, FinishReason, LlmProtocol, LlmProvider,
-    ModelInfo, ResponseFormat, TokenUsage,
+    ChatDelta, ChatMessage, ChatRequest, ChatResponse, ChatResponseAccumulator, ChatRole,
+    ChatStream, FinishReason, LlmProtocol, LlmProvider, ModelInfo, ReasoningEffort, ResponseFormat,
+    ThinkingConfig, ThinkingMode, TokenUsage,
 };
 pub use storage::StorageProvider;
 pub use text::{ChapterSplitter, DialogueSplitter, RawChapter, RawDialogueSegment, TextCleaner};

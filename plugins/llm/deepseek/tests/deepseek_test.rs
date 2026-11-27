@@ -6,8 +6,10 @@ use std::sync::{Arc, Mutex};
 use axum::Json;
 use axum::Router;
 use axum::extract::State;
-use axum::http::{HeaderMap, Uri};
+use axum::http::{HeaderMap, Uri, header};
+use axum::response::{IntoResponse, Response};
 use axum::routing::post;
+use futures_util::StreamExt;
 use leo_core::context::Context;
 use leo_core::plugin::Plugin;
 use leo_core::spi::{ChatMessage, ChatRequest, LlmProvider};
@@ -113,6 +115,24 @@ async fn mock() -> (String, Seen) {
     (format!("http://{addr}"), seen)
 }
 
+async fn mock_sse() -> String {
+    async fn stream() -> Response {
+        let body = concat!(
+            "data: {\"id\":\"1\",\"object\":\"chat.completion.chunk\",\"choices\":[{\"index\":0,\"delta\":{\"role\":\"assistant\",\"content\":\"聊天\"},\"finish_reason\":null}]}\n\n",
+            "data: {\"id\":\"1\",\"object\":\"chat.completion.chunk\",\"choices\":[{\"index\":0,\"delta\":{\"reasoning_content\":\"思考\"},\"finish_reason\":null}]}\n\n",
+            "data: {\"id\":\"1\",\"object\":\"chat.completion.chunk\",\"choices\":[{\"index\":0,\"delta\":{},\"finish_reason\":\"stop\"}],\"usage\":{\"prompt_tokens\":3,\"completion_tokens\":2,\"total_tokens\":5}}\n\n",
+            "data: [DONE]\n\n",
+        );
+        ([(header::CONTENT_TYPE, "text/event-stream")], body).into_response()
+    }
+
+    let app = Router::new().route("/chat/completions", post(stream));
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let addr = listener.local_addr().unwrap();
+    tokio::spawn(async move { axum::serve(listener, app).await.unwrap() });
+    format!("http://{addr}")
+}
+
 fn request(model: Option<&str>) -> ChatRequest {
     ChatRequest {
         model: model.map(str::to_string),
@@ -135,6 +155,7 @@ async fn openai_chat_sends_documented_body_and_decodes_response() {
     let provider = DeepseekLlmProvider::new(
         DeepseekConfig {
             base_url,
+            stream: false,
             ..Default::default()
         },
         "test-key".into(),
@@ -165,6 +186,7 @@ async fn anthropic_protocol_uses_x_api_key_and_system_field() {
     let config = DeepseekConfig {
         protocol: leo_core::spi::LlmProtocol::Anthropic,
         base_url,
+        stream: false,
         ..Default::default()
     };
     let provider = DeepseekLlmProvider::new(config, "test-key".into()).unwrap();
@@ -196,6 +218,7 @@ async fn responses_protocol_maps_instructions_and_input() {
     let config = DeepseekConfig {
         protocol: leo_core::spi::LlmProtocol::OpenAiResponses,
         base_url,
+        stream: false,
         ..Default::default()
     };
     let provider = DeepseekLlmProvider::new(config, "test-key".into()).unwrap();
@@ -222,6 +245,7 @@ async fn extra_body_is_merged_into_request() {
     let config = DeepseekConfig {
         base_url,
         extra_body,
+        stream: false,
         ..Default::default()
     };
     let provider = DeepseekLlmProvider::new(config, "test-key".into()).unwrap();
@@ -232,6 +256,63 @@ async fn extra_body_is_merged_into_request() {
 
     let seen = seen.lock().unwrap();
     assert_eq!(seen[0].body["thinking"]["type"], json!("enabled"));
+}
+
+#[tokio::test]
+async fn default_chat_uses_sse_and_aggregates() {
+    let base_url = mock_sse().await;
+    let provider = DeepseekLlmProvider::new(
+        DeepseekConfig {
+            base_url,
+            stream: true,
+            ..Default::default()
+        },
+        "test-key".into(),
+    )
+    .unwrap();
+
+    let response = provider
+        .chat(&request(Some("deepseek-chat")))
+        .await
+        .unwrap();
+    assert_eq!(response.content, "聊天");
+    assert_eq!(response.reasoning_content.as_deref(), Some("思考"));
+    assert_eq!(response.usage.unwrap().total_tokens, 5);
+}
+
+#[tokio::test]
+async fn chat_stream_yields_incremental_deltas() {
+    let base_url = mock_sse().await;
+    let provider = DeepseekLlmProvider::new(
+        DeepseekConfig {
+            base_url,
+            stream: true,
+            ..Default::default()
+        },
+        "test-key".into(),
+    )
+    .unwrap();
+
+    let mut stream = provider
+        .chat_stream(&request(Some("deepseek-chat")))
+        .await
+        .unwrap();
+    let mut content = String::new();
+    let mut reasoning = String::new();
+    let mut deltas = 0;
+    while let Some(item) = stream.next().await {
+        let delta = item.unwrap();
+        deltas += 1;
+        if let Some(part) = delta.content {
+            content.push_str(&part);
+        }
+        if let Some(part) = delta.reasoning_content {
+            reasoning.push_str(&part);
+        }
+    }
+    assert_eq!(content, "聊天");
+    assert_eq!(reasoning, "思考");
+    assert!(deltas >= 3, "至少要有文本、思考、结束三个增量");
 }
 
 #[tokio::test]

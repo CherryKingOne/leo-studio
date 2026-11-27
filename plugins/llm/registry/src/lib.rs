@@ -20,7 +20,7 @@ use leo_core::context::Context;
 use leo_core::error::CoreResult;
 use leo_core::plugin::{Plugin, PluginCategory, PluginManifest};
 use leo_core::registry::{DriverInfo, Registry};
-use leo_core::spi::{ChatRequest, ChatResponse, LlmProtocol, LlmProvider, ModelInfo};
+use leo_core::spi::{ChatRequest, ChatResponse, ChatStream, LlmProtocol, LlmProvider, ModelInfo};
 use serde::{Deserialize, Serialize};
 
 pub const PLUGIN_ID: &str = "leo-plugin-llm";
@@ -159,6 +159,16 @@ impl LlmHub {
         route.provider.chat(&payload).await
     }
 
+    /// 流式对话：按模型路由到驱动，返回 canonical 增量流。
+    pub async fn chat_stream(&self, request: &ChatRequest) -> CoreResult<ChatStream> {
+        let route = self.route(request.model.as_deref())?;
+        let payload = ChatRequest {
+            model: route.model.clone(),
+            ..request.clone()
+        };
+        route.provider.chat_stream(&payload).await
+    }
+
     /// 协议桥：按 `protocol` 解析入参 → canonical → 调驱动 → 再按同一协议编码返回。
     ///
     /// 上游驱动实际走什么协议由驱动自己的配置决定；这里负责的是“调用方协议”的
@@ -203,6 +213,7 @@ fn non_empty(value: &str) -> Option<String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use futures_util::StreamExt;
     use leo_core::spi::{ChatMessage, FinishReason, TokenUsage};
     use serde_json::json;
 
@@ -286,6 +297,27 @@ mod tests {
             messages: vec![ChatMessage::user("你好")],
             ..Default::default()
         }
+    }
+
+    #[tokio::test]
+    async fn chat_stream_routes_and_uses_fallback() {
+        let (_root, hub) = hub_with(Some("beta")).await;
+        let mut stream = hub
+            .chat_stream(&request(Some("alpha:alpha-model")))
+            .await
+            .unwrap();
+        let delta = stream.next().await.unwrap().unwrap();
+        assert_eq!(delta.content.as_deref(), Some("alpha|1"));
+        assert_eq!(delta.finish_reason, Some(FinishReason::Stop));
+        assert_eq!(
+            delta.usage,
+            Some(TokenUsage {
+                input_tokens: 3,
+                output_tokens: 2,
+                total_tokens: 5,
+            })
+        );
+        assert!(stream.next().await.is_none());
     }
 
     #[tokio::test]

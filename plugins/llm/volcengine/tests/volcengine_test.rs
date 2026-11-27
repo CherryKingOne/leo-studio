@@ -7,8 +7,10 @@ use std::sync::{Arc, Mutex};
 use axum::Json;
 use axum::Router;
 use axum::extract::State;
-use axum::http::{HeaderMap, Uri};
+use axum::http::{HeaderMap, Uri, header};
+use axum::response::{IntoResponse, Response};
 use axum::routing::post;
+use futures_util::StreamExt;
 use leo_core::context::Context;
 use leo_core::plugin::Plugin;
 use leo_core::spi::{ChatMessage, ChatRequest, LlmProtocol, LlmProvider};
@@ -114,6 +116,24 @@ async fn mock() -> (String, Seen) {
     (format!("http://{addr}"), seen)
 }
 
+async fn mock_sse() -> String {
+    async fn stream() -> Response {
+        let body = concat!(
+            "data: {\"id\":\"1\",\"object\":\"chat.completion.chunk\",\"choices\":[{\"index\":0,\"delta\":{\"role\":\"assistant\",\"content\":\"豆包\"},\"finish_reason\":null}]}\n\n",
+            "data: {\"id\":\"1\",\"object\":\"chat.completion.chunk\",\"choices\":[{\"index\":0,\"delta\":{\"reasoning_content\":\"思考\"},\"finish_reason\":null}]}\n\n",
+            "data: {\"id\":\"1\",\"object\":\"chat.completion.chunk\",\"choices\":[{\"index\":0,\"delta\":{},\"finish_reason\":\"stop\"}],\"usage\":{\"prompt_tokens\":3,\"completion_tokens\":2,\"total_tokens\":5}}\n\n",
+            "data: [DONE]\n\n",
+        );
+        ([(header::CONTENT_TYPE, "text/event-stream")], body).into_response()
+    }
+
+    let app = Router::new().route("/chat/completions", post(stream));
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let addr = listener.local_addr().unwrap();
+    tokio::spawn(async move { axum::serve(listener, app).await.unwrap() });
+    format!("http://{addr}")
+}
+
 fn request() -> ChatRequest {
     ChatRequest {
         messages: vec![
@@ -133,6 +153,7 @@ async fn openai_chat_uses_endpoint_model_and_thinking() {
         base_url,
         model: "ep-2026xxxx".into(),
         thinking: Some("enabled".into()),
+        stream: false,
         ..Default::default()
     };
     let provider = VolcengineLlmProvider::new(config, "test-key".into()).unwrap();
@@ -156,6 +177,7 @@ async fn anthropic_protocol_uses_x_api_key() {
         protocol: LlmProtocol::Anthropic,
         base_url,
         model: "ep-2026xxxx".into(),
+        stream: false,
         ..Default::default()
     };
     let provider = VolcengineLlmProvider::new(config, "test-key".into()).unwrap();
@@ -178,6 +200,7 @@ async fn responses_protocol_maps_instructions() {
         protocol: LlmProtocol::OpenAiResponses,
         base_url,
         model: "ep-2026xxxx".into(),
+        stream: false,
         ..Default::default()
     };
     let provider = VolcengineLlmProvider::new(config, "test-key".into()).unwrap();
@@ -189,6 +212,59 @@ async fn responses_protocol_maps_instructions() {
     assert_eq!(seen[0].path, "/responses");
     assert_eq!(seen[0].body["instructions"], json!("你是有声书编辑"));
     assert_eq!(seen[0].body["max_output_tokens"], json!(2048));
+}
+
+#[tokio::test]
+async fn default_chat_uses_sse_and_aggregates() {
+    let base_url = mock_sse().await;
+    let provider = VolcengineLlmProvider::new(
+        VolcengineConfig {
+            base_url,
+            model: "ep-2026xxxx".into(),
+            stream: true,
+            ..Default::default()
+        },
+        "test-key".into(),
+    )
+    .unwrap();
+
+    let response = provider.chat(&request()).await.unwrap();
+    assert_eq!(response.content, "豆包");
+    assert_eq!(response.reasoning_content.as_deref(), Some("思考"));
+    assert_eq!(response.usage.unwrap().total_tokens, 5);
+}
+
+#[tokio::test]
+async fn chat_stream_yields_incremental_deltas() {
+    let base_url = mock_sse().await;
+    let provider = VolcengineLlmProvider::new(
+        VolcengineConfig {
+            base_url,
+            model: "ep-2026xxxx".into(),
+            stream: true,
+            ..Default::default()
+        },
+        "test-key".into(),
+    )
+    .unwrap();
+
+    let mut stream = provider.chat_stream(&request()).await.unwrap();
+    let mut content = String::new();
+    let mut reasoning = String::new();
+    let mut deltas = 0;
+    while let Some(item) = stream.next().await {
+        let delta = item.unwrap();
+        deltas += 1;
+        if let Some(part) = delta.content {
+            content.push_str(&part);
+        }
+        if let Some(part) = delta.reasoning_content {
+            reasoning.push_str(&part);
+        }
+    }
+    assert_eq!(content, "豆包");
+    assert_eq!(reasoning, "思考");
+    assert!(deltas >= 3);
 }
 
 #[tokio::test]

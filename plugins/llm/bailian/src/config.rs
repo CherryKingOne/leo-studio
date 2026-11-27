@@ -6,8 +6,9 @@
 //! {
 //!   "protocol": "openai-chat",
 //!   "base_url": "https://dashscope.aliyuncs.com/compatible-mode/v1",
-//!   "model": "qwen-plus",
-//!   "enable_thinking": false,
+//!   "model": "qwen3.8-flash",
+//!   "stream": true,
+//!   "reasoning_effort": "high",
 //!   "enable_search": false,
 //!   "temperature": 0.7,
 //!   "max_tokens": 4096
@@ -17,7 +18,7 @@
 use std::collections::BTreeMap;
 
 use leo_core::error::{CoreError, CoreResult};
-use leo_core::spi::LlmProtocol;
+use leo_core::spi::{LlmProtocol, ReasoningEffort};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -33,11 +34,17 @@ pub struct BailianConfig {
     pub model: String,
     /// Qwen3 等模型是否开启思考模式；不填不传
     pub enable_thinking: Option<bool>,
+    /// 思考深度：none / minimal / low / medium / high / xhigh / max；与 thinking_budget 二选一
+    pub reasoning_effort: Option<ReasoningEffort>,
+    /// 思考过程最大 token 数；与 reasoning_effort 二选一
+    pub thinking_budget: Option<u32>,
     /// 是否开启联网搜索；不填不传
     pub enable_search: Option<bool>,
     pub temperature: Option<f32>,
     pub top_p: Option<f32>,
     pub max_tokens: Option<u32>,
+    /// 默认是否走 SSE 流式；默认开启
+    pub stream: bool,
     pub timeout_secs: u64,
     /// 额外请求头，例如网关要求的 `OpenAI-Beta: responses=v1`
     pub extra_headers: BTreeMap<String, String>,
@@ -53,10 +60,13 @@ impl Default for BailianConfig {
             base_url: "https://dashscope.aliyuncs.com/compatible-mode/v1".into(),
             model: "qwen-plus".into(),
             enable_thinking: None,
+            reasoning_effort: None,
+            thinking_budget: None,
             enable_search: None,
             temperature: None,
             top_p: None,
             max_tokens: None,
+            stream: true,
             timeout_secs: 120,
             extra_headers: BTreeMap::new(),
             extra_body: BTreeMap::new(),
@@ -108,6 +118,22 @@ impl BailianConfig {
             && max_tokens == 0
         {
             return bad("max_tokens 必须大于 0".into());
+        }
+        if self.reasoning_effort.is_some() && self.thinking_budget.is_some() {
+            return bad(
+                "reasoning_effort 与 thinking_budget 不能同时设置（Qwen3.8 / Qwen4 会直接报错）"
+                    .into(),
+            );
+        }
+        if let Some(budget) = self.thinking_budget
+            && budget == 0
+        {
+            return bad("thinking_budget 必须大于 0".into());
+        }
+        if self.enable_thinking == Some(false)
+            && (self.reasoning_effort.is_some() || self.thinking_budget.is_some())
+        {
+            return bad("enable_thinking=false 与思考深度 / 思考预算冲突".into());
         }
         if self.extra_headers.keys().any(|key| key.trim().is_empty()) {
             return bad("extra_headers 里不能有空 header 名".into());

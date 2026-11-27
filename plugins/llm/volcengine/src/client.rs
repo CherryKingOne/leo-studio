@@ -7,11 +7,16 @@
 //! 注意：方舟的 `model` 通常填控制台的推理接入点 ID（`ep-...`），没有通用默认值；
 //! 请求里显式带模型（`volcengine:ep-...`）或配置里填 `model` 都可以。
 
+use std::collections::VecDeque;
 use std::time::Duration;
 
 use async_trait::async_trait;
+use futures_util::StreamExt;
 use leo_core::error::{CoreError, CoreResult};
-use leo_core::spi::{ChatRequest, ChatResponse, LlmProtocol, LlmProvider, ModelInfo};
+use leo_core::spi::{
+    ChatRequest, ChatResponse, ChatResponseAccumulator, ChatStream, LlmProtocol, LlmProvider,
+    ModelInfo, ThinkingConfig, ThinkingMode,
+};
 use serde_json::{Value, json};
 
 use crate::PLUGIN_ID;
@@ -81,29 +86,60 @@ impl VolcengineLlmProvider {
         if request.max_tokens.is_none() {
             request.max_tokens = self.config.max_tokens;
         }
+        request.stream = Some(request.stream.unwrap_or(self.config.stream));
+        request.thinking = request
+            .thinking
+            .merged_with(&self.config_thinking())
+            .normalized();
         let mut body = leo_llm_protocol::encode_request(self.config.protocol, &request, model);
         if let Value::Object(map) = &mut body {
             for (key, value) in &self.config.extra_body {
                 map.insert(key.clone(), value.clone());
             }
-            if let Some(thinking) = &self.config.thinking {
-                map.insert("thinking".into(), json!({"type": thinking}));
+            // 方舟的思考开关是专有字段，OpenAI Chat 协议编码器不认识它。
+            if self.config.protocol == LlmProtocol::OpenAiChat
+                && request.thinking.mode != ThinkingMode::Default
+            {
+                let thinking_type = match request.thinking.mode {
+                    ThinkingMode::Enabled => "enabled",
+                    ThinkingMode::Disabled => "disabled",
+                    ThinkingMode::Adaptive => "auto",
+                    ThinkingMode::Default => "enabled",
+                };
+                map.insert("thinking".into(), json!({ "type": thinking_type }));
             }
         }
         Ok(body)
     }
 
-    async fn request(&self, request: &ChatRequest) -> CoreResult<ChatResponse> {
-        let body = self.build_body(request)?;
-        let mut builder = self.http.post(self.url()).json(&body);
+    fn config_thinking(&self) -> ThinkingConfig {
+        ThinkingConfig {
+            mode: match self.config.thinking.as_deref() {
+                Some("enabled") => ThinkingMode::Enabled,
+                Some("disabled") => ThinkingMode::Disabled,
+                Some("auto") => ThinkingMode::Adaptive,
+                _ => ThinkingMode::Default,
+            },
+            effort: self.config.reasoning_effort,
+            budget_tokens: None,
+        }
+    }
+
+    fn request_builder(&self, body: &Value) -> reqwest::RequestBuilder {
+        let mut builder = self.http.post(self.url()).json(body);
         for (name, value) in leo_llm_protocol::auth_headers(self.config.protocol, &self.api_key) {
             builder = builder.header(name, value);
         }
         for (name, value) in &self.config.extra_headers {
             builder = builder.header(name, value);
         }
+        builder
+    }
 
-        let response = builder
+    async fn request(&self, request: &ChatRequest) -> CoreResult<ChatResponse> {
+        let body = self.build_body(request)?;
+        let response = self
+            .request_builder(&body)
             .send()
             .await
             .map_err(|error| plugin_err(format!("请求火山方舟失败：{error}")))?;
@@ -124,6 +160,76 @@ impl VolcengineLlmProvider {
             .map_err(|error| plugin_err(format!("火山方舟响应不是合法 JSON：{error}")))?;
         leo_llm_protocol::decode_response(self.config.protocol, &value)
     }
+
+    async fn request_stream(&self, request: &ChatRequest) -> CoreResult<ChatStream> {
+        let mut streaming = request.clone();
+        streaming.stream = Some(true);
+        let body = self.build_body(&streaming)?;
+        let response = self
+            .request_builder(&body)
+            .send()
+            .await
+            .map_err(|error| plugin_err(format!("请求火山方舟流式接口失败：{error}")))?;
+        let status = response.status();
+        if !status.is_success() {
+            let text = response.text().await.unwrap_or_default();
+            return Err(leo_llm_protocol::decode_error(
+                PLUGIN_ID,
+                self.config.protocol,
+                status.as_u16(),
+                &text,
+            ));
+        }
+
+        let protocol = self.config.protocol;
+        let bytes = response.bytes_stream();
+        let parser = leo_llm_protocol::SseParser::new();
+        let pending: VecDeque<String> = VecDeque::new();
+        let done = false;
+        let stream = futures_util::stream::unfold(
+            (bytes, parser, pending, done),
+            move |(mut bytes, mut parser, mut pending, mut done)| async move {
+                loop {
+                    if let Some(payload) = pending.pop_front() {
+                        if payload.trim() == "[DONE]" {
+                            return None;
+                        }
+                        match leo_llm_protocol::decode_stream_event(protocol, &payload) {
+                            Ok(Some(delta)) => {
+                                return Some((Ok(delta), (bytes, parser, pending, done)));
+                            }
+                            Ok(None) => continue,
+                            Err(error) => {
+                                return Some((Err(error), (bytes, parser, pending, true)));
+                            }
+                        }
+                    }
+                    if done {
+                        return None;
+                    }
+                    match bytes.next().await {
+                        Some(Ok(chunk)) => {
+                            pending.extend(parser.feed(&chunk));
+                        }
+                        Some(Err(error)) => {
+                            return Some((
+                                Err(plugin_err(format!("读取火山方舟流式响应失败：{error}"))),
+                                (bytes, parser, pending, true),
+                            ));
+                        }
+                        None => {
+                            done = true;
+                            pending.extend(parser.finish());
+                            if pending.is_empty() {
+                                return None;
+                            }
+                        }
+                    }
+                }
+            },
+        );
+        Ok(Box::pin(stream))
+    }
 }
 
 #[async_trait]
@@ -141,7 +247,22 @@ impl LlmProvider for VolcengineLlmProvider {
     }
 
     async fn chat(&self, request: &ChatRequest) -> CoreResult<ChatResponse> {
-        self.request(request).await
+        let model = leo_llm_protocol::resolve_model(request.model.as_deref(), &self.config.model)?
+            .to_string();
+        if request.stream.unwrap_or(self.config.stream) {
+            let mut stream = self.request_stream(request).await?;
+            let mut accumulator = ChatResponseAccumulator::new(model);
+            while let Some(item) = stream.next().await {
+                accumulator.push(item?);
+            }
+            Ok(accumulator.finish())
+        } else {
+            self.request(request).await
+        }
+    }
+
+    async fn chat_stream(&self, request: &ChatRequest) -> CoreResult<ChatStream> {
+        self.request_stream(request).await
     }
 }
 

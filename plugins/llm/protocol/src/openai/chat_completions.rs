@@ -40,6 +40,11 @@ pub fn encode_request(request: &ChatRequest, model: &str) -> Value {
     if let Some(format) = chat_response_format(&request.response_format) {
         body.insert("response_format".into(), format);
     }
+    crate::thinking::apply_chat(
+        &mut body,
+        &request.thinking,
+        request.stream.unwrap_or(false),
+    );
     Value::Object(body)
 }
 
@@ -96,6 +101,8 @@ pub fn decode_request(body: &Value) -> CoreResult<ChatRequest> {
             .map(|v| v as u32),
         stop: parse_stop(body.get("stop")),
         response_format: parse_response_format(body.get("response_format")),
+        stream: body.get("stream").and_then(Value::as_bool),
+        thinking: crate::thinking::decode_chat(body),
     })
 }
 
@@ -207,6 +214,7 @@ mod tests {
             max_tokens: Some(2048),
             stop: vec!["\n\n".into()],
             response_format: ResponseFormat::JsonObject,
+            ..Default::default()
         };
         let body = encode_request(&request, "deepseek-chat");
         assert_eq!(body["model"], json!("deepseek-chat"));
@@ -238,6 +246,24 @@ mod tests {
             ResponseFormat::JsonSchema { schema } => assert_eq!(schema["type"], json!("object")),
             other => panic!("unexpected format: {other:?}"),
         }
+    }
+
+    #[test]
+    fn encode_request_maps_stream_and_reasoning_effort() {
+        let request = ChatRequest {
+            messages: vec![ChatMessage::user("你好")],
+            stream: Some(true),
+            thinking: leo_core::spi::ThinkingConfig {
+                mode: leo_core::spi::ThinkingMode::Enabled,
+                effort: Some(leo_core::spi::ReasoningEffort::High),
+                budget_tokens: None,
+            },
+            ..Default::default()
+        };
+        let body = encode_request(&request, "deepseek-chat");
+        assert_eq!(body["stream"], json!(true));
+        assert_eq!(body["stream_options"]["include_usage"], json!(true));
+        assert_eq!(body["reasoning_effort"], json!("high"));
     }
 
     #[test]

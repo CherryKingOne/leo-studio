@@ -212,6 +212,9 @@ pub trait LlmProvider: Send + Sync {
     fn protocol(&self) -> LlmProtocol;
     async fn list_models(&self) -> CoreResult<Vec<ModelInfo>>;
     async fn chat(&self, request: &ChatRequest) -> CoreResult<ChatResponse>;
+
+    /// 默认实现回退到 `chat`，只产出一个增量。
+    async fn chat_stream(&self, request: &ChatRequest) -> CoreResult<ChatStream>;
 }
 ```
 
@@ -236,6 +239,15 @@ pub struct ChatRequest {
     pub max_tokens: Option<u32>,
     pub stop: Vec<String>,
     pub response_format: ResponseFormat,
+    /// None = 用插件配置的默认流式开关
+    pub stream: Option<bool>,
+    pub thinking: ThinkingConfig,
+}
+
+pub struct ThinkingConfig {
+    pub mode: ThinkingMode,                 // Default / Enabled / Disabled / Adaptive
+    pub effort: Option<ReasoningEffort>,    // None / Minimal / Low / Medium / High / XHigh / Max
+    pub budget_tokens: Option<u32>,         // 主要给 Anthropic / 百炼
 }
 
 pub struct ChatMessage {
@@ -251,7 +263,7 @@ pub enum ResponseFormat {
 }
 ```
 
-当前只覆盖文本、非流式对话；不支持 tool / function calling、图片/音频内容块和流式事件。
+覆盖文本、单轮/多轮、流式与非流式对话；不支持 tool / function calling、图片/音频内容块。`stream = None` 时用驱动默认值；`ThinkingConfig::default()` 不覆盖驱动默认。`effort = None` 会在供应商侧归一化成关闭思考。
 
 ### 响应结果
 
@@ -274,9 +286,25 @@ pub struct TokenUsage {
 
 `finish_reason` 归一化为 `stop / length / content_filter / tool_calls / other`。
 
+### 流式增量
+
+```rust
+pub struct ChatDelta {
+    pub content: Option<String>,
+    pub reasoning_content: Option<String>,
+    pub finish_reason: Option<FinishReason>,
+    pub usage: Option<TokenUsage>,
+}
+
+pub type ChatStream = Pin<Box<dyn Stream<Item = CoreResult<ChatDelta>> + Send>>;
+```
+
+`ChatResponseAccumulator` 可以把 `ChatDelta` 序列拼回 `ChatResponse`：文本和思考内容直接拼接，`finish_reason` 取最后一个非空值，`usage` 按字段取最大值合并（兼容 Anthropic `message_start` + `message_delta` 两段式用量）。
+
 ### 实现约定
 
-- 供应商子插件只负责地址、鉴权、模型和供应商专有参数；请求/响应体用 `leo-llm-protocol` 编解码。
-- 注册层 `LlmHub` 负责默认驱动、`驱动id:模型` 路由，以及 `chat_raw(protocol, body)` 协议桥。
+- 供应商子插件只负责地址、鉴权、模型和供应商专有参数；公共协议字段用 `leo-llm-protocol` 编解码，SSE 用它的 `SseParser` / `decode_stream_event`。
+- 思考开关 / 深度的公共档位在 SPI；各供应商能接受什么（`thinking.type`、`reasoning_effort`、`thinking_budget`、`enable_thinking`）由子插件自己映射，注册层和协议库不猜供应商字段。
+- 注册层 `LlmHub` 负责默认驱动、`驱动id:模型` 路由、`chat_stream` 流式入口，以及 `chat_raw(protocol, body)` 一次性协议桥。
 - 协议细节与转换规则见 [llm-protocols.md](./llm-protocols.md)。
 

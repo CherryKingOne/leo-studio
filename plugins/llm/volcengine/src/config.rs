@@ -8,6 +8,8 @@
 //!   "base_url": "https://ark.cn-beijing.volces.com/api/v3",
 //!   "model": "ep-2026xxxxxxxx",
 //!   "thinking": "enabled",
+//!   "reasoning_effort": "high",
+//!   "stream": true,
 //!   "temperature": 0.7,
 //!   "max_tokens": 4096
 //! }
@@ -16,7 +18,7 @@
 use std::collections::BTreeMap;
 
 use leo_core::error::{CoreError, CoreResult};
-use leo_core::spi::LlmProtocol;
+use leo_core::spi::{LlmProtocol, ReasoningEffort};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -32,9 +34,13 @@ pub struct VolcengineConfig {
     pub model: String,
     /// 豆包思考模式：enabled / disabled / auto；不填不传
     pub thinking: Option<String>,
+    /// 思考深度：none / minimal / low / medium / high / xhigh / max
+    pub reasoning_effort: Option<ReasoningEffort>,
     pub temperature: Option<f32>,
     pub top_p: Option<f32>,
     pub max_tokens: Option<u32>,
+    /// 默认是否走 SSE 流式；默认开启
+    pub stream: bool,
     pub timeout_secs: u64,
     /// 额外请求头，例如网关要求的 `OpenAI-Beta: responses=v1`
     pub extra_headers: BTreeMap<String, String>,
@@ -50,9 +56,11 @@ impl Default for VolcengineConfig {
             base_url: "https://ark.cn-beijing.volces.com/api/v3".into(),
             model: String::new(),
             thinking: None,
+            reasoning_effort: None,
             temperature: None,
             top_p: None,
             max_tokens: None,
+            stream: true,
             timeout_secs: 120,
             extra_headers: BTreeMap::new(),
             extra_body: BTreeMap::new(),

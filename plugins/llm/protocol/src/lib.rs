@@ -19,6 +19,10 @@ pub mod convert;
 pub mod endpoint;
 pub mod error;
 pub mod openai;
+pub mod stream;
+pub mod thinking;
+
+pub use stream::{SseParser, decode_stream_event};
 
 pub use endpoint::ANTHROPIC_VERSION;
 use leo_core::error::{CoreError, CoreResult};
