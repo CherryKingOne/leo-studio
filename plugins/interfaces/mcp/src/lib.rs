@@ -3,6 +3,7 @@ pub mod prompts;
 pub mod registry;
 pub mod resources;
 pub mod server;
+pub mod tools;
 
 pub use config::McpSettings;
 pub use server::McpHandler;
@@ -40,7 +41,8 @@ impl Plugin for McpPlugin {
             PluginCategory::Mcp,
         );
         manifest.description =
-            "提供基于 MCP 标准的 AI Agent 工具调用、剧本文档资源与工作流 Prompt 提示词集成。".into();
+            "提供基于 MCP 标准的 AI Agent 工具调用、剧本文档资源与工作流 Prompt 提示词集成。"
+                .into();
         manifest.capabilities = vec![
             "mcp:tools".into(),
             "mcp:resources".into(),

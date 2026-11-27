@@ -49,6 +49,7 @@ impl Plugin for ApiPlugin {
         manifest.capabilities = vec![
             "transport:http".into(),
             "api:projects".into(),
+            "api:characters".into(),
             "api:v3".into(),
         ];
         manifest

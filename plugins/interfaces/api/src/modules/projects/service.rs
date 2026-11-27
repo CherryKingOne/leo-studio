@@ -2,9 +2,9 @@ use std::collections::HashMap;
 
 use chrono::{DateTime, Utc};
 
+use super::storage_compat as text_service;
 use crate::config::Settings;
 use crate::error::{AppError, AppResult};
-use super::storage_compat as text_service;
 use crate::storage::csv_table::{Record, bool_field, int_field, str_field};
 use crate::storage::store::Store;
 use crate::text::parsers::{
@@ -321,7 +321,7 @@ pub fn restore_project(store: &mut Store, project_id: &str) -> AppResult<Project
     })
 }
 
-/// 彻底物理删除项目及其关联的文本文件、章节与切句数据。
+/// 彻底物理删除项目及其关联的文本文件、章节、切句与角色数据。
 pub fn hard_delete_project(store: &mut Store, project_id: &str) -> AppResult<ProjectInfo> {
     let info = get_project(store, project_id, true)?;
     if !info.is_deleted {
@@ -329,6 +329,8 @@ pub fn hard_delete_project(store: &mut Store, project_id: &str) -> AppResult<Pro
             "项目未处于回收站中：{project_id}"
         )));
     }
+    store.characters.delete_by("project_id", project_id);
+    store.save_characters()?;
     store.projects.delete_by("project_id", project_id);
     store.save_projects()?;
 
@@ -352,6 +354,7 @@ pub fn clear_recycle_bin(store: &mut Store) -> AppResult<usize> {
 
     let mut cleared_count = 0;
     for item in items {
+        store.characters.delete_by("project_id", &item.project_id);
         store.projects.delete_by("project_id", &item.project_id);
         if let Err(err) = text_service::delete_file(store, &item.file_id)
             && err.code != crate::error::ErrorCode::FILE_NOT_FOUND
@@ -360,6 +363,7 @@ pub fn clear_recycle_bin(store: &mut Store) -> AppResult<usize> {
         }
         cleared_count += 1;
     }
+    store.save_characters()?;
     store.save_projects()?;
     Ok(cleared_count)
 }

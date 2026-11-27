@@ -1,13 +1,20 @@
 pub mod cli;
+pub mod commands;
+pub mod output;
+pub mod runtime;
 
+use std::path::Path;
 use std::sync::Arc;
 
 use async_trait::async_trait;
+pub use cli::{
+    ChapterCommands, CharacterCommands, Cli, Commands, PolyphoneCommands, ProjectCommands,
+    RecycleBinCommands, execute_cli,
+};
 use leo_core::context::Context;
 use leo_core::error::CoreResult;
-use leo_core::plugin::{Plugin, PluginCategory, PluginManifest, PluginManager};
+use leo_core::plugin::{Plugin, PluginCategory, PluginManager, PluginManifest};
 use leo_plugin_catalog::{HostEnv, PluginsConfig};
-pub use cli::{Cli, Commands, execute_cli};
 
 /// Leo Studio 命令行交互插件
 pub struct CliPlugin;
@@ -34,12 +41,17 @@ impl Plugin for CliPlugin {
             PluginCategory::Cli,
         );
         manifest.description =
-            "提供全功能命令行操作支持，包括小说导入解析、剧本导出、声线查询、章节语音合成与工程管理。".into();
+            "提供 v3 项目、章节、角色、多音字、回收站管理命令，并保留 AST 导入导出与语音生产命令。"
+                .into();
         manifest.capabilities = vec![
+            "cli:projects".into(),
+            "cli:chapters".into(),
+            "cli:characters".into(),
+            "cli:polyphones".into(),
+            "cli:recycle-bin".into(),
             "cli:import".into(),
             "cli:export".into(),
             "cli:synthesize".into(),
-            "cli:management".into(),
         ];
         manifest
     }
@@ -55,7 +67,9 @@ impl Plugin for CliPlugin {
 /// 插件列表来自 leo-plugin-catalog（启用 / 停用、默认驱动见 `leo-plugins.json`），CLI 本身不认识具体插件。
 pub async fn setup_cli_runtime(data_dir: &str) -> CoreResult<(Context, Arc<PluginManager>)> {
     let config = PluginsConfig::load(None)?;
-    let env = HostEnv { csv_dir: data_dir.into() };
+    let env = HostEnv {
+        csv_dir: Path::new(data_dir).join(".leo-studio"),
+    };
     let ctx = Context::new("leo_cli");
     let manager = Arc::new(PluginManager::new());
     manager.register(Arc::new(CliPlugin::new())).await?;

@@ -11,6 +11,7 @@ path = "src/main.rs"
 
 [dependencies]
 leo-core = { path = "../../../core" }
+leo-plugin-api = { path = "../api" }
 leo-plugin-catalog = { path = "../../catalog" }
 # 接口层只依赖各注册层，不依赖具体子插件
 leo-plugin-text = { path = "../../text/registry" }

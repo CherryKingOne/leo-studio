@@ -2,6 +2,9 @@ use rmcp::model::{GetPromptResult, Prompt, PromptArgument, PromptMessage, Role};
 use serde_json::Value;
 
 use leo_plugin_api::error::AppError;
+use leo_plugin_api::modules::projects::characters::service::{
+    self as character_service, CharacterListFilter,
+};
 use leo_plugin_api::modules::projects::service as project_service;
 
 use super::server::McpHandler;
@@ -25,6 +28,11 @@ pub fn list() -> Vec<Prompt> {
             "leo_import_novel",
             Some("把一段小说正文导入为新剧目，并汇报分章结果。"),
             Some(vec![argument("name", "剧目名称", false)]),
+        ),
+        Prompt::new(
+            "leo_character_overview",
+            Some("汇总指定剧目中的角色档案、类型、状态与标签。"),
+            Some(vec![argument("project_id", "剧目 ID", true)]),
         ),
         Prompt::new(
             "leo_chapter_digest",
@@ -66,12 +74,29 @@ pub async fn render(
                         project_id,
                         false,
                     )?;
+                    let filter = CharacterListFilter {
+                        keyword: None,
+                        gender: None,
+                        role_type: None,
+                        status: None,
+                        tag: None,
+                    };
+                    let (_, character_total) = character_service::list_characters(
+                        &*handler.store.lock().await,
+                        project_id,
+                        1,
+                        1,
+                        "created_at",
+                        "desc",
+                        &filter,
+                    )?;
                     format!(
-                        "当前剧目：{}（{}）\n状态：{}\n章节：{}\n总字数：{}\n创建于：{}\n更新时间：{}\n\n请基于以上信息总结进度，并给出下一步建议（例如追更、标多音字、删改章节）。",
+                        "当前剧目：{}（{}）\n状态：{}\n章节：{}\n角色：{}\n总字数：{}\n创建于：{}\n更新时间：{}\n\n请基于以上信息总结进度，并给出下一步建议（例如追更、维护角色、标多音字、删改章节）。",
                         info.name,
                         info.project_id,
                         info.status,
                         info.chapter_count,
+                        character_total,
                         info.total_words,
                         info.created_at,
                         info.updated_at
@@ -91,6 +116,38 @@ pub async fn render(
                  如果章节与预期不符，不要直接覆盖；改用 leo_append_chapters 并先以 dry_run=true 预检。"
             )
         }
+        "leo_character_overview" => {
+            let project_id = req_arg(args, "project_id")?;
+            let filter = CharacterListFilter {
+                keyword: None,
+                gender: None,
+                role_type: None,
+                status: None,
+                tag: None,
+            };
+            let (items, total) = character_service::list_characters(
+                &*handler.store.lock().await,
+                &project_id,
+                1,
+                100,
+                "name",
+                "asc",
+                &filter,
+            )?;
+            let mut lines = vec![format!("剧目角色总数：{total}")];
+            for item in items {
+                lines.push(format!(
+                    "- {}（{}）：{} / {} / {}",
+                    item.name,
+                    item.character_id,
+                    item.role_type,
+                    item.status,
+                    item.tags.join(", ")
+                ));
+            }
+            lines.push("\n请总结主要角色、角色类型分布、归档角色和标签规律。".to_string());
+            lines.join("\n")
+        }
         "leo_chapter_digest" => {
             let project_id = req_arg(args, "project_id")?;
             let chapter_id = req_arg(args, "chapter_id")?;
@@ -102,7 +159,7 @@ pub async fn render(
             format!(
                 "章节：{}（第 {} 章，{} 字，{} 句）\n\n请阅读 leo_get_chapter 返回的正文与逐句，输出：\n\
                  1. 本章剧情摘要（不超过 200 字）；\n\
-                 2. 出场人物与关系变化；\n\
+                 2. 出场人物与关系变化，并对照 leo_list_characters 的角色档案；\n\
                  3. 可能影响配音的多音字/异读词（给出 char_index 与建议拼音）；\n\
                  4. 需要作者确认的疑点。\n\
                  章节 ID：{project_id}/{chapter_id}",

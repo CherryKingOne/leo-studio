@@ -55,8 +55,9 @@ impl ServerHandler for McpHandler {
         )
         .with_server_info(Implementation::new("leo-studio", env!("CARGO_PKG_VERSION")))
         .with_instructions(
-            "Leo Studio 的 MCP 服务：查询与制作有声书剧目、章节、切句与多音字标注。\n\
-             只读工具默认可用；写入与破坏性工具需服务端开启对应开关。\n\
+            "Leo Studio 的 MCP 服务：查询与制作有声书剧目、项目章节、角色档案、切句与多音字标注。\n\
+             只读工具默认可用；写入与破坏性工具需服务端开启对应开关，破坏性操作必须 confirm=true。\n\
+             多音字工具必须同时提供 project_id、chapter_id、sentence_id。\n\
              大数据优先使用 leo_get_chapter 的 max_chars 截断或 leo_search_chapters 定位。",
         )
     }

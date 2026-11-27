@@ -61,6 +61,21 @@ const POLYPHONE_HEADERS: &[&str] = &[
     "updated_at",
 ];
 
+const NOVEL_CHARACTER_HEADERS: &[&str] = &[
+    "character_id",
+    "project_id",
+    "name",
+    "aliases_json",
+    "gender",
+    "age",
+    "role_type",
+    "status",
+    "description",
+    "tags_json",
+    "created_at",
+    "updated_at",
+];
+
 const PROJECT_HEADERS: &[&str] = &[
     "project_id",
     "name",
@@ -75,7 +90,7 @@ const PROJECT_HEADERS: &[&str] = &[
     "deleted_at",
 ];
 
-/// 业务数据存储：五张 CSV 表 + 上传目录。
+/// 业务数据存储：六张 CSV 表 + 上传目录。
 pub struct Store {
     pub upload_dir: PathBuf,
     pub csv_dir: PathBuf,
@@ -84,6 +99,7 @@ pub struct Store {
     pub sentences: CsvTable,
     pub dialogues: CsvTable,
     pub polyphones: CsvTable,
+    pub characters: CsvTable,
     pub projects: CsvTable,
 }
 
@@ -98,6 +114,7 @@ impl Store {
             &settings.novel_sentences_csv_filename,
             &settings.novel_dialogues_csv_filename,
             &settings.novel_polyphones_csv_filename,
+            &settings.novel_characters_csv_filename,
         )
     }
 
@@ -111,6 +128,7 @@ impl Store {
         sentences_filename: &str,
         dialogues_filename: &str,
         polyphones_filename: &str,
+        characters_filename: &str,
     ) -> AppResult<Self> {
         std::fs::create_dir_all(&upload_dir).map_err(|err| storage_io("创建上传目录失败", err))?;
         std::fs::create_dir_all(&csv_dir).map_err(|err| storage_io("创建 CSV 目录失败", err))?;
@@ -121,6 +139,7 @@ impl Store {
             sentences: CsvTable::open(csv_dir.join(sentences_filename), SENTENCE_HEADERS)?,
             dialogues: CsvTable::open(csv_dir.join(dialogues_filename), DIALOGUE_HEADERS)?,
             polyphones: CsvTable::open(csv_dir.join(polyphones_filename), POLYPHONE_HEADERS)?,
+            characters: CsvTable::open(csv_dir.join(characters_filename), NOVEL_CHARACTER_HEADERS)?,
             projects: CsvTable::open(csv_dir.join(PROJECTS_FILENAME), PROJECT_HEADERS)?,
             upload_dir,
             csv_dir,
@@ -152,6 +171,10 @@ impl Store {
         self.polyphones.save()
     }
 
+    pub fn save_characters(&self) -> AppResult<()> {
+        self.characters.save()
+    }
+
     pub fn save_projects(&self) -> AppResult<()> {
         self.projects.save()
     }
@@ -162,6 +185,7 @@ impl Store {
         self.save_sentences()?;
         self.save_dialogues()?;
         self.save_polyphones()?;
+        self.save_characters()?;
         self.save_projects()
     }
 }

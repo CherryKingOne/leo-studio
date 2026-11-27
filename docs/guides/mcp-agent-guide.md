@@ -4,6 +4,8 @@
 
 Leo Studio 内置了工业级的 MCP 服务插件（`leo-plugin-mcp`），通过标准的 **Streamable HTTP** 协议承载，为 AI Agent 提供了完整的有声剧编排与制作能力。
 
+> v3 工具名称、参数类型、输出模型与破坏性操作约束见 [MCP 工具目录](../mcp/tools.md)。
+
 ---
 
 ## 1. 启动 MCP 服务

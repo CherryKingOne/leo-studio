@@ -250,6 +250,7 @@ async fn polyphone_round_trip_and_destructive_confirm() {
         "leo_save_sentence_polyphones",
         json!({
             "project_id": project_id,
+            "chapter_id": chapter_id,
             "sentence_id": sentence_id,
             "annotations": [{
                 "char_index": 0,
@@ -266,7 +267,7 @@ async fn polyphone_round_trip_and_destructive_confirm() {
     let listed = call(
         &handler,
         "leo_get_sentence_polyphones",
-        json!({ "project_id": project_id, "sentence_id": sentence_id }),
+        json!({ "project_id": project_id, "chapter_id": chapter_id, "sentence_id": sentence_id }),
     )
     .await;
     assert_eq!(listed["items"][0]["pinyin"], "hang");
@@ -274,7 +275,7 @@ async fn polyphone_round_trip_and_destructive_confirm() {
     let cleared = call(
         &handler,
         "leo_clear_sentence_polyphones",
-        json!({ "project_id": project_id, "sentence_id": sentence_id }),
+        json!({ "project_id": project_id, "chapter_id": chapter_id, "sentence_id": sentence_id, "confirm": true }),
     )
     .await;
     assert!(cleared["deleted_count"].as_i64().unwrap() >= 1);

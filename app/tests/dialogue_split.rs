@@ -227,6 +227,7 @@ fn test_store(dir: &Path) -> (Settings, Store) {
         &settings.novel_sentences_csv_filename,
         &settings.novel_dialogues_csv_filename,
         &settings.novel_polyphones_csv_filename,
+        &settings.novel_characters_csv_filename,
     )
     .expect("初始化 Store 失败");
     (settings, store)

@@ -2,6 +2,9 @@ use rmcp::model::{ReadResourceResult, Resource, ResourceContents, ResourceTempla
 use serde_json::json;
 
 use leo_plugin_api::error::AppError;
+use leo_plugin_api::modules::projects::characters::service::{
+    self as character_service, CharacterListFilter,
+};
 use leo_plugin_api::modules::projects::service as project_service;
 
 use super::server::McpHandler;
@@ -38,6 +41,16 @@ pub fn templates() -> Vec<ResourceTemplate> {
             .with_mime_type("application/json"),
         ResourceTemplate::new("leo://projects/{project_id}/chapters", "project-chapters")
             .with_mime_type("application/json"),
+        ResourceTemplate::new(
+            "leo://projects/{project_id}/characters",
+            "project-characters",
+        )
+        .with_mime_type("application/json"),
+        ResourceTemplate::new(
+            "leo://projects/{project_id}/characters/{character_id}",
+            "character",
+        )
+        .with_mime_type("application/json"),
         ResourceTemplate::new(
             "leo://projects/{project_id}/chapters/{chapter_id}",
             "chapter",
@@ -114,6 +127,42 @@ pub async fn read(handler: &McpHandler, uri: &str) -> Result<ReadResourceResult,
                 "items": items
             }))
             .map_err(|err| AppError::internal(format!("序列化资源失败：{err}")))?;
+            Ok(contents(body, uri, "application/json"))
+        }
+        ["projects", project_id, "characters"] => {
+            let filter = CharacterListFilter {
+                keyword: None,
+                gender: None,
+                role_type: None,
+                status: None,
+                tag: None,
+            };
+            let (items, total) = character_service::list_characters(
+                &*handler.store.lock().await,
+                project_id,
+                1,
+                100,
+                "created_at",
+                "desc",
+                &filter,
+            )?;
+            let body = serde_json::to_string_pretty(&json!({
+                "project_id": project_id,
+                "total": total,
+                "returned": items.len(),
+                "items": items
+            }))
+            .map_err(|err| AppError::internal(format!("序列化资源失败：{err}")))?;
+            Ok(contents(body, uri, "application/json"))
+        }
+        ["projects", project_id, "characters", character_id] => {
+            let info = character_service::get_character(
+                &*handler.store.lock().await,
+                project_id,
+                character_id,
+            )?;
+            let body = serde_json::to_string_pretty(&info)
+                .map_err(|err| AppError::internal(format!("序列化资源失败：{err}")))?;
             Ok(contents(body, uri, "application/json"))
         }
         ["projects", project_id, "chapters", chapter_id] => {
