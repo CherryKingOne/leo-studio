@@ -18,6 +18,9 @@ async fn test_csv_storage_plugin_full_cycle() {
     // 挂载插件
     plugin.apply(&ctx).await.unwrap();
 
+    // 仅初始化存储时不应创建音频目录
+    assert!(!data_dir.join("audio").exists());
+
     let storage = ctx.registry::<dyn StorageProvider>().get("csv").expect("驱动未注册");
 
     // 构造测试用的 AST 剧本

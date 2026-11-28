@@ -1,4 +1,3 @@
-use std::fs;
 use std::path::PathBuf;
 use std::sync::Arc;
 use tokio::sync::RwLock;
@@ -17,7 +16,6 @@ use crate::table::{CsvTable, Record, int_field, str_field};
 
 pub struct CsvStorageService {
     base_dir: PathBuf,
-    audio_dir: PathBuf,
     tables: Arc<RwLock<CsvTables>>,
 }
 
@@ -32,11 +30,6 @@ struct CsvTables {
 
 impl CsvStorageService {
     pub fn new(base_dir: PathBuf) -> CoreResult<Self> {
-        let audio_dir = base_dir.join("audio").join("clips");
-        fs::create_dir_all(&audio_dir).map_err(|e| {
-            CoreError::Storage(format!("创建音频目录 {:?} 失败: {e}", audio_dir))
-        })?;
-
         let tables = CsvTables {
             novels: CsvTable::open(base_dir.join("novels.csv"), NOVEL_HEADERS)?,
             contents: CsvTable::open(base_dir.join("novel_contents.csv"), CONTENT_HEADERS)?,
@@ -48,7 +41,6 @@ impl CsvStorageService {
 
         Ok(Self {
             base_dir,
-            audio_dir,
             tables: Arc::new(RwLock::new(tables)),
         })
     }
@@ -387,9 +379,13 @@ impl StorageProvider for CsvStorageService {
         format: AudioFormat,
     ) -> CoreResult<AudioClipRef> {
         let filename = format!("{clip_id}.{}", format.extension());
-        let full_path = self.audio_dir.join(&filename);
+        let audio_dir = self.base_dir.join("audio").join("clips");
+        let full_path = audio_dir.join(&filename);
         let relative_key = format!("audio/clips/{filename}");
 
+        tokio::fs::create_dir_all(&audio_dir).await.map_err(|err| {
+            CoreError::Storage(format!("创建音频目录 {:?} 失败: {err}", audio_dir))
+        })?;
         tokio::fs::write(&full_path, data).await.map_err(|err| {
             CoreError::Storage(format!("写入音频文件 {:?} 失败: {err}", full_path))
         })?;
